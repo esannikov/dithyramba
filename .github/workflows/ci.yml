@@ -34,8 +34,14 @@ jobs:
 
       - name: Verify toolchain pins
         run: |
-          test "$(uv --version | awk '{print $2}')" = "$UV_VERSION"
-          test "$(python -c 'import platform; print(platform.python_version())')" = "$PYTHON_VERSION"
+          uv_actual="$(uv --version | awk '{print $2}')"
+          python_bin="$(uv python find "$PYTHON_VERSION")"
+          python_actual="$("$python_bin" -c 'import platform; print(platform.python_version())')"
+          printf 'uv=%s (expected %s)\n' "$uv_actual" "$UV_VERSION"
+          printf 'python=%s (expected %s; executable %s)\n' \
+            "$python_actual" "$PYTHON_VERSION" "$python_bin"
+          test "$uv_actual" = "$UV_VERSION"
+          test "$python_actual" = "$PYTHON_VERSION"
           uv lock --check
 
       - name: Audit release surface
