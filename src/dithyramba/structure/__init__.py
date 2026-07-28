@@ -1,0 +1,61 @@
+"""Explicit StructureUnit contracts and persistence."""
+
+from .errors import (
+    StructureAuthorizationError,
+    StructureContractError,
+    StructureError,
+    StructureIntegrityError,
+    StructureNotFoundError,
+)
+from .generation import (
+    DEFAULT_MARKDOWN_STRUCTURE_PROFILE,
+    MarkdownFragmentDescriptor,
+    MarkdownStructureGenerationResult,
+    MarkdownStructureProfile,
+    MarkdownStructureProposalBuild,
+    StructureGenerationBuildStatus,
+    StructureInputExclusion,
+    StructureInputExclusionReason,
+    StructureProposalOmission,
+    StructureProposalOmissionReason,
+    build_markdown_structure_proposals,
+)
+from .models import (
+    StructureGeneration,
+    StructureGenerationRequest,
+    StructureReadReceipt,
+    StructureReadReceiptItem,
+    StructureUnit,
+    StructureUnitKind,
+    StructureUnitMember,
+    StructureUnitProposal,
+    StructureUnitText,
+)
+
+__all__ = [
+    "DEFAULT_MARKDOWN_STRUCTURE_PROFILE",
+    "MarkdownFragmentDescriptor",
+    "MarkdownStructureGenerationResult",
+    "MarkdownStructureProfile",
+    "MarkdownStructureProposalBuild",
+    "StructureAuthorizationError",
+    "StructureContractError",
+    "StructureError",
+    "StructureGeneration",
+    "StructureGenerationBuildStatus",
+    "StructureGenerationRequest",
+    "StructureInputExclusion",
+    "StructureInputExclusionReason",
+    "StructureIntegrityError",
+    "StructureNotFoundError",
+    "StructureProposalOmission",
+    "StructureProposalOmissionReason",
+    "StructureReadReceipt",
+    "StructureReadReceiptItem",
+    "StructureUnit",
+    "StructureUnitKind",
+    "StructureUnitMember",
+    "StructureUnitProposal",
+    "StructureUnitText",
+    "build_markdown_structure_proposals",
+]

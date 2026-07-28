@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Dithyramba Flow</title>
+    <link rel="stylesheet" href="/flow-view.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#flow-map">До схеми</a>
+    <header class="flow-header">
+      <a class="flow-wordmark" href="/">
+        <span class="wordmark-mark" aria-hidden="true">D</span>
+        <span>Dithyramba <strong>Flow</strong></span>
+      </a>
+      <p>Основний шлях даних у памʼяті</p>
+      <span class="mode-chip"><i aria-hidden="true"></i> схема · не live</span>
+    </header>
+
+    <main>
+      <section class="flow-intro" aria-labelledby="flow-title">
+        <div>
+          <h1 id="flow-title">Від джерела до перевіреної памʼяті</h1>
+          <p>
+            Товсті лінії показують головний маршрут. Якщо доказу бракує,
+            система не домислює відповідь, а повертає досліднику явну прогалину.
+          </p>
+        </div>
+        <p class="interaction-hint">Натисніть етап, щоб прочитати одне коротке пояснення.</p>
+      </section>
+
+      <section class="flow-shell" id="flow-map" aria-label="Основний потік Dithyramba">
+        <div class="flow-canvas">
+          <svg viewBox="0 0 1454 600" role="img" aria-labelledby="diagram-title diagram-description">
+            <title id="diagram-title">Потік даних у Dithyramba</title>
+            <desc id="diagram-description">
+              Джерела надходять у локальну бібліотеку. Питання спрямовує пошук.
+              Пошук формує пакет доказів, перевірка розділяє достатні опори та
+              прогалини, після чого результат повертається досліднику через Lens.
+            </desc>
+
+            <g class="flow-links" aria-hidden="true">
+              {% for link in links %}
+                <path
+                  class="flow-link kind-{{ link.kind }} weight-{{ link.weight }}{% if selected %}{% if link.link_id in active_link_ids %} is-active{% else %} is-muted{% endif %}{% endif %}"
+                  d="{{ link.path }}"
+                >
+                  <title>{{ link.label }}</title>
+                </path>
+              {% endfor %}
+            </g>
+
+            <g class="flow-nodes">
+              {% for item in nodes %}
+                <a
+                  class="flow-node node-{{ item.kind }}{% if selected and selected.node_id == item.node_id %} is-selected{% endif %}"
+                  href="/?node={{ item.node_id }}"
+                  aria-label="{{ item.label }}: {{ item.subtitle }}"
+                >
+                  <rect x="{{ item.x }}" y="{{ item.y }}" width="{{ item.width }}" height="{{ item.height }}" rx="12"></rect>
+                  <text class="node-label" x="{{ item.x + 18 }}" y="{{ item.y + 32 }}">
+                    {% for line in item.label_lines %}
+                      <tspan x="{{ item.x + 18 }}" dy="{% if loop.first %}0{% else %}23{% endif %}">{{ line }}</tspan>
+                    {% endfor %}
+                  </text>
+                  <text class="node-subtitle" x="{{ item.x + 18 }}" y="{{ item.y + item.height - 17 }}">{{ item.subtitle }}</text>
+                </a>
+              {% endfor %}
+            </g>
+          </svg>
+
+          <ol class="flow-mobile-list">
+            {% for item in nodes %}
+              <li class="node-{{ item.kind }}{% if selected and selected.node_id == item.node_id %} is-selected{% endif %}">
+                <a href="/?node={{ item.node_id }}">
+                  <strong>{{ item.label }}</strong>
+                  <span>{{ item.subtitle }}</span>
+                </a>
+              </li>
+            {% endfor %}
+          </ol>
+        </div>
+
+        <aside class="flow-inspector" aria-live="polite">
+          {% if selected %}
+            <a class="inspector-close" href="/" aria-label="Закрити пояснення">×</a>
+            <p class="inspector-kind">Обраний етап</p>
+            <h2>{{ selected.label }}</h2>
+            <p class="inspector-explanation">{{ selected.explanation }}</p>
+            <dl>
+              <div><dt>Отримує</dt><dd>{{ selected.receives }}</dd></div>
+              <div><dt>Передає</dt><dd>{{ selected.passes }}</dd></div>
+            </dl>
+          {% else %}
+            <p class="inspector-kind">Як читати схему</p>
+            <h2>Два чесні фінали</h2>
+            <p class="inspector-explanation">
+              Достатня опора переходить у перевірену памʼять. Неповна опора
+              лишається видимою прогалиною у Lens.
+            </p>
+            <dl>
+              <div><dt>Зелений шлях</dt><dd>доказів достатньо</dd></div>
+              <div><dt>Кораловий шлях</dt><dd>потрібне додаткове джерело</dd></div>
+            </dl>
+          {% endif %}
+        </aside>
+      </section>
+
+      <p class="flow-note">
+        Екран пояснює архітектуру й нічого не запускає. Фактичний live-прогрес
+        зʼявиться лише з підтвердженою трасою конкретної операції.
+      </p>
+    </main>
+  </body>
+</html>

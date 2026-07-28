@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Library · Dithyramba</title>
+  </head>
+  <body>
+    <main aria-labelledby="library-title">
+      <h1 id="library-title">{{ library.name }}</h1>
+      <dl id="library-identity">
+        <dt>Library ID</dt>
+        <dd>{{ library.library_id }}</dd>
+        <dt>Logical identity hash</dt>
+        <dd>{{ library.logical_identity_hash }}</dd>
+      </dl>
+
+      <section aria-labelledby="collections-title">
+        <h2 id="collections-title">Collections</h2>
+        {% if collections %}
+          <ul id="collection-list">
+            {% for collection in collections %}
+              <li data-collection-id="{{ collection.collection_id }}">
+                {{ collection.name }} — {{ collection.kind.value }}
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p>No Collections.</p>
+        {% endif %}
+      </section>
+    </main>
+  </body>
+</html>

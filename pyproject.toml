@@ -1,0 +1,141 @@
+[build-system]
+requires = ["hatchling==1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "dithyramba"
+version = "0.1.0rc0"
+description = "A local, source-grounded interpretive memory engine."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "Eugene Sannikov" }]
+keywords = ["memory", "provenance", "research", "retrieval", "sqlite"]
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "Environment :: Console",
+  "Operating System :: MacOS",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Typing :: Typed",
+]
+dependencies = [
+  "defusedxml==0.7.1",
+  "fastapi==0.139.2",
+  "jinja2==3.1.6",
+  "pdfplumber==0.11.10",
+  "platformdirs>=4.3,<5",
+  "pydantic>=2.10,<3",
+  "typer>=0.15,<1",
+  "uvicorn==0.51.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/esannikov/dithyramba"
+Repository = "https://github.com/esannikov/dithyramba"
+Issues = "https://github.com/esannikov/dithyramba/issues"
+
+[project.optional-dependencies]
+semantic = [
+  "sentence-transformers==5.6.0",
+]
+
+[project.scripts]
+dithyramba = "dithyramba.cli:app"
+check = "dithyramba.tooling.checks:main"
+
+[dependency-groups]
+dev = [
+  "build>=1.2,<2",
+  "hypothesis>=6.125,<7",
+  "httpx>=0.28,<1",
+  "mypy>=1.14,<2",
+  "pip-audit>=2.8,<3",
+  "playwright==1.61.0",
+  "pytest>=9.0.3,<10",
+  "pytest-cov>=6,<7",
+  "ruff>=0.9,<1",
+]
+
+[tool.uv]
+required-version = "==0.6.14"
+
+[tool.hatch.build]
+ignore-vcs = true
+skip-excluded-dirs = true
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+  "/.coverage*",
+  "/.DS_Store",
+  "/.agent",
+  "/.env*",
+  "/.git",
+  "/.github",
+  "/.hypothesis",
+  "/.idea",
+  "/.mypy_cache",
+  "/.pytest_cache",
+  "/.ruff_cache",
+  "/.uv-cache",
+  "/.venv",
+  "/.vscode",
+  "/artifacts",
+  "/auth.json",
+  "/backups",
+  "/build",
+  "/credentials.json",
+  "/data",
+  "/dist",
+  "/htmlcov",
+  "/models",
+  "**/__pycache__",
+  "**/*.egg-info",
+  "**/*.key",
+  "**/*.pem",
+  "**/*.py[cod]",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dithyramba"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["dithyramba"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unreachable = true
+pretty = true
+show_error_codes = true
+mypy_path = "src"
+
+[tool.pytest.ini_options]
+addopts = "--strict-config --strict-markers --cov=dithyramba --cov-report=term-missing --cov-report=json:artifacts/coverage.json --cov-fail-under=95"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["dithyramba"]
+
+[tool.coverage.report]
+precision = 2
+show_missing = true
+skip_covered = true
+exclude_also = [
+  "if TYPE_CHECKING:",
+  "if __name__ == .__main__.:",
+]

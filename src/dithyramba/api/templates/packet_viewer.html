@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>EvidencePacket · Dithyramba</title>
+  </head>
+  <body>
+    <main aria-labelledby="packet-title">
+      <h1 id="packet-title">EvidencePacket</h1>
+      <dl id="packet-identity">
+        <dt>EvidencePacket ID</dt>
+        <dd>{{ packet.evidence_packet_id }}</dd>
+        <dt>Packet hash</dt>
+        <dd>{{ packet.packet_hash }}</dd>
+        <dt>Result status</dt>
+        <dd>{{ packet.result_status.value }}</dd>
+        <dt>Candidate status</dt>
+        <dd id="candidate-status">{{ status.candidate_status }}</dd>
+        <dt>Review status</dt>
+        <dd id="review-status">{{ status.review_status }}</dd>
+      </dl>
+      <p>Review decisions remain scoped by authority, use, and Collections.</p>
+
+      <section aria-labelledby="evidence-title">
+        <h2 id="evidence-title">Evidence</h2>
+        {% if items %}
+          <ol id="evidence-list">
+            {% for item in items %}
+              <li data-source-fragment-id="{{ item.fragment.source_fragment_id }}">
+                <p>
+                  <a
+                    data-source-chip="true"
+                    href="{{ item.chip.viewer_url }}"
+                  >Open exact SourceFragment {{ item.fragment.source_fragment_id }}</a>
+                </p>
+                <dl>
+                  <dt>Source</dt>
+                  <dd>{{ item.chip.source_id }}</dd>
+                  <dt>SourceVersion</dt>
+                  <dd>{{ item.chip.source_version_id }}</dd>
+                  <dt>SourceFamily</dt>
+                  <dd>{{ item.chip.source_family_id }}</dd>
+                  <dt>Root Source</dt>
+                  <dd>{{ item.chip.root_source_id }}</dd>
+                  <dt>Family role</dt>
+                  <dd>{{ item.chip.family_role }}</dd>
+                  <dt>Text SHA-256</dt>
+                  <dd>{{ item.fragment.text_sha256 }}</dd>
+                </dl>
+                <blockquote>{{ item.fragment.text }}</blockquote>
+              </li>
+            {% endfor %}
+          </ol>
+        {% else %}
+          <p>No evidence fragments were selected.</p>
+        {% endif %}
+      </section>
+
+      <section aria-labelledby="reviews-title">
+        <h2 id="reviews-title">Review decisions</h2>
+        {% if decisions %}
+          <ul id="review-list">
+            {% for decision in decisions %}
+              <li data-review-decision-id="{{ decision.review_decision_id }}">
+                {{ decision.action.value }} by {{ decision.authority }}
+                for {{ decision.scope.use }}
+                <pre>{{ decision.reason }}</pre>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p>No ReviewDecisions.</p>
+        {% endif %}
+      </section>
+    </main>
+  </body>
+</html>

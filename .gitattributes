@@ -1,0 +1,16 @@
+* text=auto eol=lf
+*.cff text eol=lf
+*.py text eol=lf
+*.sh text eol=lf
+*.toml text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.gz binary
+*.png binary
+*.pdf binary
+*.sqlite binary
+*.sqlite3 binary
+*.whl binary
+*.woff binary
+*.woff2 binary
+*.zip binary

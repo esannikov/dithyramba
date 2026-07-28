@@ -1,0 +1,153 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UV_VERSION: "0.6.14"
+  PYTHON_VERSION: "3.11.12"
+
+jobs:
+  quality:
+    name: Quality and sdist-to-wheel closure
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Install pinned uv and Python
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+
+      - name: Verify toolchain pins
+        run: |
+          test "$(uv --version | awk '{print $2}')" = "$UV_VERSION"
+          test "$(python -c 'import platform; print(platform.python_version())')" = "$PYTHON_VERSION"
+          uv lock --check
+
+      - name: Audit release surface
+        run: python scripts/release_audit.py
+
+      - name: Install locked development environment
+        run: uv sync --frozen --dev --python "$PYTHON_VERSION"
+
+      - name: Run canonical checks
+        run: uv run --frozen check
+
+      - name: Build sdist, then wheel from that sdist
+        run: |
+          mkdir -p dist
+          uv build --sdist --no-sources --python "$PYTHON_VERSION" --out-dir dist .
+          uv build --wheel --no-sources --python "$PYTHON_VERSION" --out-dir dist dist/*.tar.gz
+
+      - name: Inspect exact distribution closure
+        run: |
+          uv run --frozen python scripts/inspect_distribution.py \
+            --source-root . dist/*.whl dist/*.tar.gz
+          sha256sum dist/*.whl dist/*.tar.gz | tee dist/SHA256SUMS
+
+      - name: Smoke-test the noneditable wheel
+        run: |
+          runtime="$RUNNER_TEMP/dithyramba-runtime"
+          UV_PROJECT_ENVIRONMENT="$runtime" uv sync \
+            --frozen --no-dev --no-install-project --no-build \
+            --python "$PYTHON_VERSION"
+          uv pip install --python "$runtime/bin/python" --no-deps --no-build dist/*.whl
+          uv pip check --python "$runtime/bin/python"
+          cd "$RUNNER_TEMP"
+          env -u PYTHONPATH "$runtime/bin/python" - <<'PY'
+          import importlib.resources as resources
+          import sys
+          from pathlib import Path
+
+          import dithyramba
+
+          package = Path(dithyramba.__file__).resolve()
+          assert Path(sys.prefix).resolve() in package.parents
+          assert resources.files("dithyramba.store.sql").joinpath(
+              "0009_source_identity_manifest.sql"
+          ).is_file()
+          print(dithyramba.__version__)
+          PY
+
+      - name: Minimize uv cache
+        if: always()
+        run: uv cache prune --ci
+
+  macos:
+    name: macOS artifact and PDF route
+    runs-on: macos-15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Install pinned uv and Python
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+
+      - name: Run clean-install quick acceptance
+        run: bash scripts/acceptance.sh --quick
+
+      - name: Exercise the real macOS PDF subprocess
+        run: |
+          uv sync --frozen --dev --python "$PYTHON_VERSION"
+          uv run --frozen python -m pytest \
+            tests/unit/test_p2_parsers.py::test_pdf_is_parsed_out_of_process_with_word_union_bbox \
+            --no-cov -q -rA -p no:cacheprovider | tee "$RUNNER_TEMP/pdf-test.log"
+          if grep -Eiq '(^|[[:space:]])[0-9]+ skipped' "$RUNNER_TEMP/pdf-test.log"; then
+            echo "PDF subprocess acceptance was skipped" >&2
+            exit 1
+          fi
+
+      - name: Minimize uv cache
+        if: always()
+        run: uv cache prune --ci
+
+  browser:
+    name: Chromium surfaces with zero skips
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Install pinned uv and Python
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+
+      - name: Install locked development environment
+        run: uv sync --frozen --dev --python "$PYTHON_VERSION"
+
+      - name: Install Chromium
+        run: uv run --frozen playwright install --with-deps chromium
+
+      - name: Exercise browser surfaces without skips
+        run: |
+          uv run --frozen python -m pytest tests/browser --no-cov -q -rA -p no:cacheprovider \
+            | tee "$RUNNER_TEMP/browser-tests.log"
+          if grep -Eiq '(^|[[:space:]])[0-9]+ skipped' "$RUNNER_TEMP/browser-tests.log"; then
+            echo "Browser acceptance contained a skip" >&2
+            exit 1
+          fi
+
+      - name: Minimize uv cache
+        if: always()
+        run: uv cache prune --ci

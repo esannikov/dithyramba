@@ -1,0 +1,203 @@
+# How Dithyramba turns sources into research memory
+
+## The simple idea
+
+A normal file search answers: “Where do these words occur?”
+
+Dithyramba tries to preserve a longer chain:
+
+```text
+question
+  → candidate passage
+  → exact source and address
+  → evidence requirement it satisfies
+  → supported conclusion or explicit gap
+  → human decision and later reuse
+```
+
+That chain is why the system is a memory rather than a search preset. It keeps
+the source, the relation between source and conclusion, the context in which
+the relation was accepted, and the history needed to replay or challenge it.
+
+## The smallest useful unit
+
+The authoritative atom is not an embedding and not a generated summary. It is
+an exact `SourceFragment` belonging to an immutable `SourceVersion`, with a
+`SourceAddress` that lets a person reopen the passage.
+
+A fragment can participate in larger objects:
+
+- a `Statement` says what a source, researcher, or system asserts;
+- an `EvidenceLink` says how a fragment supports, limits, or contradicts it;
+- a `Voice` records who makes the Statement;
+- a `Relation` connects accepted objects without replacing their evidence;
+- a `ReviewDecision` records what a human accepted, rejected, or deferred.
+
+This resembles a graph because objects have typed links. It is not a neural
+network: the links are explicit records with provenance and validation rules,
+not learned weights distributed across a model.
+
+## Why text is not converted directly into “memory weights”
+
+An embedding is a vector that places similar texts near one another. Creating
+it runs a model; it does not fine-tune that model and does not accumulate new
+weights. The vector is useful for finding paraphrases, but it cannot by itself
+show who said something or where the supporting passage is.
+
+Dithyramba therefore stores:
+
+- source bytes and exact hashes;
+- structured records and typed links in SQLite;
+- optional vectors as rebuildable indexes;
+- human decisions as separate append-only records.
+
+If a better embedding model appears, vectors can be rebuilt while source IDs,
+citations, and decisions stay intact.
+
+## Three questions that must remain separate
+
+### 1. Was it discovered?
+
+FTS, aliases, phrase repair, neighbouring fragments, a vector model, or a
+derived query can place a fragment in a bounded candidate list.
+
+### 2. Is it relevant?
+
+Harrier may rank that bounded list against the original human question. A high
+rank means the passage looks useful, not that it proves the answer.
+
+### 3. Is the evidence sufficient?
+
+`EvidenceCoverageGate` checks exact passages against explicit
+`EvidenceRequirements`: required source role, actor, mechanism, date,
+direction, status, independent provenance group, or literal anchor.
+
+Only the third step can mark a requirement covered. If one part is missing,
+the result stays partial or becomes an `EvidenceGap`.
+
+## Why the adaptive route starts with FTS
+
+FTS is cheap, deterministic, local, and excellent for proper names, numbers,
+patent IDs, dates, quotations, and rare terms. It is also easy to audit.
+
+The adaptive route adds complexity only when needed:
+
+```text
+FTS50
+  → controlled lexical repair
+  → Harrier ranking against q0
+  → Wide Gate
+  → FTS100 only if coverage is incomplete
+  → QueryCloud q1/q2 only if a named gap remains
+  → Harrier still ranks against q0
+  → Wide Gate again
+```
+
+This avoids embedding the whole corpus merely to answer a few questions. The
+model processes a bounded candidate union, while exact FTS remains available
+without any model.
+
+## What “Wide Gate” means
+
+Earlier search routes inspected only a short top-ranked window. A correct
+passage at rank 60 could be present in the candidate union but invisible to
+the proof check.
+
+The Wide Gate scans every body-proof-eligible passage in the bounded union.
+It may accept a lower-ranked exact proof, but the in-memory adaptive result
+exposes only the passages that satisfied requirements, not the text of the
+entire union. A persisted adaptive packet is still planned.
+
+This separates two budgets:
+
+- a larger private budget for finding proof;
+- a small outward packet for a person or downstream agent.
+
+## What QueryCloud does
+
+QueryCloud is not a second answer generator. When the Gate names an uncovered
+requirement, one optional provider may propose at most two retrieval queries.
+They can introduce a synonym, split evidence roles, or guard relation state.
+
+The original question remains unchanged. New candidates are reranked against
+that original question. Generated query text is never evidence.
+
+## Why provenance saves downstream context
+
+Without Dithyramba, a consumer agent may receive a large Markdown manual or a
+pile of books and repeatedly search, read, and judge them inside its expensive
+context window.
+
+With Dithyramba, a Connector can request a small source-closed packet:
+
+```text
+recipe
+precondition
+validation
+contraindication
+gap
+```
+
+Each item points to exact fragments. The consumer spends context on the
+decision it must make instead of rediscovering where the evidence came from.
+Tracking provenance also allows later correction: if a source version changes
+or a passage is rejected, dependent packets can be found and refreshed.
+
+Dropping provenance can make a tiny semantic index, but the result cannot
+support source chips, challenge a conclusion, distinguish independent sources,
+or safely update dependent work.
+
+## Why a graph is useful but not sufficient
+
+A graph is excellent for navigation:
+
+- which people, places, works, and events connect;
+- which Statements support or contradict one another;
+- which concepts change meaning across Voices and time;
+- which research gaps block several downstream ideas.
+
+But a graph edge is an assertion. Dithyramba requires the edge to preserve its
+path to exact evidence and review state. Graph traversal remains out of the
+default recall route until accepted-only traversal and replay receipts exist.
+
+## What the human interface is for
+
+Lens and ReadingRoom are an API from memory to a person. They should make the
+chain readable:
+
+- the question or hypothesis;
+- the concise current answer;
+- who makes each supporting statement;
+- source type and number of independent supports;
+- exact highlighted passage;
+- counterevidence and open gaps;
+- timeline and connections;
+- technical details only on demand.
+
+The interface does not make evidence stronger. It makes the stored relation
+between conclusion and proof inspectable.
+
+## Why the stable CLI is still FTS-only
+
+The adaptive route already works in memory, but a default persisted query must be
+replayable after the process exits. The versioned projection,
+external-reference, and proof-metadata contracts now exist, but the route must
+still bind and persist their exact instances together with every intermediate
+FTS and Harrier artifact, an immutable query plan, and a final packet. Cold
+reconstruction must then produce the same bytes and hashes.
+
+Until that closure exists, changing the default would create a feature that
+looks complete in a live session but cannot provide the same audit guarantee
+as `EvidencePacket/1.0`. The library-only boundary is therefore a quality
+decision, not a missing UI toggle.
+
+## What Dithyramba cannot guarantee
+
+- An exact quotation can still come from a weak, biased, or forged source.
+- Several citations can belong to one dependent `SourceFamily`.
+- A corpus can omit the decisive document.
+- Human review can be wrong or apply only to one scope.
+- A development fixture can overestimate general performance.
+
+Dithyramba makes these limits representable and visible. It does not remove
+the need for source criticism or expert judgment.

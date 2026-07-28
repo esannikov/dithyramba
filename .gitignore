@@ -1,0 +1,48 @@
+# Python and test state
+__pycache__/
+*.egg-info/
+*.py[cod]
+.coverage
+.coverage.*
+.hypothesis/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.venv/
+.uv-cache/
+
+# Build and generated verification output
+artifacts/
+build/
+dist/
+htmlcov/
+SHA256SUMS
+
+# Dithyramba runtime data must stay outside the repository
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.sqlite3-shm
+*.sqlite3-wal
+*.wal
+*.dithyramba/
+backups/
+data/
+models/
+
+# Credentials and machine-local configuration
+.env
+.env.*
+!.env.example
+auth.json
+credentials.json
+*.key
+*.pem
+
+# Agent and editor state
+.agent/
+.DS_Store
+.idea/
+.vscode/

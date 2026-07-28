@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-labelledby="title description">
+  <title id="title">Dithyramba — local research memory</title>
+  <desc id="description">A warm editorial cover showing the path from sources to evidence packets and reviewed research memory.</desc>
+  <defs>
+    <style>
+      .ui { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; fill: #17130f; }
+      .display { font-size: 78px; font-weight: 760; letter-spacing: -2.2px; }
+      .subtitle { font-size: 30px; font-weight: 450; fill: #40372f; }
+      .label { font-size: 18px; font-weight: 700; letter-spacing: .55px; }
+      .small { font-size: 16px; font-weight: 540; fill: #655b51; }
+    </style>
+  </defs>
+  <rect width="1280" height="640" fill="#f5efe5"/>
+  <rect x="42" y="38" width="1196" height="564" rx="28" fill="#fffdf8" stroke="#dfd1c0" stroke-width="2"/>
+  <g class="ui">
+    <circle cx="112" cy="116" r="39" fill="none" stroke="#17130f" stroke-width="3"/>
+    <text x="112" y="128" text-anchor="middle" font-size="38" font-weight="760">D</text>
+    <text x="176" y="139" class="display">Dithyramba</text>
+    <text x="176" y="198" class="subtitle">Local research memory with a visible path to every source.</text>
+
+    <line x1="82" y1="252" x2="1198" y2="252" stroke="#dfd1c0" stroke-width="2"/>
+
+    <rect x="82" y="306" width="230" height="120" rx="18" fill="#f2ddc8" stroke="#a65e36" stroke-width="2"/>
+    <text x="108" y="351" class="label">BOUNDED SOURCES</text>
+    <text x="108" y="388" class="small">exact bytes · hashes</text>
+
+    <path d="M328 366 H388" fill="none" stroke="#8c7966" stroke-width="4"/>
+    <path d="M388 366 l-18 -11 v22 z" fill="#8c7966"/>
+
+    <rect x="404" y="306" width="230" height="120" rx="18" fill="#edf2f5" stroke="#456d83" stroke-width="2"/>
+    <text x="430" y="351" class="label">GOVERNED RECALL</text>
+    <text x="430" y="388" class="small">scope before search</text>
+
+    <path d="M650 366 H710" fill="none" stroke="#8c7966" stroke-width="4"/>
+    <path d="M710 366 l-18 -11 v22 z" fill="#8c7966"/>
+
+    <rect x="726" y="306" width="230" height="120" rx="18" fill="#e9f3ec" stroke="#2c704e" stroke-width="2"/>
+    <text x="752" y="351" class="label">EVIDENCE PACKET</text>
+    <text x="752" y="388" class="small">inspect · replay · challenge</text>
+
+    <path d="M972 366 H1032" fill="none" stroke="#8c7966" stroke-width="4"/>
+    <path d="M1032 366 l-18 -11 v22 z" fill="#8c7966"/>
+
+    <rect x="1048" y="306" width="150" height="120" rx="18" fill="#f0e9f2" stroke="#725582" stroke-width="2"/>
+    <text x="1123" y="351" text-anchor="middle" class="label">REVIEW</text>
+    <text x="1123" y="388" text-anchor="middle" class="small">scoped memory</text>
+
+    <rect x="82" y="484" width="1116" height="58" rx="29" fill="#fff8eb" stroke="#d7bb8d"/>
+    <circle cx="117" cy="513" r="8" fill="#2c704e"/>
+    <text x="140" y="520" class="small">Local-first</text>
+    <circle cx="306" cy="513" r="8" fill="#456d83"/>
+    <text x="329" y="520" class="small">SQLite + FTS5</text>
+    <circle cx="536" cy="513" r="8" fill="#725582"/>
+    <text x="559" y="520" class="small">Human decisions stay separate</text>
+    <circle cx="908" cy="513" r="8" fill="#ad4939"/>
+    <text x="931" y="520" class="small">Gaps remain explicit</text>
+  </g>
+</svg>

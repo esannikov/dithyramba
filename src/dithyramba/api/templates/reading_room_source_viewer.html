@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="color-scheme" content="light">
+    <title>Точний фрагмент · Dithyramba</title>
+    <link rel="stylesheet" href="/reading-room.css">
+  </head>
+  <body class="source-viewer-body">
+    <a class="skip-link" href="#source-text">Перейти до фрагмента</a>
+    <header class="context-bar source-context-bar">
+      <a class="wordmark" href="{{ back_url }}"><span aria-hidden="true" class="wordmark-mark">D</span><span>Dithyramba <b>Source Chip</b></span></a>
+      <p>Незмінний фрагмент із конкретного EvidencePacket</p>
+    </header>
+    <main class="source-viewer-main">
+      <a class="back-link" href="{{ back_url }}">← Повернутися до дошки</a>
+      <p class="eyebrow">Точний текст джерела</p>
+      <h1 id="source-text">Фрагмент, на який посилається доказ</h1>
+      <blockquote
+        class="exact-fragment source-full-text"
+        id="fragment-highlight"
+        data-source-highlight="true"
+        data-source-id="{{ source_id }}"
+        data-source-version-id="{{ source_version_id }}"
+        data-source-fragment-id="{{ source_fragment_id }}"
+        data-text-sha256="{{ text_sha256 }}"
+        data-source-address="{{ source_address }}"
+      >{{ text }}</blockquote>
+      <dl class="source-lineage">
+        <div><dt>EvidencePacket</dt><dd><code>{{ packet_id }}</code></dd></div>
+        <div><dt>Packet hash</dt><dd><code>{{ packet_hash }}</code></dd></div>
+        <div><dt>Source</dt><dd><code>{{ source_id }}</code></dd></div>
+        <div><dt>Source family</dt><dd><code>{{ source_family_id }}</code></dd></div>
+        <div><dt>Root source</dt><dd><code>{{ root_source_id }}</code></dd></div>
+        <div><dt>Family role</dt><dd>{{ family_role }}</dd></div>
+        <div><dt>Version</dt><dd><code>{{ source_version_id }}</code></dd></div>
+        <div><dt>Fragment</dt><dd><code>{{ source_fragment_id }}</code></dd></div>
+        <div><dt>Text SHA-256</dt><dd><code>{{ text_sha256 }}</code></dd></div>
+        <div><dt>Source address</dt><dd><code>{{ source_address }}</code></dd></div>
+      </dl>
+    </main>
+  </body>
+</html>

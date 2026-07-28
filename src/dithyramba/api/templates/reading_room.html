@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="color-scheme" content="light">
+    <title>{{ projection.library.name }} · Dithyramba Reading Room</title>
+    <link rel="stylesheet" href="/reading-room.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Перейти до стану пам’яті</a>
+
+    <header class="context-bar" aria-label="Поточний контекст Reading Room">
+      <a class="wordmark" href="/" aria-label="Dithyramba Reading Room, початок">
+        <span aria-hidden="true" class="wordmark-mark">D</span>
+        <span>Dithyramba <b>Reading Room</b></span>
+      </a>
+      <dl class="context-list">
+        <div>
+          <dt>Бібліотека</dt>
+          <dd>{{ projection.library.name }}</dd>
+        </div>
+        <div>
+          <dt>Знімок</dt>
+          <dd><time datetime="{{ projection.access.snapshot_created_at }}">{{ projection.access.snapshot_created_at }}</time></dd>
+        </div>
+        <div>
+          <dt>Доступ</dt>
+          <dd title="{{ projection.access.access_policy_name }} · {{ projection.access.purpose }} · {{ projection.access.permitted_collection_ids | join(', ') }}">
+            {{ projection.access.access_policy_name }} · {{ projection.access.purpose }} · {{ projection.access.permitted_collection_ids | length }} кол.
+          </dd>
+        </div>
+        <div>
+          <dt>Режим</dt>
+          <dd><span class="mode-mark" aria-hidden="true"></span>тільки читання</dd>
+        </div>
+      </dl>
+    </header>
+
+    <div class="reading-layout">
+      <nav class="question-nav" aria-label="Питання до пам’яті">
+        <p class="question-nav-title">Що ви хочете дізнатися?</p>
+        <ol>
+          {% if evidence_board_enabled %}<li><a href="/evidence-board">Дошка доказів кейсу</a></li>{% endif %}
+          <li><a href="#overview">Що зараз у пам’яті?</a></li>
+          <li><a href="#corpus">Звідки це взято?</a></li>
+          <li><a href="#connections">Що з чим пов’язано?</a></li>
+          <li><a href="#review">Що потребує перевірки?</a></li>
+          <li><a href="#changes">Які процеси завершилися?</a></li>
+        </ol>
+        <p class="nav-note">Кожен показаний зв’язок існує в поточному дозволеному зрізі.</p>
+      </nav>
+
+      <main id="main-content" tabindex="-1">
+        {% if projection.access.policy_omission_present
+              or projection.omissions.closure_omission_present
+              or projection.omissions.corpus_fragments_truncated
+              or projection.omissions.graph_nodes_truncated
+              or projection.omissions.graph_edges_truncated
+              or projection.omissions.provenance_run_scan_truncated
+              or projection.omissions.recent_runs_truncated
+              or projection.omissions.review_queue_truncated %}
+          <aside class="scope-notice" aria-labelledby="scope-notice-title">
+            <p class="scope-notice-title" id="scope-notice-title">Це обмежений зріз</p>
+            <ul>
+              {% if projection.access.policy_omission_present %}<li>Політика приховала частину корпусу без розкриття її кількості.</li>{% endif %}
+              {% if projection.omissions.closure_omission_present %}<li>Об’єкти з неповним дозволеним provenance не показано.</li>{% endif %}
+              {% if projection.omissions.corpus_fragments_truncated %}<li>Перелік корпусу скорочено локальним лімітом.</li>{% endif %}
+              {% if projection.omissions.graph_nodes_truncated %}<li>Не показано {{ omitted_node_count }} дозволених вузлів через ліміт.</li>{% endif %}
+              {% if projection.omissions.graph_edges_truncated %}<li>Не показано {{ omitted_edge_count }} дозволених ребер через ліміт.</li>{% endif %}
+              {% if projection.omissions.provenance_run_scan_truncated %}<li>Перегляд provenance обмежено лімітом ProcessingRun.</li>{% endif %}
+              {% if projection.omissions.recent_runs_truncated %}<li>Історію останніх процесів скорочено локальним лімітом.</li>{% endif %}
+              {% if projection.omissions.review_queue_truncated %}<li>Чергу перевірки скорочено локальним лімітом.</li>{% endif %}
+            </ul>
+          </aside>
+        {% endif %}
+
+        <section class="memory-state" id="overview" aria-labelledby="overview-title">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Поточний зріз</p>
+              <h1 id="overview-title">Стан пам’яті: {{ memory_state_label }}</h1>
+            </div>
+            <p class="section-summary">{{ memory_state_explanation }}</p>
+          </div>
+
+          <dl class="measure-row" aria-label="Ключові показники поточного зрізу">
+            <div>
+              <dt>Фрагменти</dt>
+              <dd>{{ projection.corpus.source_fragment_count }}</dd>
+            </div>
+            <div>
+              <dt>Твердження</dt>
+              <dd>{{ node_counts.get('statement', 0) }}</dd>
+            </div>
+            <div>
+              <dt>Поняття</dt>
+              <dd>{{ node_counts.get('concept', 0) }}</dd>
+            </div>
+            <div>
+              <dt>Типізовані зв’язки</dt>
+              <dd>{{ projection.graph.visible_edge_count }}</dd>
+            </div>
+            <div class="measure-attention">
+              <dt>Без рішення</dt>
+              <dd>{{ projection.review.unresolved_count }}</dd>
+            </div>
+          </dl>
+        </section>
+
+        <section id="corpus" aria-labelledby="corpus-title">
+          <div class="section-heading compact">
+            <div>
+              <p class="eyebrow">Корпус і свіжість</p>
+              <h2 id="corpus-title">Звідки це взято?</h2>
+            </div>
+            <p class="section-summary">Лише джерела, дозволені поточним знімком і політикою.</p>
+          </div>
+          <dl class="corpus-ledger">
+            <div><dt>Колекції</dt><dd>{{ projection.corpus.collection_count }}</dd></div>
+            <div><dt>Джерела</dt><dd>{{ projection.corpus.source_count }}</dd></div>
+            <div><dt>Версії джерел</dt><dd>{{ projection.corpus.source_version_count }}</dd></div>
+            <div><dt>Фрагменти</dt><dd>{{ projection.corpus.source_fragment_count }}</dd></div>
+            <div>
+              <dt>Найновіше спостереження</dt>
+              <dd>{{ projection.corpus.newest_source_observed_at or 'Немає даних' }}</dd>
+            </div>
+            <div>
+              <dt>Профілі парсингу</dt>
+              <dd>{{ projection.corpus.parser_profiles | join(', ') if projection.corpus.parser_profiles else 'Немає' }}</dd>
+            </div>
+          </dl>
+          <details class="corpus-inventory">
+            <summary>
+              Переглянути дозволений корпус
+              <span>{{ projection.corpus.fragments | length }} із {{ projection.corpus.source_fragment_count }} фрагментів</span>
+            </summary>
+            {% if projection.corpus.fragments %}
+              <div class="table-wrap" tabindex="0" role="region" aria-label="Дозволений корпус фрагментів">
+                <table>
+                  <thead>
+                    <tr>
+                      <th scope="col">Джерело</th>
+                      <th scope="col">Фрагмент</th>
+                      <th scope="col">Версія</th>
+                      <th scope="col">Колекції</th>
+                      <th scope="col">Парсер</th>
+                      <th scope="col">Спостережено</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for fragment in projection.corpus.fragments %}
+                      <tr>
+                        <td><code>{{ fragment.source_id }}</code></td>
+                        <td>
+                          <code>{{ fragment.source_fragment_id }}</code>
+                          <span class="cell-note">{{ fragment.fragment_kind }} · #{{ fragment.ordinal }}</span>
+                        </td>
+                        <td>
+                          <code>{{ fragment.source_version_id }}</code>
+                          <span class="cell-note">v{{ fragment.version_number }}</span>
+                        </td>
+                        <td>{{ fragment.collection_ids | join(', ') }}</td>
+                        <td>{{ fragment.parser_profile }} · {{ fragment.parse_status }}</td>
+                        <td><time datetime="{{ fragment.observed_at }}">{{ fragment.observed_at }}</time></td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+              {% if projection.omissions.corpus_fragments_truncated %}
+                <p class="truncation-note">Перелік обмежено локальним лімітом; загальна кількість вище лишається точною для дозволеного зрізу.</p>
+              {% endif %}
+            {% else %}
+              <div class="empty-state small">
+                <h3>У цьому дозволеному зрізі немає фрагментів</h3>
+              </div>
+            {% endif %}
+          </details>
+          <details class="technical-details">
+            <summary>Показати технічний контекст зрізу</summary>
+            <dl>
+              <div><dt>Library ID</dt><dd><code>{{ projection.library.library_id }}</code></dd></div>
+              <div><dt>Snapshot ID</dt><dd><code>{{ projection.access.corpus_snapshot_id }}</code></dd></div>
+              <div><dt>AccessPolicy ID</dt><dd><code>{{ projection.access.access_policy_id }}</code></dd></div>
+              <div><dt>Collections</dt><dd><code>{{ projection.access.permitted_collection_ids | join(', ') }}</code></dd></div>
+              <div><dt>Excluded Sources</dt><dd><code>{{ scope.exclusions.source_ids | join(', ') or 'немає' }}</code></dd></div>
+              <div><dt>Excluded Families</dt><dd><code>{{ scope.exclusions.source_family_ids | join(', ') or 'немає' }}</code></dd></div>
+              <div><dt>Excluded Fragments</dt><dd><code>{{ scope.exclusions.source_fragment_ids | join(', ') or 'немає' }}</code></dd></div>
+              <div><dt>Permitted set</dt><dd><code>{{ projection.access.permitted_set_hash }}</code></dd></div>
+              <div><dt>Projection hash</dt><dd><code>{{ projection.projection_hash }}</code></dd></div>
+            </dl>
+          </details>
+        </section>
+
+        <section id="connections" aria-labelledby="connections-title">
+          <div class="section-heading compact">
+            <div>
+              <p class="eyebrow">Карта походження</p>
+              <h2 id="connections-title">Що з чим пов’язано?</h2>
+            </div>
+            <p class="section-summary">Ребро показується тільки з його збереженим типом.</p>
+          </div>
+
+          {% if connection_rows %}
+            <div class="connection-key" aria-label="Позначення зв’язків">
+              <span><i class="line-proven" aria-hidden="true"></i>збережений зв’язок</span>
+              <span><i class="line-review" aria-hidden="true"></i>кандидат без рішення</span>
+            </div>
+            <ol class="connection-list">
+              {% for row in connection_rows %}
+                <li>
+                  <a class="object-link{% if selected_node and selected_node.node_id == row.source.node_id %} is-selected{% endif %}" href="/?selected={{ row.source.node_id }}#inspector"{% if selected_node and selected_node.node_id == row.source.node_id %} aria-current="true"{% endif %}>
+                    <span class="object-type">{{ row.source_type_label }}</span>
+                    <strong>{{ row.source.label or row.source.node_id }}</strong>
+                    <code>{{ row.source.node_id }}</code>
+                    <span class="status-label" data-review-state="{{ row.source.review_state }}">{{ review_state_labels.get(row.source.review_state, row.source.review_state) }}</span>
+                  </a>
+                  <span class="relation-verb" data-review-state="{{ row.review_state }}">
+                    <span>{{ row.verb }}</span>
+                  </span>
+                  <a class="object-link{% if selected_node and selected_node.node_id == row.target.node_id %} is-selected{% endif %}" href="/?selected={{ row.target.node_id }}#inspector"{% if selected_node and selected_node.node_id == row.target.node_id %} aria-current="true"{% endif %}>
+                    <span class="object-type">{{ row.target_type_label }}</span>
+                    <strong>{{ row.target.label or row.target.node_id }}</strong>
+                    <code>{{ row.target.node_id }}</code>
+                    <span class="status-label" data-review-state="{{ row.target.review_state }}">{{ review_state_labels.get(row.target.review_state, row.target.review_state) }}</span>
+                  </a>
+                </li>
+              {% endfor %}
+            </ol>
+            {% if projection.omissions.graph_edges_truncated %}
+              <p class="truncation-note">Показано першу дозволену частину карти згідно з лімітом ребер.</p>
+            {% endif %}
+          {% else %}
+            <div class="empty-state">
+              <h3>Типізованих зв’язків у цьому зрізі ще немає</h3>
+              <p>Джерела можуть бути проіндексовані, але meaning extraction ще не створив кандидатів.</p>
+            </div>
+          {% endif %}
+        </section>
+
+        <section id="review" aria-labelledby="review-title">
+          <div class="section-heading compact">
+            <div>
+              <p class="eyebrow">Людський контроль</p>
+              <h2 id="review-title">Що потребує перевірки?</h2>
+            </div>
+            <p class="section-summary">Reading Room показує рішення, але ніколи не приймає їх.</p>
+          </div>
+
+          <dl class="review-totals">
+            {% for status in projection.review.status_counts %}
+              <div data-review-state="{{ status.review_state }}">
+                <dt>{{ review_state_labels.get(status.review_state, status.review_state) }}</dt>
+                <dd>{{ status.count }}</dd>
+              </div>
+            {% endfor %}
+          </dl>
+
+          {% if projection.review.queue %}
+            <ol class="review-queue">
+              {% for item in projection.review.queue %}
+                <li>
+                    <a href="/?selected={{ item.target_id }}#inspector">
+                    <span>{{ node_type_labels.get(item.target_type, item.target_type) }}</span>
+                    <code>{{ item.target_id }}</code>
+                  </a>
+                  <span class="status-label" data-review-state="{{ item.review_state }}">
+                    {{ review_state_labels.get(item.review_state, item.review_state) }}
+                  </span>
+                </li>
+              {% endfor %}
+            </ol>
+          {% else %}
+            <div class="empty-state small">
+              <h3>Видимої черги немає</h3>
+              <p>Або всі кандидати мають рішення в цьому scope, або scope порожній.</p>
+            </div>
+          {% endif %}
+        </section>
+
+        <section id="changes" aria-labelledby="changes-title">
+          <div class="section-heading compact">
+            <div>
+              <p class="eyebrow">Процеси й покриття</p>
+              <h2 id="changes-title">Які процеси завершилися?</h2>
+            </div>
+            <p class="section-summary">Останні повністю дозволені ProcessingRun у цьому зрізі.</p>
+          </div>
+
+          {% if projection.recent_runs %}
+            <div class="table-wrap" tabindex="0" role="region" aria-label="Останні процеси" aria-describedby="changes-title">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Завершено</th>
+                    <th scope="col">Профіль</th>
+                    <th scope="col">Покриття</th>
+                    <th scope="col">Прочитано</th>
+                    <th scope="col">Кандидати</th>
+                    <th scope="col">Стан</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for run in projection.recent_runs %}
+                    <tr>
+                      <td><time datetime="{{ run.finished_at }}">{{ run.finished_at }}</time></td>
+                      <td>{{ run.extraction_profile }}</td>
+                      <td>{{ run.coverage_state }}</td>
+                      <td>{{ run.read_fragment_count }}</td>
+                      <td>{{ run.candidate_count }}</td>
+                      <td><span class="status-label" data-run-state="{{ run.status }}">{{ run.status }}</span></td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="empty-state small">
+              <h3>Meaning extraction ще не запускався</h3>
+              <p>Корпус може бути доступним для FTS, але семантичних ProcessingRun у цьому scope немає.</p>
+            </div>
+          {% endif %}
+        </section>
+      </main>
+
+      <aside class="inspector" id="inspector" tabindex="-1" aria-labelledby="inspector-title">
+        <div class="inspector-heading">
+          <p class="eyebrow">Поточний вибір</p>
+          <h2 id="inspector-title">Доказ і походження</h2>
+        </div>
+        {% if selected_node %}
+          <div class="selected-object">
+            <span class="object-type">{{ node_type_labels.get(selected_node.node_type.value, selected_node.node_type.value) }}</span>
+            <h3>{{ selected_node.label or selected_node.node_id }}</h3>
+            <code>{{ selected_node.node_id }}</code>
+            <p class="status-label" data-review-state="{{ selected_node.review_state }}">
+              {{ review_state_labels.get(selected_node.review_state, selected_node.review_state) }}
+            </p>
+          </div>
+          <dl class="inspector-ledger">
+            <div><dt>Тип кандидата</dt><dd>{{ selected_node.kind or 'Не застосовується' }}</dd></div>
+            <div><dt>Content hash</dt><dd><code>{{ selected_node.content_hash }}</code></dd></div>
+            <div><dt>ProcessingRun</dt><dd><code>{{ selected_node.provenance_processing_run_id or 'Не визначено' }}</code></dd></div>
+            <div><dt>Колекції</dt><dd>{{ selected_node.collection_ids | join(', ') }}</dd></div>
+            <div><dt>Фрагменти походження</dt><dd>{{ selected_node.provenance_fragment_ids | length }}</dd></div>
+            {% for item in selected_node.metadata %}
+              <div><dt>{{ item.key }}</dt><dd>{{ item.value }}</dd></div>
+            {% endfor %}
+          </dl>
+
+          {% if selected_connections %}
+            <section class="inspector-relations" aria-labelledby="inspector-relations-title">
+              <h3 id="inspector-relations-title">Безпосередні зв’язки</h3>
+              <ul>
+                {% for relation in selected_connections %}
+                  <li class="relation-triple">
+                    <a href="/?selected={{ relation.source.node_id }}#inspector"{% if relation.selected_is_source %} aria-current="true"{% endif %}>
+                      {{ relation.source.label or relation.source.node_id }}
+                    </a>
+                    <span><span aria-hidden="true">↓ </span>{{ relation.verb }}<span aria-hidden="true"> ↓</span></span>
+                    <a href="/?selected={{ relation.target.node_id }}#inspector"{% if not relation.selected_is_source %} aria-current="true"{% endif %}>
+                      {{ relation.target.label or relation.target.node_id }}
+                    </a>
+                  </li>
+                {% endfor %}
+              </ul>
+            </section>
+          {% endif %}
+
+          <div class="evidence-boundary">
+            <h3>Точне джерело</h3>
+            {% if selected_evidence %}
+              <ul class="source-chip-list">
+                {% for target in selected_evidence %}
+                  <li>
+                    <a class="source-chip" href="{{ target.viewer_url }}">
+                      Відкрити точний фрагмент
+                      <code>{{ target.source_fragment_id }}</code>
+                    </a>
+                    <span>EvidencePacket <code>{{ target.evidence_packet_id }}</code></span>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <p>Для цього об’єкта ще немає збереженого EvidencePacket у точному scope. Створіть packet командою <code>dithyramba recall</code>; Reading Room не запускає читання приховано.</p>
+            {% endif %}
+            <p>Огляд показує provenance ID і збережені типізовані зв’язки; текст відкривається лише через авторизований EvidencePacket.</p>
+          </div>
+        {% else %}
+          <div class="empty-state small inspector-empty">
+            <h3>Оберіть об’єкт</h3>
+            <p>Відкрийте поняття, твердження, голос або джерельний фрагмент у карті.</p>
+          </div>
+        {% endif %}
+      </aside>
+    </div>
+
+    <footer>
+      <span>Dithyramba Reading Room</span>
+      <span>Storage schema {{ projection.library.storage_schema_version }}</span>
+      <span>Проєкція <code>{{ projection.projection_hash[:12] }}</code></span>
+    </footer>
+  </body>
+</html>

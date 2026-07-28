@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="color-scheme" content="light">
+    <title>{{ library.config.name }} · дошка доказів Dithyramba</title>
+    <link rel="stylesheet" href="/reading-room.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#board-main">Перейти до доказів</a>
+
+    <header class="context-bar" aria-label="Контекст дошки доказів">
+      <a class="wordmark" href="/evidence-board" aria-label="Dithyramba, дошка доказів">
+        <span aria-hidden="true" class="wordmark-mark">D</span>
+        <span>Dithyramba <b>Evidence Board</b></span>
+      </a>
+      <dl class="context-list board-context-list">
+        <div><dt>Бібліотека</dt><dd>{{ library.config.name }}</dd></div>
+        <div><dt>Політика</dt><dd>{{ policy.access_policy_name }}</dd></div>
+        <div><dt>Порівняння</dt><dd>2 незмінні пакети</dd></div>
+        <div><dt>Режим</dt><dd><span class="mode-mark" aria-hidden="true"></span>локально · лише читання</dd></div>
+      </dl>
+    </header>
+
+    <div class="evidence-board-layout">
+      <main class="evidence-board-main" id="board-main" tabindex="-1">
+        <header class="board-intro">
+          <p class="eyebrow">Порівняння доказових шарів</p>
+          <h1>{{ board.display_question }}</h1>
+          <p class="board-intro-copy">Ліворуч — буквальні сліди з первинних документів. Праворуч — дослідницькі нотатки та гіпотези. Вони навмисно не змішуються в одну відповідь.</p>
+          {% if board.open_gap %}
+            <aside class="open-gap" aria-labelledby="open-gap-title">
+              <strong id="open-gap-title">Що ще не доведено</strong>
+              <p>{{ board.open_gap }}</p>
+            </aside>
+          {% endif %}
+          <details class="technical-details board-technical">
+            <summary>Показати точний пошуковий і технічний контекст</summary>
+            <dl>
+              <div><dt>Пошуковий запит</dt><dd>{{ board.retrieval_query }}</dd></div>
+              <div><dt>Primary packet</dt><dd><code>{{ board.primary.packet.evidence_packet_id }}</code></dd></div>
+              <div><dt>Primary hash</dt><dd><code>{{ board.primary.packet.packet_hash }}</code></dd></div>
+              <div><dt>Primary snapshot</dt><dd><code>{{ board.primary.packet.corpus_snapshot_id }}</code></dd></div>
+              <div><dt>Research packet</dt><dd><code>{{ board.research.packet.evidence_packet_id }}</code></dd></div>
+              <div><dt>Research hash</dt><dd><code>{{ board.research.packet.packet_hash }}</code></dd></div>
+              <div><dt>Research snapshot</dt><dd><code>{{ board.research.packet.corpus_snapshot_id }}</code></dd></div>
+              <div><dt>Зовнішній провайдер</dt><dd>{{ 'дозволений політикою' if board.external_provider_allowed else 'заборонений політикою' }}</dd></div>
+            </dl>
+          </details>
+        </header>
+
+        <div class="evidence-lanes" aria-label="Порівняння двох доказових контурів">
+          {% for lane in (board.primary, board.research) %}
+            <section class="evidence-lane" data-lane="{{ lane.lane_id }}" aria-labelledby="lane-{{ lane.lane_id }}-title">
+              <header class="lane-heading">
+                <p class="eyebrow">{{ lane.collection_names | join(' · ') }}</p>
+                <h2 id="lane-{{ lane.lane_id }}-title">{{ lane.label }}</h2>
+                <p>{{ lane.explanation }}</p>
+                <p class="lane-count">{{ lane.items | length }} відібраних фрагментів{% if lane.budget_omission_count %} · {{ lane.budget_omission_count }} не ввійшли через ліміт{% endif %}</p>
+              </header>
+              {% if lane.items %}
+                <ol class="evidence-list">
+                  {% for item in lane.items %}
+                    <li>
+                      <a class="evidence-item{% if board.selected_item and board.selected_item.fragment.source_fragment_id == item.fragment.source_fragment_id and board.selected_lane.lane_id == lane.lane_id %} is-selected{% endif %}" href="{{ item.selection_url }}"{% if board.selected_item and board.selected_item.fragment.source_fragment_id == item.fragment.source_fragment_id and board.selected_lane.lane_id == lane.lane_id %} aria-current="true"{% endif %}>
+                        <span class="evidence-item-meta"><b>Ранг {{ item.fragment.rank }}</b><span>{{ item.address_label }}</span></span>
+                        <strong>{{ item.source_title }}</strong>
+                        <span class="evidence-excerpt">{{ item.excerpt }}</span>
+                      </a>
+                    </li>
+                  {% endfor %}
+                </ol>
+              {% else %}
+                <div class="empty-state small"><h3>У пакеті немає фрагментів</h3></div>
+              {% endif %}
+            </section>
+          {% endfor %}
+        </div>
+
+        <section class="board-boundary" aria-labelledby="boundary-title">
+          <div>
+            <p class="eyebrow">Межа висновку</p>
+            <h2 id="boundary-title">Система показує матеріал для рішення, але не підміняє рішення</h2>
+          </div>
+          <p>Наявність адреси у двох каталогах ще не доводить, що це одна споруда чи одна житлова одиниця. Контрдокази й доказові прогалини мають бути сформульовані окремо та перевірені людиною.</p>
+        </section>
+      </main>
+
+      <aside class="board-inspector" id="board-inspector" aria-labelledby="board-inspector-title">
+        <div class="inspector-heading">
+          <p class="eyebrow">Точний фрагмент</p>
+          <h2 id="board-inspector-title">Що справді збережено</h2>
+        </div>
+        {% if board.selected_item and board.selected_lane %}
+          <p class="lane-badge" data-lane="{{ board.selected_lane.lane_id }}">{{ board.selected_lane.label }}</p>
+          <h3>{{ board.selected_item.source_title }}</h3>
+          <p class="selected-address">{{ board.selected_item.address_label }}</p>
+          <blockquote class="exact-fragment">{{ board.selected_item.fragment.text }}</blockquote>
+          <a class="source-chip" href="{{ board.selected_item.chip.viewer_url }}">
+            Відкрити джерельний чіп
+            <code>{{ board.selected_item.fragment.source_fragment_id }}</code>
+          </a>
+          <details class="technical-details inspector-technical">
+            <summary>Походження й оцінка пошуку</summary>
+            <dl>
+              <div><dt>EvidencePacket</dt><dd><code>{{ board.selected_lane.packet.evidence_packet_id }}</code></dd></div>
+              <div><dt>Source</dt><dd><code>{{ board.selected_item.chip.source_id }}</code></dd></div>
+              <div><dt>Version</dt><dd><code>{{ board.selected_item.chip.source_version_id }}</code></dd></div>
+              <div><dt>Ранг</dt><dd>{{ board.selected_item.fragment.rank }}</dd></div>
+              <div><dt>Оцінка пошуку</dt><dd>{{ board.selected_item.fragment.score }}</dd></div>
+              <div><dt>Text SHA-256</dt><dd><code>{{ board.selected_item.fragment.text_sha256 }}</code></dd></div>
+            </dl>
+          </details>
+        {% else %}
+          <div class="empty-state small"><h3>Оберіть фрагмент</h3></div>
+        {% endif %}
+      </aside>
+    </div>
+
+    <footer>
+      <a href="/">Повний Reading Room</a>
+      <span>Дані кейсу ізольовано від коду</span>
+      <span>Людська перевірка обов’язкова</span>
+    </footer>
+  </body>
+</html>

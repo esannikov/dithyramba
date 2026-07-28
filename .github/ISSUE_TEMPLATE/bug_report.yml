@@ -1,0 +1,53 @@
+name: Bug report
+description: Report a reproducible Dithyramba defect using sanitized inputs.
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Dithyramba is pre-alpha. Do not paste private corpus text, filesystem paths,
+        credentials, policy details, or runtime databases. Report suspected security
+        vulnerabilities through the private route described in SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: Provide the release tag or commit SHA that exhibits the defect.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Include the operating system, Python version, and installation method.
+      placeholder: Ubuntu 24.04 or macOS 15, Python 3.11, uv sync --frozen --dev
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Use synthetic inputs and include the exact command or smallest code sample.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include a sanitized error message or traceback when available.
+    validations:
+      required: true
+  - type: checkboxes
+    id: sanitation
+    attributes:
+      label: Public-data check
+      options:
+        - label: I removed private source text, absolute user paths, credentials, local identifiers, and restricted artifacts from this report.
+          required: true

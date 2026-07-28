@@ -1,0 +1,1 @@
+{"artifacts":[{"canonical_sha256":"7aedbe1ac9304c1debfa7f14738c5900db1a2170f192d9e99c62939328ae050a","path":"libraries.json"}],"expected_counts":{"canaries":4,"collections":4,"libraries":2,"visibility_expectations":2},"fixture_id":"fixture_synthetic_isolation_v1","license":"CC0-1.0","rights":"repository-authored synthetic data","schema":"dithyramba.fixture_manifest/1.0"}

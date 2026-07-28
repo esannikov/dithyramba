@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+message: "If Dithyramba contributes to your research, cite this software and the exact tagged release you used."
+title: "Dithyramba: source-grounded local research memory"
+type: software
+authors:
+  - family-names: Sannikov
+    given-names: Eugene
+version: 0.1.0rc0
+license: Apache-2.0
+repository-code: "https://github.com/esannikov/dithyramba"
+url: "https://github.com/esannikov/dithyramba"
+keywords:
+  - research memory
+  - provenance
+  - evidence retrieval
+  - local-first software

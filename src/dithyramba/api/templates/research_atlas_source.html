@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ source.title }} · {{ atlas.subject }}</title>
+    <link rel="stylesheet" href="/research-atlas.css">
+  </head>
+  <body class="source-reader-body">
+    <header class="source-reader-header">
+      <a href="{{ binding.back_url if binding else '/?view=sources&selected=' ~ source.source_id }}">← Повернутися до дослідження</a>
+      <p class="eyebrow">Локальна копія джерела</p>
+      <h1>{{ source.title }}</h1>
+      <p>{{ source.creator }}{% if source.date_label %} · {{ source.date_label }}{% endif %}</p>
+      {% if binding %}
+        <p class="exact-fragment-label">
+          {{ binding.label }}: <strong>{{ binding.locator }}</strong>
+          {% if binding.fragment_id %} · <code>{{ binding.fragment_id }}</code>{% endif %}
+        </p>
+      {% endif %}
+      <code>{{ artifact_path }}</code>
+    </header>
+    <main class="source-reader">
+      <ol class="source-lines">
+        {% for line in lines %}
+          <li id="L{{ line.number }}" value="{{ line.number }}" {% if line.selected %}class="is-evidence" aria-label="Рядок точного доказу"{% endif %}>
+            <code>{{ line.text }}</code>
+          </li>
+        {% endfor %}
+      </ol>
+      {% if binding and not full %}
+        <a class="original-link" href="{{ binding.full_url }}">Показати весь локальний документ</a>
+      {% endif %}
+    </main>
+  </body>
+</html>

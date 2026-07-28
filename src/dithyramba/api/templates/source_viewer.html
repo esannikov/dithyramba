@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Source fragment · Dithyramba</title>
+  </head>
+  <body>
+    <main aria-labelledby="viewer-title">
+      <h1 id="viewer-title">Source fragment</h1>
+      <dl id="source-provenance">
+        <dt>EvidencePacket ID</dt>
+        <dd id="packet-id">{{ packet_id }}</dd>
+        <dt>EvidencePacket hash</dt>
+        <dd id="packet-hash">{{ packet_hash }}</dd>
+        <dt>Source ID</dt>
+        <dd id="source-id">{{ source_id }}</dd>
+        <dt>SourceFamily ID</dt>
+        <dd id="source-family-id">{{ source_family_id }}</dd>
+        <dt>Root Source ID</dt>
+        <dd id="root-source-id">{{ root_source_id }}</dd>
+        <dt>Family role</dt>
+        <dd id="family-role">{{ family_role }}</dd>
+        <dt>SourceVersion ID</dt>
+        <dd id="source-version-id">{{ source_version_id }}</dd>
+        <dt>SourceFragment ID</dt>
+        <dd id="source-fragment-id">{{ source_fragment_id }}</dd>
+        <dt>Text SHA-256</dt>
+        <dd id="text-sha256">{{ text_sha256 }}</dd>
+        <dt>SourceAddress</dt>
+        <dd id="source-address">{{ source_address }}</dd>
+      </dl>
+      <article aria-label="Exact packet-backed source fragment">
+        <mark
+          id="fragment-highlight"
+          data-source-highlight="true"
+          data-source-id="{{ source_id }}"
+          data-source-version-id="{{ source_version_id }}"
+          data-source-fragment-id="{{ source_fragment_id }}"
+          data-text-sha256="{{ text_sha256 }}"
+          data-source-address="{{ source_address }}"
+        >{{ text }}</mark>
+      </article>
+      <p><a href="/evidence-packets/{{ packet_id }}">Back to EvidencePacket</a></p>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ atlas.title }} · Dithyramba Research Atlas</title>
+    <link rel="stylesheet" href="/research-atlas.css">
+  </head>
+  <body>
+    {% macro source_chips(evidence_ids, selected_id) -%}
+      {% if evidence_ids %}
+        <ul class="source-chip-list" aria-label="Джерела">
+          {% for evidence_id in evidence_ids %}
+            {% set item = evidence_by_id[evidence_id] %}
+            <li>
+              <a
+                class="source-chip role-{{ item.evidence.role.value }}"
+                href="/?view={{ view }}&selected={{ selected_id }}&evidence={{ evidence_id }}#inspector"
+                aria-label="Відкрити доказ із джерела «{{ item.source.title }}»"
+              >
+                <span class="source-chip-role">{{ evidence_role_labels[item.evidence.role.value] }}</span>
+                <span class="source-chip-copy">
+                  <strong class="source-chip-title">{{ item.chip_title }}</strong>
+                  <small class="source-chip-attribution">{{ item.chip_attribution }}</small>
+                </span>
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {%- endmacro %}
+
+    {% macro question_card(question) -%}
+      <article class="question-card state-{{ question.state.value }}" id="{{ question.question_id }}">
+        <div class="card-topline">
+          <span class="state-chip">{{ state_labels[question.state.value] }}</span>
+          <span>{{ question.evidence_ids|length }} опор</span>
+        </div>
+        <h3><a href="/?view={{ view }}&selected={{ question.question_id }}">{{ question.prompt }}</a></h3>
+        <div class="short-answer">
+          <p class="eyebrow">Коротка відповідь</p>
+          <p>{{ question.short_answer }}</p>
+        </div>
+        {{ source_chips(question.evidence_ids, question.question_id) }}
+        {% if question.gap %}<p class="gap-note"><strong>Ще не з’ясовано:</strong> {{ question.gap }}</p>{% endif %}
+      </article>
+    {%- endmacro %}
+
+    <a class="skip-link" href="#workspace">До матеріалів</a>
+    <header class="atlas-context">
+      <a class="atlas-wordmark" href="/?view=overview">
+        <span class="wordmark-mark" aria-hidden="true">D</span>
+        <span>Dithyramba <b>Research Atlas</b></span>
+      </a>
+      <dl class="atlas-context-list">
+        <div>
+          <dt>Тема</dt>
+          <dd>{{ atlas.subject }}</dd>
+        </div>
+        <div>
+          <dt>Корпус</dt>
+          <dd>
+            {{ metrics.source_count }} доказових джерел
+            {% if projection %} · {{ metrics.material_count }} матеріалів для дослідження{% endif %}
+          </dd>
+        </div>
+        <div>
+          <dt>Знімок</dt>
+          <dd>{{ atlas.generated_at.strftime("%Y-%m-%d") }} · {{ manifest_hash[:10] }}</dd>
+        </div>
+        <div>
+          <dt>Режим</dt>
+          <dd><span class="mode-mark" aria-hidden="true"></span>тільки читання</dd>
+        </div>
+      </dl>
+    </header>
+
+    <div class="atlas-layout">
+      <nav class="atlas-nav" aria-label="Розділи атласу">
+        <p class="atlas-nav-kicker">Дослідницький стіл</p>
+        <h1>{{ atlas.subject }}</h1>
+        <p class="atlas-nav-summary">{{ atlas.subtitle }}</p>
+        <ol>
+          {% for key, label in view_labels.items() %}
+            <li>
+              <a href="/?view={{ key }}" {% if view == key %}aria-current="page"{% endif %}>
+                <span>{{ loop.index }}</span>{{ label }}
+              </a>
+            </li>
+          {% endfor %}
+        </ol>
+        <p class="atlas-nav-note">
+          Перевірені висновки, робочі гіпотези й матеріали-кандидати мають різні
+          статуси. Кожен доказ відкривається до точного місця в джерелі.
+        </p>
+      </nav>
+
+      <main id="workspace" class="atlas-workspace">
+        {% if view == "overview" %}
+          <section class="hero-section">
+            <h2>{{ atlas.title }}</h2>
+            <p class="hero-copy">{{ atlas.corpus.scope_note }}</p>
+            {% if projection %}
+              <p class="projection-status"><strong>Поточний статус:</strong> {{ projection.summary }}</p>
+            {% endif %}
+            <dl class="atlas-metrics">
+              <div><dt>Перевірено джерел</dt><dd>{{ metrics.verified_source_count }}/{{ metrics.source_count }}</dd></div>
+              <div><dt>Доказових опор</dt><dd>{{ atlas.evidence|length }}</dd></div>
+              {% if projection %}
+                <div><dt>Видимі кандидати</dt><dd>{{ metrics.material_count }}</dd></div>
+                <div><dt>Пріоритет review</dt><dd>{{ metrics.review_priority_count }}</dd></div>
+              {% else %}
+                <div><dt>Гіпотези</dt><dd>{{ metrics.hypothesis_count }}</dd></div>
+                <div><dt>Події на лінії часу</dt><dd>{{ metrics.timeline_count }}</dd></div>
+              {% endif %}
+            </dl>
+          </section>
+          {% if projection %}
+            <section class="section-block">
+              <div class="section-heading">
+                <div><h2>Панорама розуміння</h2></div>
+                <p>Кожна тема стискає великий масив, але зберігає шлях до кандидатів, контрдоказів і точних джерел.</p>
+              </div>
+              <div class="theme-panorama">
+                {% for theme in projection.themes %}
+                  {% set theme_metric = theme_metrics[theme.theme_id] %}
+                  <article id="{{ theme.theme_id }}">
+                    <div class="theme-copy">
+                      <h3>{{ theme.title }}</h3>
+                      <p class="theme-summary">{{ theme.summary }}</p>
+                      <p class="theme-change"><strong>Що це змінює:</strong> {{ theme.what_it_changes }}</p>
+                    </div>
+                    <dl class="theme-evidence-passport">
+                      <div><dt>Опори</dt><dd>{{ theme_metric.evidence_count }}</dd></div>
+                      <div><dt>Незалежні родини</dt><dd>{{ theme_metric.family_count }}</dd></div>
+                      <div><dt>Матеріали</dt><dd>{{ theme_metric.material_count }}</dd></div>
+                      <div><dt>Контрдокази</dt><dd>{{ theme_metric.counterevidence_count }}</dd></div>
+                    </dl>
+                    <a class="theme-open" href="/?view=materials&theme={{ theme.theme_id }}">Дослідити всі матеріали теми</a>
+                  </article>
+                {% endfor %}
+              </div>
+            </section>
+            <section class="section-block memory-inventory">
+              <div class="section-heading">
+                <div><h2>Що зберігає пам’ять</h2></div>
+                <p>Ці масиви не прирівнюються до доказів, але більше не зникають із поля дослідника.</p>
+              </div>
+              <div class="collection-ledger">
+                {% for collection in projection.collections %}
+                  <div>
+                    <strong>{{ collection.label }}</strong>
+                    <span>{{ collection.record_count }} записів</span>
+                    <p>{{ collection.description }}</p>
+                    <small>{{ collection.status_note }}</small>
+                  </div>
+                {% endfor %}
+              </div>
+            </section>
+          {% endif %}
+          <section class="section-block">
+            <div class="section-heading">
+              <div><h2>Ключові питання</h2></div>
+              <p>Відкрийте питання, прочитайте коротку відповідь і перевірте її опори.</p>
+            </div>
+            {% for question in atlas.questions[:6] %}
+              {{ question_card(question) }}
+            {% else %}
+              <p class="empty-state">Питання ще не сформовані.</p>
+            {% endfor %}
+          </section>
+        {% elif view == "questions" %}
+          <section class="section-block">
+            <div class="section-heading">
+              <div><p class="eyebrow">Питання й відповіді</p><h2>Що вже можна стверджувати</h2></div>
+              <p>Статус показує силу висновку, а не впевненість моделі.</p>
+            </div>
+            {% for question in atlas.questions %}
+              {{ question_card(question) }}
+            {% else %}
+              <p class="empty-state">Питання ще не сформовані.</p>
+            {% endfor %}
+          </section>
+        {% elif view == "hypotheses" %}
+          <section class="section-block">
+            <div class="section-heading">
+              <div><p class="eyebrow">Граф гіпотез</p><h2>Як пов’язані інтерпретації</h2></div>
+              <p>Лінія означає лише явно записаний зв’язок; близькість карток нічого не доводить.</p>
+            </div>
+            <div class="hypothesis-graph">
+              {% for hypothesis in atlas.hypotheses %}
+                <article class="hypothesis-card state-{{ hypothesis.state.value }}" id="{{ hypothesis.hypothesis_id }}">
+                  <div class="card-topline">
+                    <span class="state-chip">{{ state_labels[hypothesis.state.value] }}</span>
+                    <span>{{ hypothesis.evidence_ids|length }} опор</span>
+                  </div>
+                  <h3><a href="/?view=hypotheses&selected={{ hypothesis.hypothesis_id }}">{{ hypothesis.title }}</a></h3>
+                  <p>{{ hypothesis.synthesis }}</p>
+                  {% if hypothesis.hypothesis_id in hypothesis_projection_metrics %}
+                    {% set projection_metric = hypothesis_projection_metrics[hypothesis.hypothesis_id] %}
+                    <p class="related-memory">
+                      За межами перевірених опор:
+                      <strong>{{ projection_metric.material_count }} матеріалів-кандидатів</strong>
+                      у {{ projection_metric.theme_count }} темах.
+                      <a href="/?view=materials">Перейти до ширшої пам’яті</a>
+                    </p>
+                  {% endif %}
+                  {{ source_chips(hypothesis.evidence_ids, hypothesis.hypothesis_id) }}
+                  {% if hypothesis.counterevidence_ids %}
+                    <div class="counter-evidence">
+                      <strong>Що стримує висновок</strong>
+                      {{ source_chips(hypothesis.counterevidence_ids, hypothesis.hypothesis_id) }}
+                    </div>
+                  {% endif %}
+                  {% if hypothesis.gap %}<p class="gap-note"><strong>Ще потрібно:</strong> {{ hypothesis.gap }}</p>{% endif %}
+                </article>
+              {% else %}
+                <p class="empty-state">Гіпотези ще не сформовані.</p>
+              {% endfor %}
+            </div>
+            {% if atlas.relations %}
+              <div class="relation-ledger">
+                <p class="eyebrow">Зафіксовані зв’язки</p>
+                {% for relation in atlas.relations %}
+                  <p>
+                    <a href="/?view=hypotheses&selected={{ relation.source_hypothesis_id }}">{{ hypothesis_by_id[relation.source_hypothesis_id].title }}</a>
+                    <span>{{ relation_labels[relation.kind.value] }}</span>
+                    <a href="/?view=hypotheses&selected={{ relation.target_hypothesis_id }}">{{ hypothesis_by_id[relation.target_hypothesis_id].title }}</a>
+                    — {{ relation.explanation }}
+                  </p>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </section>
+        {% elif view == "timeline" %}
+          <section class="section-block timeline-section">
+            <div class="section-heading">
+              <div><p class="eyebrow">Як розгортається час</p><h2>Хронологія як маршрут до доказів</h2></div>
+              <p>Точність дати та сила опори читаються окремо.</p>
+            </div>
+            <ol class="timeline">
+              {% for event in atlas.timeline %}
+                <li id="{{ event.event_id }}" {% if selected and selected.event_id is defined and selected.event_id == event.event_id %}class="is-selected"{% endif %}>
+                  <time>{{ event.date_label }}</time>
+                  <div class="timeline-marker" aria-hidden="true"></div>
+                  <article>
+                    <div class="card-topline">
+                      <span class="state-chip state-{{ event.state.value }}">{{ state_labels[event.state.value] }}</span>
+                      <span>{{ event.evidence_ids|length }} опор</span>
+                    </div>
+                    <h3><a href="/?view=timeline&selected={{ event.event_id }}">{{ event.title }}</a></h3>
+                    <p>{{ event.summary }}</p>
+                    {{ source_chips(event.evidence_ids, event.event_id) }}
+                  </article>
+                </li>
+              {% else %}
+                <li class="empty-state">Часова лінія ще не сформована.</li>
+              {% endfor %}
+            </ol>
+          </section>
+        {% elif view == "materials" and projection %}
+          <section class="section-block materials-section">
+            <div class="section-heading">
+              <div><h2>Ширше поле пам’яті</h2></div>
+              <p>
+                Ці матеріали доступні для пошуку й зіставлення, але не підтримують
+                перевірений висновок до окремого review.
+              </p>
+            </div>
+            <nav class="material-filters" aria-label="Фільтри матеріалів">
+              <div>
+                <strong>Тема</strong>
+                <a href="/?view=materials{% if active_period %}&period={{ active_period.period_id }}{% endif %}" {% if not active_theme %}aria-current="page"{% endif %}>Усі</a>
+                {% for theme_item in projection.themes %}
+                  <a href="/?view=materials&theme={{ theme_item.theme_id }}{% if active_period %}&period={{ active_period.period_id }}{% endif %}" {% if active_theme and active_theme.theme_id == theme_item.theme_id %}aria-current="page"{% endif %}>{{ theme_item.title }}</a>
+                {% endfor %}
+              </div>
+              <div>
+                <strong>Період</strong>
+                <a href="/?view=materials{% if active_theme %}&theme={{ active_theme.theme_id }}{% endif %}" {% if not active_period %}aria-current="page"{% endif %}>Усі</a>
+                {% for period_item in projection.periods %}
+                  <a href="/?view=materials&period={{ period_item.period_id }}{% if active_theme %}&theme={{ active_theme.theme_id }}{% endif %}" {% if active_period and active_period.period_id == period_item.period_id %}aria-current="page"{% endif %}>{{ period_item.label }}</a>
+                {% endfor %}
+              </div>
+            </nav>
+            <div class="material-result-heading">
+              <p>
+                <strong>{{ material_total }}</strong>
+                {% if active_theme %}у темі «{{ active_theme.title }}»{% endif %}
+                {% if active_period %}за період {{ active_period.label }}{% endif %}
+              </p>
+              <span>сторінка {{ material_page }} з {{ material_page_count }}</span>
+            </div>
+            <ol class="material-list" start="{{ ((material_page - 1) * 30) + 1 }}">
+              {% for item in materials %}
+                <li {% if selected_material and selected_material.material.material_id == item.material.material_id %}class="is-selected"{% endif %}>
+                  <time>{{ item.material.date_start or "—" }}{% if item.material.date_label %}<small>{{ item.material.date_label }}</small>{% endif %}</time>
+                  <div>
+                    <p class="material-status">
+                      <span>{{ item.material.state.value|replace("_", " ") }}</span>
+                      {% if item.material.review_priority %}<b>пріоритет review</b>{% endif %}
+                    </p>
+                    <h3>
+                      <a href="/?view=materials&material={{ item.material.material_id }}{% if active_theme %}&theme={{ active_theme.theme_id }}{% endif %}{% if active_period %}&period={{ active_period.period_id }}{% endif %}&page={{ material_page }}#inspector">
+                        {{ item.material.title }}
+                      </a>
+                    </h3>
+                    <p>{{ item.source.title }} · {{ item.material.asserting_voice }}</p>
+                  </div>
+                </li>
+              {% else %}
+                <li class="empty-state">За цим поєднанням фільтрів матеріалів немає.</li>
+              {% endfor %}
+            </ol>
+            {% if material_page_count > 1 %}
+              <nav class="pagination" aria-label="Сторінки матеріалів">
+                {% if material_page > 1 %}
+                  <a href="/?view=materials&page={{ material_page - 1 }}{% if active_theme %}&theme={{ active_theme.theme_id }}{% endif %}{% if active_period %}&period={{ active_period.period_id }}{% endif %}">← Попередні</a>
+                {% endif %}
+                <span>{{ material_page }} / {{ material_page_count }}</span>
+                {% if material_page < material_page_count %}
+                  <a href="/?view=materials&page={{ material_page + 1 }}{% if active_theme %}&theme={{ active_theme.theme_id }}{% endif %}{% if active_period %}&period={{ active_period.period_id }}{% endif %}">Наступні →</a>
+                {% endif %}
+              </nav>
+            {% endif %}
+          </section>
+        {% elif view == "gaps" %}
+          <section class="section-block">
+            <div class="section-heading">
+              <div><p class="eyebrow">Межі пам’яті</p><h2>Що ще не доведено</h2></div>
+              <p>Прогалина — це запланована точка пошуку, а не прихована відсутність відповіді.</p>
+            </div>
+            <div class="gap-grid">
+              {% for gap in atlas.gaps %}
+                <article>
+                  <span class="gap-index">{{ "%02d"|format(loop.index) }}</span>
+                  <h3>{{ gap.label }}</h3>
+                  <p>{{ gap.why_it_matters }}</p>
+                  <p class="next-evidence"><strong>Наступний доказ:</strong> {{ gap.next_evidence }}</p>
+                </article>
+              {% else %}
+                <p class="empty-state">Відкриті прогалини не зафіксовані.</p>
+              {% endfor %}
+            </div>
+          </section>
+        {% elif view == "sources" %}
+          <section class="section-block">
+            <div class="section-heading">
+              <div><p class="eyebrow">Корпус</p><h2>Хто і в чому це стверджує</h2></div>
+              <p>{{ atlas.corpus.cutoff_note }}</p>
+            </div>
+            <div class="source-ledger">
+              {% for source in atlas.sources %}
+                <article id="{{ source.source_id }}">
+                  <div class="source-ledger-index">{{ "%02d"|format(loop.index) }}</div>
+                  <div>
+                    <p class="source-meta">{{ source_kind_labels[source.source_kind.value] }} · {{ voice_labels[source.voice_kind.value] }}</p>
+                    <h3><a href="/?view=sources&selected={{ source.source_id }}">{{ source.title }}</a></h3>
+                    <p>{{ source.creator }}{% if source.publisher_or_archive %} · {{ source.publisher_or_archive }}{% endif %}{% if source.date_label %} · {{ source.date_label }}{% endif %}</p>
+                  </div>
+                  <span class="verification-chip verification-{{ source.verification_state.value }}">{{ source.verification_state.value }}</span>
+                </article>
+              {% endfor %}
+            </div>
+          </section>
+        {% endif %}
+      </main>
+
+      <aside id="inspector" class="evidence-inspector" aria-label="Точний доказ">
+        {% if selected_material %}
+          <p class="eyebrow">Матеріал для дослідження</p>
+          <div class="inspector-badges material-badges">
+            <span>{{ selected_material.material.state.value|replace("_", " ") }}</span>
+            <span>{{ selected_material.material.kind.value }}</span>
+            {% if selected_material.material.review_priority %}<span>пріоритет review</span>{% endif %}
+          </div>
+          <h2>{{ selected_material.material.title }}</h2>
+          <p class="source-attribution">
+            <strong>{{ selected_material.material.asserting_voice }}</strong><br>
+            {{ selected_material.source.title }}
+          </p>
+          <section class="locator-block">
+            <p class="eyebrow">Точне місце</p>
+            <p>{{ selected_material.material.locator }}</p>
+          </section>
+          <section class="limitation-block">
+            <p class="eyebrow">Чому це ще не доказ</p>
+            <p>{{ selected_material.material.limitation }}</p>
+          </section>
+          <p class="candidate-boundary">
+            Матеріал видимий і відтворюваний, але не використовується як опора
+            перевірених висновків до окремого рішення review.
+          </p>
+          {% if artifact_links_enabled and selected_material.source.artifact_path %}
+            <a class="original-link" href="/artifacts/{{ selected_material.source.source_id }}?material={{ selected_material.material.material_id }}">Відкрити точний фрагмент</a>
+          {% endif %}
+        {% elif selected_evidence %}
+          <p class="eyebrow">Доказ до висновку</p>
+          <div class="inspector-badges">
+            <span>{{ evidence_role_labels[selected_evidence.evidence.role.value] }}</span>
+            <span>{{ source_kind_labels[selected_evidence.source.source_kind.value] }}</span>
+            <span>{{ voice_labels[selected_evidence.source.voice_kind.value] }}</span>
+          </div>
+          <h2>{{ selected_evidence.source.title }}</h2>
+          <p class="source-attribution">
+            <strong>{{ selected_evidence.source.creator }}</strong>
+            {% if selected_evidence.source.publisher_or_archive %}<br>{{ selected_evidence.source.publisher_or_archive }}{% endif %}
+            {% if selected_evidence.source.date_label %}<br>{{ selected_evidence.source.date_label }}{% endif %}
+          </p>
+          <section class="locator-block">
+            <p class="eyebrow">Точне місце</p>
+            <p>{{ selected_evidence.evidence.locator }}</p>
+          </section>
+          {% if selected_evidence.evidence.excerpt %}
+            <section class="excerpt-block">
+              <p class="eyebrow">Точний уривок</p>
+              <blockquote>{{ selected_evidence.evidence.excerpt }}</blockquote>
+            </section>
+          {% endif %}
+          <section class="assertion-block">
+            <p class="eyebrow">Хто це стверджує</p>
+            <p>{{ selected_evidence.evidence.asserting_voice }}</p>
+          </section>
+          {% if selected_evidence.evidence.limitation %}
+            <section class="limitation-block">
+              <p class="eyebrow">Межа цього доказу</p>
+              <p>{{ selected_evidence.evidence.limitation }}</p>
+            </section>
+          {% endif %}
+          <dl class="source-facts">
+            <div><dt>Перевірка</dt><dd>{{ selected_evidence.source.verification_state.value }}</dd></div>
+            <div><dt>Незалежна родина</dt><dd><code>{{ selected_evidence.source.independence_group }}</code></dd></div>
+            <div><dt>Права</dt><dd>{{ selected_evidence.source.rights_note }}</dd></div>
+          </dl>
+          {% if selected_evidence.source.original_url %}
+            <a class="original-link" href="{{ selected_evidence.source.original_url }}" rel="noreferrer">Відкрити оригінал</a>
+          {% endif %}
+          {% if artifact_links_enabled and selected_evidence.source.artifact_path %}
+            <a class="original-link" href="/artifacts/{{ selected_evidence.source.source_id }}?evidence={{ selected_evidence.evidence.evidence_id }}">Відкрити точний фрагмент</a>
+          {% endif %}
+          {% if selected_evidence.source.artifact_path %}
+            <p class="artifact-address"><span>Локальна копія</span><code>{{ selected_evidence.source.artifact_path }}</code></p>
+          {% endif %}
+        {% else %}
+          <p class="eyebrow">Інспектор доказу</p>
+          <h2>Оберіть кольоровий чип джерела</h2>
+          <p>Тут відкриються автор, точна назва, місце в джерелі, уривок і межа того, що він справді доводить.</p>
+        {% endif %}
+        <details class="method-details">
+          <summary>Як це перевірено?</summary>
+          {% if projection %}
+            <p><strong>Поточний статус:</strong> {{ projection.summary }}</p>
+            <p><strong>Заморожена нотатка на момент збирання evidence core:</strong> {{ atlas.methodology_note }}</p>
+          {% else %}
+            <p>{{ atlas.methodology_note }}</p>
+          {% endif %}
+          <p><code>{{ manifest_hash }}</code></p>
+        </details>
+      </aside>
+    </div>
+
+  </body>
+</html>
