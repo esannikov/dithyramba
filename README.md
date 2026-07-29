@@ -263,9 +263,9 @@ uv build
 ./scripts/acceptance.sh --quick
 ```
 
-For this update, the canonical gate completed with 2,592 passing tests, two
+For this update, the canonical gate completed with 2,593 passing tests, two
 declared skips, strict typing across 238 files, zero terminology findings,
-95.004% exact combined line/branch coverage, and no known dependency
+95.014% exact combined line/branch coverage, and no known dependency
 vulnerabilities. Distribution closure then verifies that the wheel is built
 from the sdist and imports from an isolated non-editable environment.
 
