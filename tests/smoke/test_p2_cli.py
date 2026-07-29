@@ -5,9 +5,10 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import pytest
+from typer.main import get_command
 from typer.testing import CliRunner, Result
 
 from dithyramba.cli import app
@@ -100,14 +101,22 @@ def _scope(state: P2CliState) -> list[str]:
         (["--help"], "index"),
         (["--help"], "source"),
         (["source", "--help"], "versions"),
-        (["source", "add", "--help"], "--collection-root"),
     ],
 )
 def test_p2_help_surfaces_are_discoverable(arguments: list[str], expected: str) -> None:
-    result = runner.invoke(app, arguments, env={"COLUMNS": "80"})
+    result = runner.invoke(app, arguments)
 
     assert result.exit_code == 0
     assert expected in result.stdout
+
+
+def test_source_add_exposes_collection_root_option() -> None:
+    root = cast(Any, get_command(app))
+    source = root.get_command(None, "source")
+    assert source is not None
+    add = source.get_command(None, "add")
+    assert add is not None
+    assert any("--collection-root" in parameter.opts for parameter in add.params)
 
 
 def test_index_emits_full_canonical_receipt_and_unchanged_replay(tmp_path: Path) -> None:

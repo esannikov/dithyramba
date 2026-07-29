@@ -605,6 +605,32 @@ def test_worker_runner_maps_rss_monitor_failure_to_parser_process_error(
         pdf._run_worker(tmp_path / "source.pdf", ParserLimits(), tmp_path)
 
 
+def test_worker_runner_fails_closed_when_rss_monitor_does_not_stop(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    process = _FakeProcess(returncode=0)
+    _patch_process(monkeypatch, process)
+
+    class StuckMonitor:
+        def join(self, *, timeout: int) -> None:
+            assert timeout == 1
+
+        def is_alive(self) -> bool:
+            return True
+
+    monkeypatch.setattr(
+        pdf,
+        "_start_rss_monitor",
+        lambda *_args: cast(Any, StuckMonitor()),
+    )
+    monkeypatch.setattr(pdf, "_kill_process_group", lambda target: target.kill())
+
+    with pytest.raises(ParserProcessError, match="monitor failed"):
+        pdf._run_worker(tmp_path / "source.pdf", ParserLimits(), tmp_path)
+    assert process.killed is True
+
+
 def test_worker_runner_maps_rss_exceeded_event_to_resource_limit(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
