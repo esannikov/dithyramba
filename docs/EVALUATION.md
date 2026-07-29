@@ -219,11 +219,11 @@ the exact proof was already present deeper in a bounded union.
 
 ## Engineering verification
 
-The current public update collects 2,593 engineering cases. In its canonical
+The current public update collects 2,594 engineering cases. In its canonical
 local gate:
 
-- 2,591 passed and two declared browser cases were skipped;
-- exact combined line/branch coverage was `95.01%` at a strict `95.00%` gate;
+- 2,592 passed and two declared browser cases were skipped;
+- exact combined line/branch coverage was `95.0044%` at a strict `95.00%` gate;
 - terminology, format, lint, and strict typing across 238 files passed;
 - the dependency audit found no known vulnerabilities;
 - a separate sdist-to-wheel closure installed non-editably in isolated Python
