@@ -31,6 +31,10 @@ history belong in dated evaluation reports, not in the product changelog.
 
 ### Changed
 
+- Migration verification accepts the single audited private pre-release
+  checksum of `0003_recall_run_artifacts.sql` while keeping the published
+  source-preview checksum canonical; every other checksum drift still fails
+  closed and the schema fingerprint remains mandatory.
 - Harrier input validation now uses an explicit two-million-character safety
   bound and the exact no-truncation token audit as the decisive model limit,
   avoiding false rejection of valid long passages.
@@ -49,7 +53,8 @@ history belong in dated evaluation reports, not in the product changelog.
 
 - Binding compatibility artifacts into adaptive execution, adaptive
   persistence, packet v2, cold replay, and opt-in CLI/HTTP routing remain open.
-- The workspace has no public remote, release, or compatibility promise.
+- The source preview is public; no stable tag or GitHub Release has been
+  declared before independent fresh-install acceptance.
 
 ## 0.1.0rc0 — local pre-alpha foundation
 

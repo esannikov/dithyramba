@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import sqlite3
 from pathlib import Path
 
@@ -401,6 +402,43 @@ def test_mutated_applied_migration_fails_closed(tmp_path: Path) -> None:
 
         with pytest.raises(MigrationChecksumError, match="checksum"):
             MigrationRunner(connection, migration_dir).verify()
+    finally:
+        connection.close()
+
+
+def test_audited_pre_release_migration_three_checksum_remains_compatible(
+    tmp_path: Path,
+) -> None:
+    repository_root = Path(__file__).resolve().parents[2]
+    pre_release = tmp_path / "pre-release-migrations"
+    pre_release.mkdir()
+    for name in (
+        "0001_core.sql",
+        "0002_source_heads.sql",
+        "0003_recall_run_artifacts.sql",
+    ):
+        payload = (repository_root / "migrations" / name).read_bytes()
+        if name == "0003_recall_run_artifacts.sql":
+            payload = payload.replace(
+                b"END;\nCREATE TRIGGER recall_run_artifacts_no_delete",
+                b"END;\n\nCREATE TRIGGER recall_run_artifacts_no_delete",
+            )
+            assert payload.endswith(b"\n")
+            payload += b"\n"
+            assert hashlib.sha256(payload).hexdigest() == (
+                "840e47d732e849990b6c02bda71bf63ea103bd06a45c8db34427766d5d4226bb"
+            )
+        (pre_release / name).write_bytes(payload)
+
+    connection = sqlite3.connect(tmp_path / "pre-release.sqlite3", isolation_level=None)
+    try:
+        MigrationRunner(connection, pre_release).apply_all()
+        applied = MigrationRunner(connection, repository_root / "migrations").verify()
+
+        assert [migration.version for migration in applied] == [1, 2, 3]
+        assert applied[-1].sha256 == (
+            "d9162150f3aeb1c1a8650f77e23f57d4529235f701fc3f65306cdd1b53ee1998"
+        )
     finally:
         connection.close()
 
