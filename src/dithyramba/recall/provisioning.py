@@ -9,6 +9,7 @@ import os
 import shutil
 import stat
 import subprocess
+import sys
 import tempfile
 from contextlib import suppress
 from dataclasses import dataclass
@@ -1223,8 +1224,11 @@ def _write_marker(
 
 
 def _run_hf(arguments: tuple[str, ...], *, timeout_seconds: int) -> int:
+    if not arguments or arguments[0] != "hf":
+        raise OSError(errno.EINVAL, "unsupported provisioning executable")
+    resolved_arguments = (_resolve_hf_executable(), *arguments[1:])
     completed = subprocess.run(
-        arguments,
+        resolved_arguments,
         stdin=subprocess.DEVNULL,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
@@ -1233,6 +1237,44 @@ def _run_hf(arguments: tuple[str, ...], *, timeout_seconds: int) -> int:
         shell=False,
     )
     return completed.returncode
+
+
+def _resolve_hf_executable() -> str:
+    """Resolve the current environment's CLI before consulting ``PATH``."""
+
+    executable = sys.executable
+    if executable:
+        interpreter = Path(executable)
+        if interpreter.is_absolute():
+            sibling_name = "hf.exe" if os.name == "nt" else "hf"
+            sibling = _validated_executable(
+                interpreter.parent / sibling_name,
+                allow_absent=True,
+            )
+            if sibling is not None:
+                return sibling
+
+    path_match = shutil.which("hf")
+    if path_match is None:
+        raise FileNotFoundError(errno.ENOENT, "hf executable is unavailable")
+    resolved = _validated_executable(Path(path_match), allow_absent=False)
+    if resolved is None:  # pragma: no cover - allow_absent=False is fail-closed.
+        raise FileNotFoundError(errno.ENOENT, "hf executable is unavailable")
+    return resolved
+
+
+def _validated_executable(candidate: Path, *, allow_absent: bool) -> str | None:
+    try:
+        candidate.lstat()
+    except FileNotFoundError:
+        if allow_absent:
+            return None
+        raise
+    resolved = candidate.resolve(strict=True)
+    metadata = resolved.stat()
+    if not stat.S_ISREG(metadata.st_mode) or not os.access(resolved, os.X_OK):
+        raise PermissionError(errno.EACCES, "hf executable is not a regular executable")
+    return str(resolved)
 
 
 def _require_profile(profile: object) -> EmbeddingModelProfile:

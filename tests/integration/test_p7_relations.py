@@ -259,7 +259,7 @@ def _seed_private_entity(
     collection = repository.create_collection(
         CollectionConfig(
             library_id=repository.library_id,
-            name="Restricted fixture corpus",
+            name="Private corpus",
             kind=CollectionKind.CORPUS,
             roots=(build_collection_root(private_root, data_root=data_root),),
         )

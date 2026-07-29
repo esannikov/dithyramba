@@ -169,6 +169,35 @@ The compact connector reduced median context by 94.6%, but lost required
 anchors. The verdict was `ITERATE`. This is a useful example of why context
 reduction and evidence coverage must be reported together.
 
+### Directing and screenwriting craft corpora
+
+| Field | Value |
+|---|---:|
+| Admitted runtime sources | directing 116 · screenwriting/dramaturgy 152 |
+| Frozen fragments | 40,886 · 66,145 |
+| Stable FTS rows | 120/120 completed |
+| Sampled cold replays | 16/16 byte-exact |
+| Model/provider calls in stable baseline | 0 |
+| Blinded Ukrainian directing slice | 5 questions · 191 de-duplicated candidate spans |
+
+Two answerable Ukrainian questions returned no lexical candidate and remained
+explicit gaps. Of the three non-empty pools, Harrier produced three different
+effects: it moved one axis-of-action passage from FTS rank 31 to rank 7; it was
+effectively neutral on room tone, whose direct and qualified passages already
+appeared at FTS ranks 2 and 4; and it substantially repaired a blocking query
+whose FTS top 10 consisted entirely of drawing-related homonyms.
+
+The blocking pool received a second independent blind agent review. Reviewers
+agreed on 28/33 exact labels (84.8%), confirmed nine strict-support passages and
+17 unsafe homonyms in common, and produced identical label totals. Harrier
+placed five consensus-supported passages in its first ten unique results, but
+two unsafe homonyms remained there. This supports a bounded reranking role plus
+an exact evidence gate; it does not support using a model score as proof.
+
+The corpus is not distributed, only three questions had non-empty pools, and
+the reviewers were agents rather than independent human researchers. The result
+is therefore a failure diagnosis, not an accuracy or state-of-the-art claim.
+
 ## Mixed adaptive-route replay
 
 One ten-task development replay combined four Tesla tasks, four Mars tasks,
@@ -190,22 +219,22 @@ the exact proof was already present deeper in a bounded union.
 
 ## Engineering verification
 
-After removing private-corpus and model-comparison harnesses, the public tree
-collects 2,557 engineering cases. In the current restricted staging host:
+The current public update collects 2,595 engineering cases. In its canonical
+local gate:
 
-- 2,552 passed;
-- two real-browser cases reached a host prohibition on binding a loopback
-  socket;
-- three PDF subprocess cases reached the host subprocess restriction;
-- combined coverage was `95.18%`, with `96.31%` statement coverage and
-  `91.58%` branch coverage;
-- the deterministic 1,000-fragment replay selected the exact expected fragment,
-  produced one stable packet hash, and made zero provider calls.
+- 2,593 passed and two declared browser cases were skipped;
+- exact combined line/branch coverage was `95.0138%` at a strict `95.00%` gate;
+- terminology, format, lint, and strict typing across 238 files passed;
+- the dependency audit found no known vulnerabilities;
+- a separate sdist-to-wheel closure installed non-editably in isolated Python
+  3.11.12, imported from temporary `site-packages`, and included the schema-v10
+  migration;
+- the deterministic 1,000-fragment replay remains the rights-safe public
+  research-path fixture.
 
 Format, lint, terminology, strict typing, fixture validation, and the
-release-surface audit also passed. The five host-level cases belong to the full
-clean-install run for the exact future public commit. These are engineering
-signals, not research-quality metrics.
+release-surface audit are separate gates. These are engineering signals, not
+research-quality metrics.
 
 ## What remains unproven
 

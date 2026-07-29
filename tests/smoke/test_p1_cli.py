@@ -130,7 +130,7 @@ def test_library_init_list_and_both_doctor_surfaces(tmp_path: Path) -> None:
         ]
     )
     assert library_doctor["status"] == "ok"
-    assert library_doctor["schema_version"] == 9
+    assert library_doctor["schema_version"] == 10
     assert isinstance(library_doctor["schema_fingerprint"], str)
     assert library_doctor["external_services_contacted"] is False
 
@@ -353,7 +353,7 @@ def test_backup_is_verified_and_promoted(tmp_path: Path) -> None:
     backup_path = Path(cast(str, payload["path"]))
     assert backup_path.is_dir()
     assert backup_path.parent == state.data_home / "libraries" / state.library_id / "backups"
-    assert payload["schema_version"] == 9
+    assert payload["schema_version"] == 10
     assert len(cast(str, payload["manifest_hash"])) == 64
     assert (backup_path / "manifest.json").is_file()
     assert (backup_path / "memory.sqlite3").is_file()

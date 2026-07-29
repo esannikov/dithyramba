@@ -74,6 +74,12 @@ research agents. Typical uses include:
 6. **Keep human judgment separate.** Review decisions are scoped, append-only,
    and never overwritten by a later model run.
 
+Several questions over one exact scope may use `RecallService.recall_batch`.
+Schema v10 stores the shared protected fragment manifest once as a
+content-addressed `CorpusReadSet`, while every question still receives its own
+request, packet, receipt, and review identity. This changes storage and repeated
+read work, not the meaning of the public packet contracts.
+
 ### Durable record and rebuildable aids
 
 | Durable, authoritative record | Rebuildable aid or view |
@@ -82,6 +88,7 @@ research agents. Typical uses include:
 | source versions, fragments, and addresses | optional embeddings |
 | Library, Collection, Snapshot, and policy identity | candidate rankings |
 | evidence packets and read receipts | graph projections |
+| shared, content-addressed corpus read sets | model and candidate caches |
 | append-only review decisions | Reading Room and Lens pages |
 
 This boundary lets Dithyramba replace a search model or rebuild a visual view
@@ -117,6 +124,11 @@ you can inspect the result yourself.
 For a real corpus, follow [the complete local workflow](docs/HOW_TO_USE.md).
 Keep live SQLite files, model caches, and backups outside the corpus and outside
 Obsidian, Syncthing, Dropbox, or another file-sync root.
+
+Book-length sources can be ingested with the explicit bounded
+`--parser-profile large-document`; the conservative default remains unchanged.
+The larger profile raises limits without disabling time, size, page, character,
+or worker-memory guards.
 
 ## Stable interfaces
 
@@ -165,6 +177,7 @@ because their source rights and project boundaries differ.
 | Tesla historical evaluation | 50 sources; 6,183 fragments; 40 questions | An earlier model-heavy route recovered the correct source in the top 10 for 86.7% of required evidence roles, but the exact required fragment for only 58.1%; deliberate-gap recognition was 40.0%. These numbers do not describe the current default route. |
 | Artists retrieval stress test | 404 Markdown files; 31.2 MB; about 2.40M words; 48,072 fragments; 18 questions | Exact address-group recovery at top 10 ranged from 17/31 for FTS to 25/31 for the best tested reranking lane. The test exposed parser, isolation, and late-fragment issues; it did not establish a semantic winner. |
 | Maulstick knowledge connector | 383 section/file units; 36 craft cases | Median context fell from 21,174 to 1,147 tokens (−94.6%), but required-anchor coverage also fell from 49/77 to 43/77. The result was `ITERATE`, not lossless compression. |
+| Directing and screenwriting craft corpora | 268 admitted sources; 107,031 fragments; 120 frozen query-language rows | Stable FTS completed 120/120 rows and 16/16 sampled cold replays without provider calls. In a five-question blinded Ukrainian directing slice, Harrier rescued one late axis passage and substantially improved a homonym-heavy blocking list, but still left unsafe passages in the top 10 and could not repair two zero-candidate questions. This is a diagnostic result, not an accuracy claim. |
 
 These are internal development and calibration results, not an independent
 cross-domain benchmark. Retrieval metrics do not establish source truth,
@@ -249,6 +262,12 @@ uv run python -m verification.run_public_replay --warmups 1 --measured 2 \
 uv build
 ./scripts/acceptance.sh --quick
 ```
+
+For this update, the canonical gate completed with 2,593 passing tests, two
+declared skips, strict typing across 238 files, zero terminology findings,
+95.014% exact combined line/branch coverage, and no known dependency
+vulnerabilities. Distribution closure then verifies that the wheel is built
+from the sdist and imports from an isolated non-editable environment.
 
 Passing these checks shows that the implementation behaves as specified by its
 tests. It does not establish historical or scientific truth, nor superiority

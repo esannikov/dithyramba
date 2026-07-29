@@ -5,12 +5,14 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import pytest
+from typer.main import get_command
 from typer.testing import CliRunner, Result
 
 from dithyramba.cli import app
+from dithyramba.ingest.models import LARGE_DOCUMENT_PARSER_PROFILE, PARSER_PROFILE, ParserLimits
 
 runner = CliRunner()
 
@@ -99,7 +101,6 @@ def _scope(state: P2CliState) -> list[str]:
         (["--help"], "index"),
         (["--help"], "source"),
         (["source", "--help"], "versions"),
-        (["source", "add", "--help"], "--collection-root"),
     ],
 )
 def test_p2_help_surfaces_are_discoverable(arguments: list[str], expected: str) -> None:
@@ -107,6 +108,15 @@ def test_p2_help_surfaces_are_discoverable(arguments: list[str], expected: str) 
 
     assert result.exit_code == 0
     assert expected in result.stdout
+
+
+def test_source_add_exposes_collection_root_option() -> None:
+    root = cast(Any, get_command(app))
+    source = root.get_command(None, "source")
+    assert source is not None
+    add = source.get_command(None, "add")
+    assert add is not None
+    assert any("--collection-root" in parameter.opts for parameter in add.params)
 
 
 def test_index_emits_full_canonical_receipt_and_unchanged_replay(tmp_path: Path) -> None:
@@ -123,6 +133,7 @@ def test_index_emits_full_canonical_receipt_and_unchanged_replay(tmp_path: Path)
     coverage = cast(dict[str, object], added["coverage"])
     outcomes = cast(list[dict[str, object]], added["outcomes"])
     assert run["status"] == "succeeded"
+    assert run["profile_version"] == PARSER_PROFILE
     assert run["processing_run_id"] == coverage["processing_run_id"]
     assert run["output_hash"] == coverage["report_hash"]
     assert coverage["processed_count"] == 1
@@ -143,6 +154,42 @@ def test_index_emits_full_canonical_receipt_and_unchanged_replay(tmp_path: Path)
     assert repeated[0]["disposition"] == "unchanged"
     assert repeated[0]["source_id"] == outcomes[0]["source_id"]
     assert repeated[0]["source_version_id"] == outcomes[0]["source_version_id"]
+
+
+def test_cli_parser_profiles_keep_default_bounded_and_admit_opted_in_large_text(
+    tmp_path: Path,
+) -> None:
+    state = _bootstrap(tmp_path)
+    defaults = ParserLimits()
+    assert (defaults.max_file_bytes, defaults.max_extracted_codepoints) == (
+        25 * 1024 * 1024,
+        2_000_000,
+    )
+
+    payload = "\n\n".join("é" * (1024 * 1024) for _ in range(13)) + "\n"
+    path = state.roots[0] / "large.txt"
+    path.write_text(payload, encoding="utf-8")
+    assert path.stat().st_size > defaults.max_file_bytes
+
+    receipt, _ = _invoke_json(["index", *_scope(state), "--parser-profile", "large-document"])
+    run = cast(dict[str, object], receipt["run"])
+    outcome = cast(list[dict[str, object]], receipt["outcomes"])[0]
+    assert run["profile_version"] == LARGE_DOCUMENT_PARSER_PROFILE
+    assert outcome["terminal_outcome"] == "processed"
+
+
+@pytest.mark.parametrize("command", ("index", "source"))
+def test_cli_rejects_unknown_parser_profile(tmp_path: Path, command: str) -> None:
+    state = _bootstrap(tmp_path)
+    arguments = (
+        ["index", *_scope(state)]
+        if command == "index"
+        else ["source", "add", "absent.md", *_scope(state)]
+    )
+    result = runner.invoke(app, [*arguments, "--parser-profile", "unsafe"])
+
+    assert result.exit_code == 1
+    assert "unknown parser profile" in result.stderr
 
 
 def test_explicit_source_add_list_and_versions_hide_physical_locations(tmp_path: Path) -> None:

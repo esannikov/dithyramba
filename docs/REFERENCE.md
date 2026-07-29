@@ -18,7 +18,7 @@ uv run dithyramba <command> --help
 | Package environment | `uv` for development; wheel build uses Hatchling |
 | Base runtime | no model, GPU, external service, or Docker required |
 | Optional semantic extra | `sentence-transformers==5.6.0` |
-| Current database schema | v9 |
+| Current database schema | v10 |
 | Package version | `0.1.0rc0` |
 
 ## Command inventory
@@ -57,6 +57,13 @@ dithyramba source add
 dithyramba source list
 dithyramba source versions
 ```
+
+`index` and `source add` accept `--parser-profile default` or
+`--parser-profile large-document`. The default remains deliberately small and
+conservative. `large-document` is an explicit bounded profile for book-length
+PDF, Markdown, and text inputs: up to 512 MiB per file, 1,500 PDF pages,
+20 million extracted characters, 180 seconds, and 1,024 MiB worker RSS. It does
+not remove parser limits or change source identity.
 
 ### Recall and review
 
@@ -157,6 +164,12 @@ not create a compatibility promise beyond the declared `0.1.x` preview.
 | `ReviewDecision` | `dithyramba.review_decision/1.0` | append-only scoped human decision |
 | `BackupBundle` | `dithyramba.backup_bundle/1.0` | portable hash-closed Library backup |
 
+Schema v10 adds an internal append-only `CorpusReadSet`: one exact protected
+fragment manifest can be shared by several recall requests over the same
+Library, snapshot, policy, Collections, and purpose. Public `ReadReceipt/1.0`
+and `EvidencePacket/1.0` payloads remain unchanged, and v9 Libraries remain
+readable after migration.
+
 Changing the meaning or required fields of one of these schemas requires a
 new version. Applied migrations remain immutable.
 
@@ -211,6 +224,12 @@ executable and fail closed, but are not yet bound to a persisted adaptive run.
 |---|---:|---:|
 | `max_candidates` | 100 | 1–500 |
 | `max_source_fragments` | 30 | 1–100 and not above candidates |
+
+The Python `RecallService.recall_batch(...)` route accepts several requests for
+one exact scope, performs one protected corpus read and one reusable FTS
+session, then persists a separate ordinary request, run, packet, and receipt
+identity for each question. Mixed scopes fail before execution. A batch does
+not merge questions, evidence, or review history.
 
 ### Adaptive route
 

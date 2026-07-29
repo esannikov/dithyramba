@@ -80,6 +80,15 @@ class _FragmentProjection:
     source_address: dict[str, object]
 
 
+@dataclass(frozen=True, slots=True)
+class _CorpusReadSetIdentity:
+    """Internal content address for one exact ordered protected-read corpus."""
+
+    corpus_read_set_id: str
+    set_hash: str
+    payload: dict[str, object]
+
+
 class SQLiteRecallBackend:
     """Library-scoped durable backend implementing ``RecallBackend``.
 
@@ -379,6 +388,184 @@ class SQLiteRecallBackend:
         return (
             self._repository.get_processing_run(processing_run_id),
             self.load_evidence_packet(packet.evidence_packet_id),
+        )
+
+    def complete_recall_batch(
+        self,
+        *,
+        completions: tuple[tuple[str, EvidencePacket], ...],
+    ) -> tuple[tuple[ProcessingRunRecord, EvidencePacket], ...]:
+        """Commit one exact-scope batch as a single all-or-nothing transaction."""
+
+        if type(completions) is not tuple or not completions:
+            raise TypeError("complete_recall_batch requires a non-empty exact tuple")
+        run_ids: list[str] = []
+        packets: list[EvidencePacket] = []
+        for item in completions:
+            if type(item) is not tuple or len(item) != 2:
+                raise TypeError("batch completion items must be (run ID, EvidencePacket) tuples")
+            run_id, packet = item
+            run_ids.append(_validated_run_id(run_id))
+            if type(packet) is not EvidencePacket:
+                raise TypeError("batch completion requires exact EvidencePackets")
+            packets.append(packet)
+        if len(set(run_ids)) != len(run_ids):
+            raise PersistenceIntegrityError("batch completion ProcessingRun IDs must be unique")
+
+        finished_at = _timestamp(self._repository._clock)
+        try:
+            with self._repository._store.transaction(immediate=True) as connection:
+                prepared: list[
+                    tuple[sqlite3.Row, QueryRequest, CorpusSnapshot, EvidencePacket]
+                ] = []
+                first_request: QueryRequest | None = None
+                first_snapshot: CorpusSnapshot | None = None
+                first_packet: EvidencePacket | None = None
+                shared_projections: dict[str, _FragmentProjection] | None = None
+
+                for run_id, packet in zip(run_ids, packets, strict=True):
+                    run_row = self._load_running_recall_run(connection, run_id)
+                    request = self._load_query_request(connection, str(run_row[2]))
+                    snapshot = self._repository._reconstruct_corpus_snapshot(
+                        connection,
+                        request.corpus_snapshot_id,
+                    )
+                    if first_request is None:
+                        shared_projections = self._validate_receipt_closure(
+                            connection,
+                            request=request,
+                            snapshot=snapshot,
+                            coverage=packet.coverage_report,
+                            read=packet.read_receipt,
+                            access=packet.access_receipt,
+                            retrieval=packet.retrieval_receipt,
+                            code_version=str(run_row[4]),
+                            profile_version=str(run_row[5]),
+                        )
+                        first_request = request
+                        first_snapshot = snapshot
+                        first_packet = packet
+                    else:
+                        if (
+                            first_snapshot is None
+                            or first_packet is None
+                            or shared_projections is None
+                        ):
+                            raise AssertionError("batch shared validation state is incomplete")
+                        self._validate_batch_receipt_closure(
+                            request=request,
+                            snapshot=snapshot,
+                            packet=packet,
+                            code_version=str(run_row[4]),
+                            profile_version=str(run_row[5]),
+                            first_request=first_request,
+                            first_snapshot=first_snapshot,
+                            first_packet=first_packet,
+                            projections=shared_projections,
+                        )
+                    if shared_projections is None:
+                        raise AssertionError("batch projections were not prepared")
+                    self._validate_packet_closure(
+                        packet,
+                        request=request,
+                        snapshot=snapshot,
+                        projections=shared_projections,
+                    )
+                    prepared.append((run_row, request, snapshot, packet))
+
+                if first_packet is None:
+                    raise AssertionError("batch packet state is empty")
+                read_set = self._ensure_corpus_read_set(
+                    connection,
+                    first_packet.read_receipt,
+                )
+                for run_id, (run_row, request, _snapshot, packet) in zip(
+                    run_ids,
+                    prepared,
+                    strict=True,
+                ):
+                    self._ensure_coverage(
+                        connection,
+                        processing_run_id=run_id,
+                        query_request_id=request.query_request_id,
+                        coverage=packet.coverage_report,
+                    )
+                    self._ensure_batch_read_receipt_head(
+                        connection,
+                        processing_run_id=run_id,
+                        query_request_id=request.query_request_id,
+                        receipt=packet.read_receipt,
+                        read_set=read_set,
+                    )
+                    self._ensure_access_receipt(
+                        connection,
+                        processing_run_id=run_id,
+                        query_request_id=request.query_request_id,
+                        receipt=packet.access_receipt,
+                    )
+                    self._ensure_retrieval_receipt(
+                        connection,
+                        processing_run_id=run_id,
+                        query_request_id=request.query_request_id,
+                        receipt=packet.retrieval_receipt,
+                    )
+                    self._ensure_evidence_packet(
+                        connection,
+                        packet=packet,
+                        created_at=finished_at,
+                    )
+                    connection.execute(
+                        """
+                        INSERT INTO recall_run_artifacts(
+                            processing_run_id, coverage_report_id, read_receipt_id,
+                            access_receipt_id, retrieval_receipt_id, evidence_packet_id
+                        ) VALUES (?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            run_id,
+                            packet.coverage_report.coverage_report_id,
+                            packet.read_receipt.read_receipt_id,
+                            packet.access_receipt.access_receipt_id,
+                            packet.retrieval_receipt.retrieval_receipt_id,
+                            packet.evidence_packet_id,
+                        ),
+                    )
+                    cursor = connection.execute(
+                        """
+                        UPDATE processing_runs
+                        SET status = 'succeeded', finished_at = ?, error_code = NULL,
+                            output_hash = ?
+                        WHERE processing_run_id = ? AND status = 'running'
+                        """,
+                        (finished_at, packet.packet_hash, run_id),
+                    )
+                    if cursor.rowcount != 1:
+                        raise PersistenceConflictError(
+                            "recall ProcessingRun changed during batch completion"
+                        )
+                    _insert_outbox_event(
+                        connection,
+                        event_id=self._repository._event_id_factory(),
+                        event_type="recall_run.completed",
+                        aggregate_type="processing_run",
+                        aggregate_id=run_id,
+                        payload={
+                            "schema": "dithyramba.recall_run_completed/1.0",
+                            "processing_run_id": run_id,
+                            "kind": str(run_row[1]),
+                            "query_request_id": request.query_request_id,
+                            "evidence_packet_id": packet.evidence_packet_id,
+                            "packet_hash": packet.packet_hash,
+                            "result_status": packet.result_status.value,
+                        },
+                        occurred_at=finished_at,
+                    )
+        except sqlite3.IntegrityError as error:
+            raise PersistenceConflictError("recall batch completion conflicted") from error
+
+        return tuple(
+            (self._repository.get_processing_run(run_id), packet)
+            for run_id, packet in zip(run_ids, packets, strict=True)
         )
 
     def fail_recall_run(
@@ -789,6 +976,84 @@ class SQLiteRecallBackend:
             )
         return projections
 
+    def _validate_batch_receipt_closure(
+        self,
+        *,
+        request: QueryRequest,
+        snapshot: CorpusSnapshot,
+        packet: EvidencePacket,
+        code_version: str,
+        profile_version: str,
+        first_request: QueryRequest,
+        first_snapshot: CorpusSnapshot,
+        first_packet: EvidencePacket,
+        projections: dict[str, _FragmentProjection],
+    ) -> None:
+        coverage = packet.coverage_report
+        read = packet.read_receipt
+        access = packet.access_receipt
+        retrieval = packet.retrieval_receipt
+        for value, expected_type, label in (
+            (coverage, RecallCoverageReport, "RecallCoverageReport"),
+            (read, ReadReceipt, "ReadReceipt"),
+            (access, AccessReceipt, "AccessReceipt"),
+            (retrieval, RetrievalReceipt, "RetrievalReceipt"),
+        ):
+            if type(value) is not expected_type:
+                raise PersistenceIntegrityError(f"{label} must use its exact contract type")
+        if (
+            _recall_batch_scope_payload(request) != _recall_batch_scope_payload(first_request)
+            or snapshot.corpus_snapshot_id != first_snapshot.corpus_snapshot_id
+            or snapshot.manifest_hash != first_snapshot.manifest_hash
+            or snapshot.library_id != first_snapshot.library_id
+            or request.query_request_id != canonical_content_id("query", request.semantic_payload())
+            or request.request_hash != canonical_sha256_hex(request.semantic_payload())
+        ):
+            raise PersistenceIntegrityError("batch completion mixes recall scopes")
+        if any(
+            artifact.query_request_hash != request.request_hash
+            for artifact in (coverage, read, access, retrieval)
+        ):
+            raise PersistenceIntegrityError("batch receipt references a different QueryRequest")
+        first_access = first_packet.access_receipt
+        if (
+            access.library_id != self._repository.library_id
+            or access.access_policy_id != request.access_policy_id
+            or access.corpus_snapshot_id != snapshot.corpus_snapshot_id
+            or access.snapshot_hash != snapshot.manifest_hash
+            or access.policy_hash != first_access.policy_hash
+            or access.exclusion_hash != first_access.exclusion_hash
+            or access.permitted_set_hash != first_access.permitted_set_hash
+            or access.retrieval_corpus_hash != first_access.retrieval_corpus_hash
+            or access.policy_omission_present != first_access.policy_omission_present
+            or coverage.policy_omission_present != first_access.policy_omission_present
+        ):
+            raise PersistenceIntegrityError("batch AccessReceipt differs from shared access")
+        if (
+            read.items != first_packet.read_receipt.items
+            or read.retrieval_corpus_hash != first_packet.read_receipt.retrieval_corpus_hash
+            or read.retrieval_corpus_hash != access.retrieval_corpus_hash
+        ):
+            raise PersistenceIntegrityError("batch ReadReceipt differs from shared read set")
+        if (
+            retrieval.code_version != _validated_label(code_version, "code version")
+            or retrieval.profile_version != _validated_label(profile_version, "profile version")
+            or retrieval.profile != request.retrieval.profile
+            or retrieval.max_candidates != request.retrieval.max_candidates
+            or retrieval.max_source_fragments != request.retrieval.max_source_fragments
+            or retrieval.retrieval_corpus_hash != read.retrieval_corpus_hash
+        ):
+            raise PersistenceIntegrityError("batch RetrievalReceipt dependency mismatch")
+        expected_versions = {projection.source_version_id for projection in projections.values()}
+        if coverage.processed_count != len(expected_versions):
+            raise PersistenceIntegrityError(
+                "batch CoverageReport processed count differs from shared read set"
+            )
+        if not {item.source_fragment_id for item in retrieval.trace}.issubset(projections):
+            raise PersistenceIntegrityError(
+                "batch RetrievalReceipt contains a fragment outside the shared read set"
+            )
+
     def _load_fragment_projections(
         self,
         connection: sqlite3.Connection,
@@ -1060,30 +1325,39 @@ class SQLiteRecallBackend:
     ) -> None:
         read_receipt_id = receipt.read_receipt_id
         receipt_hash = receipt.receipt_hash
-        cursor = connection.execute(
+        existing = connection.execute(
             """
-            INSERT OR IGNORE INTO read_receipts(
-                read_receipt_id, processing_run_id, receipt_hash
-            ) VALUES (?, ?, ?)
+            SELECT read_receipt_id, receipt_hash
+            FROM read_receipts
+            WHERE read_receipt_id = ? OR receipt_hash = ?
+            ORDER BY read_receipt_id
             """,
-            (read_receipt_id, processing_run_id, receipt_hash),
-        )
-        if cursor.rowcount == 1:
-            connection.executemany(
+            (read_receipt_id, receipt_hash),
+        ).fetchall()
+        if not existing:
+            read_set = self._ensure_corpus_read_set(connection, receipt)
+            connection.execute(
                 """
-                INSERT INTO read_receipt_items(
-                    read_receipt_id, source_fragment_id, read_order, text_sha256
-                ) VALUES (?, ?, ?, ?)
+                INSERT INTO read_receipts(
+                    read_receipt_id, processing_run_id, receipt_hash
+                ) VALUES (?, ?, ?)
                 """,
-                (
-                    (
-                        read_receipt_id,
-                        item.source_fragment_id,
-                        item.read_order,
-                        item.text_sha256,
-                    )
-                    for item in receipt.items
-                ),
+                (read_receipt_id, processing_run_id, receipt_hash),
+            )
+            connection.execute(
+                """
+                INSERT INTO read_receipt_corpus_sets(
+                    read_receipt_id, corpus_read_set_id
+                ) VALUES (?, ?)
+                """,
+                (read_receipt_id, read_set.corpus_read_set_id),
+            )
+        elif len(existing) != 1 or (str(existing[0][0]), str(existing[0][1])) != (
+            read_receipt_id,
+            receipt_hash,
+        ):
+            raise PersistenceIntegrityError(
+                "ReadReceipt ID/hash resolve to conflicting persisted rows"
             )
         _require_unique_artifact_identity(
             connection,
@@ -1102,6 +1376,244 @@ class SQLiteRecallBackend:
         )
         if loaded != receipt or loaded.canonical_bytes != receipt.canonical_bytes:
             raise PersistenceIntegrityError("persisted ReadReceipt conflicts with content address")
+
+    def _ensure_batch_read_receipt_head(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        processing_run_id: str,
+        query_request_id: str,
+        receipt: ReadReceipt,
+        read_set: _CorpusReadSetIdentity,
+    ) -> None:
+        expected_set = _corpus_read_set_identity(
+            library_id=self._repository.library_id,
+            retrieval_corpus_hash=receipt.retrieval_corpus_hash,
+            items=receipt.items,
+        )
+        if expected_set != read_set:
+            raise PersistenceIntegrityError(
+                "batch ReadReceipt does not reference the validated CorpusReadSet"
+            )
+        read_receipt_id = receipt.read_receipt_id
+        receipt_hash = receipt.receipt_hash
+        rows = connection.execute(
+            """
+            SELECT read_receipt_id, receipt_hash
+            FROM read_receipts
+            WHERE read_receipt_id = ? OR receipt_hash = ?
+            ORDER BY read_receipt_id
+            """,
+            (read_receipt_id, receipt_hash),
+        ).fetchall()
+        if not rows:
+            connection.execute(
+                """
+                INSERT INTO read_receipts(
+                    read_receipt_id, processing_run_id, receipt_hash
+                ) VALUES (?, ?, ?)
+                """,
+                (read_receipt_id, processing_run_id, receipt_hash),
+            )
+            connection.execute(
+                """
+                INSERT INTO read_receipt_corpus_sets(
+                    read_receipt_id, corpus_read_set_id
+                ) VALUES (?, ?)
+                """,
+                (read_receipt_id, read_set.corpus_read_set_id),
+            )
+        elif len(rows) == 1 and (str(rows[0][0]), str(rows[0][1])) == (
+            read_receipt_id,
+            receipt_hash,
+        ):
+            loaded = self._load_read_receipt(
+                connection,
+                read_receipt_id,
+                query_request_id=query_request_id,
+                query_request_hash=receipt.query_request_hash,
+                retrieval_corpus_hash=receipt.retrieval_corpus_hash,
+            )
+            if loaded != receipt or loaded.canonical_bytes != receipt.canonical_bytes:
+                raise PersistenceIntegrityError(
+                    "persisted batch ReadReceipt conflicts with content address"
+                )
+        else:
+            raise PersistenceIntegrityError(
+                "ReadReceipt ID/hash resolve to conflicting persisted rows"
+            )
+        _require_unique_artifact_identity(
+            connection,
+            table="read_receipts",
+            id_column="read_receipt_id",
+            identifier=read_receipt_id,
+            hash_column="receipt_hash",
+            digest=receipt_hash,
+        )
+
+    def _ensure_corpus_read_set(
+        self,
+        connection: sqlite3.Connection,
+        receipt: ReadReceipt,
+    ) -> _CorpusReadSetIdentity:
+        identity = _corpus_read_set_identity(
+            library_id=self._repository.library_id,
+            retrieval_corpus_hash=receipt.retrieval_corpus_hash,
+            items=receipt.items,
+        )
+        cursor = connection.execute(
+            """
+            INSERT OR IGNORE INTO corpus_read_sets(
+                corpus_read_set_id, library_id, retrieval_corpus_hash,
+                item_count, set_hash
+            ) VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                identity.corpus_read_set_id,
+                self._repository.library_id,
+                receipt.retrieval_corpus_hash,
+                len(receipt.items),
+                identity.set_hash,
+            ),
+        )
+        if cursor.rowcount == 1:
+            connection.executemany(
+                """
+                INSERT INTO corpus_read_set_items(
+                    corpus_read_set_id, source_fragment_id, source_version_id,
+                    read_order, text_sha256
+                ) VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    (
+                        identity.corpus_read_set_id,
+                        item.source_fragment_id,
+                        item.source_version_id,
+                        item.read_order,
+                        item.text_sha256,
+                    )
+                    for item in receipt.items
+                ),
+            )
+        rows = connection.execute(
+            """
+            SELECT corpus_read_set_id, library_id, retrieval_corpus_hash,
+                   item_count, set_hash
+            FROM corpus_read_sets
+            WHERE corpus_read_set_id = ? OR set_hash = ?
+            ORDER BY corpus_read_set_id
+            """,
+            (identity.corpus_read_set_id, identity.set_hash),
+        ).fetchall()
+        if len(rows) != 1:
+            raise PersistenceIntegrityError(
+                "CorpusReadSet ID/hash resolve to conflicting persisted rows"
+            )
+        row = rows[0]
+        if (
+            str(row[0]) != identity.corpus_read_set_id
+            or str(row[1]) != self._repository.library_id
+            or str(row[2]) != receipt.retrieval_corpus_hash
+            or int(row[3]) != len(receipt.items)
+            or str(row[4]) != identity.set_hash
+        ):
+            raise PersistenceIntegrityError(
+                "persisted CorpusReadSet conflicts with its content address"
+            )
+        loaded_items = self._load_corpus_read_set_items(
+            connection,
+            corpus_read_set_id=identity.corpus_read_set_id,
+            expected_library_id=self._repository.library_id,
+        )
+        loaded_identity = _corpus_read_set_identity(
+            library_id=self._repository.library_id,
+            retrieval_corpus_hash=receipt.retrieval_corpus_hash,
+            items=loaded_items,
+        )
+        if loaded_identity != identity or loaded_items != receipt.items:
+            raise PersistenceIntegrityError(
+                "persisted CorpusReadSet items conflict with its content address"
+            )
+        return identity
+
+    def _load_corpus_read_set_items(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        corpus_read_set_id: str,
+        expected_library_id: str,
+    ) -> tuple[ReadReceiptItem, ...]:
+        set_rows = connection.execute(
+            """
+            SELECT corpus_read_set_id, library_id, retrieval_corpus_hash,
+                   item_count, set_hash
+            FROM corpus_read_sets
+            WHERE corpus_read_set_id = ?
+            """,
+            (corpus_read_set_id,),
+        ).fetchall()
+        if len(set_rows) != 1:
+            raise PersistenceIntegrityError("CorpusReadSet identity is absent or ambiguous")
+        set_row = set_rows[0]
+        if str(set_row[1]) != expected_library_id:
+            raise PersistenceIntegrityError("CorpusReadSet crosses the Library boundary")
+        raw_count = int(
+            connection.execute(
+                """
+                SELECT COUNT(*) FROM corpus_read_set_items
+                WHERE corpus_read_set_id = ?
+                """,
+                (corpus_read_set_id,),
+            ).fetchone()[0]
+        )
+        rows = connection.execute(
+            """
+            SELECT item.source_fragment_id, item.source_version_id,
+                   item.read_order, item.text_sha256,
+                   fragment.source_version_id, fragment.text_sha256,
+                   source.library_id
+            FROM corpus_read_set_items AS item
+            JOIN source_fragments AS fragment
+              ON fragment.source_fragment_id = item.source_fragment_id
+            JOIN source_versions AS version
+              ON version.source_version_id = fragment.source_version_id
+            JOIN sources AS source ON source.source_id = version.source_id
+            WHERE item.corpus_read_set_id = ?
+            ORDER BY item.read_order
+            """,
+            (corpus_read_set_id,),
+        ).fetchall()
+        if len(rows) != raw_count or raw_count != int(set_row[3]):
+            raise PersistenceIntegrityError("CorpusReadSet item count is inconsistent")
+        try:
+            items = tuple(
+                ReadReceiptItem(
+                    source_fragment_id=str(row[0]),
+                    source_version_id=str(row[1]),
+                    read_order=int(row[2]),
+                    text_sha256=str(row[3]),
+                )
+                for row in rows
+            )
+        except (TypeError, ValueError, ValidationError) as error:
+            raise PersistenceIntegrityError("persisted CorpusReadSet items are invalid") from error
+        if any(
+            str(row[1]) != str(row[4])
+            or str(row[3]) != str(row[5])
+            or str(row[6]) != expected_library_id
+            for row in rows
+        ):
+            raise PersistenceIntegrityError(
+                "CorpusReadSet item lineage, hash, or Library is inconsistent"
+            )
+        identity = _corpus_read_set_identity(
+            library_id=expected_library_id,
+            retrieval_corpus_hash=str(set_row[2]),
+            items=items,
+        )
+        if identity.corpus_read_set_id != str(set_row[0]) or identity.set_hash != str(set_row[4]):
+            raise PersistenceIntegrityError("persisted CorpusReadSet identity mismatch")
+        return items
 
     def _ensure_access_receipt(
         self,
@@ -1385,41 +1897,76 @@ class SQLiteRecallBackend:
             raise RecallArtifactNotFoundError(f"ReadReceipt does not exist: {read_receipt_id}")
         if str(row[3]) not in ("recall", "replay") or str(row[4]) != query_request_id:
             raise PersistenceIntegrityError("ReadReceipt first-run closure failed")
-        raw_count = int(
+        legacy_count = int(
             connection.execute(
                 "SELECT COUNT(*) FROM read_receipt_items WHERE read_receipt_id = ?",
                 (read_receipt_id,),
             ).fetchone()[0]
         )
-        item_rows = connection.execute(
+        shared_rows = connection.execute(
             """
-            SELECT rri.source_fragment_id, sf.source_version_id,
-                   rri.read_order, rri.text_sha256, sf.text_sha256
-            FROM read_receipt_items AS rri
-            JOIN source_fragments AS sf
-              ON sf.source_fragment_id = rri.source_fragment_id
-            JOIN source_versions AS sv
-              ON sv.source_version_id = sf.source_version_id
-            JOIN sources AS s ON s.source_id = sv.source_id
-            WHERE rri.read_receipt_id = ? AND s.library_id = ?
-            ORDER BY rri.read_order
+            SELECT link.corpus_read_set_id, read_set.library_id,
+                   read_set.retrieval_corpus_hash
+            FROM read_receipt_corpus_sets AS link
+            JOIN corpus_read_sets AS read_set
+              ON read_set.corpus_read_set_id = link.corpus_read_set_id
+            WHERE link.read_receipt_id = ?
             """,
-            (read_receipt_id, self._repository.library_id),
+            (read_receipt_id,),
         ).fetchall()
-        if len(item_rows) != raw_count:
-            raise PersistenceIntegrityError("ReadReceipt items cross the Library boundary")
-        try:
-            items = tuple(
-                ReadReceiptItem(
-                    source_fragment_id=str(item[0]),
-                    source_version_id=str(item[1]),
-                    read_order=int(item[2]),
-                    text_sha256=str(item[3]),
-                )
-                for item in item_rows
+        if legacy_count and shared_rows:
+            raise PersistenceIntegrityError(
+                "ReadReceipt has both legacy and shared item representations"
             )
+        if len(shared_rows) > 1:
+            raise PersistenceIntegrityError("ReadReceipt has multiple shared item sets")
+        if shared_rows:
+            shared = shared_rows[0]
+            if (
+                str(shared[1]) != self._repository.library_id
+                or str(shared[2]) != retrieval_corpus_hash
+            ):
+                raise PersistenceIntegrityError(
+                    "ReadReceipt shared set crosses its Library or corpus boundary"
+                )
+            items = self._load_corpus_read_set_items(
+                connection,
+                corpus_read_set_id=str(shared[0]),
+                expected_library_id=self._repository.library_id,
+            )
+        else:
+            item_rows = connection.execute(
+                """
+                SELECT rri.source_fragment_id, sf.source_version_id,
+                       rri.read_order, rri.text_sha256, sf.text_sha256
+                FROM read_receipt_items AS rri
+                JOIN source_fragments AS sf
+                  ON sf.source_fragment_id = rri.source_fragment_id
+                JOIN source_versions AS sv
+                  ON sv.source_version_id = sf.source_version_id
+                JOIN sources AS s ON s.source_id = sv.source_id
+                WHERE rri.read_receipt_id = ? AND s.library_id = ?
+                ORDER BY rri.read_order
+                """,
+                (read_receipt_id, self._repository.library_id),
+            ).fetchall()
+            if len(item_rows) != legacy_count:
+                raise PersistenceIntegrityError("ReadReceipt items cross the Library boundary")
+            try:
+                items = tuple(
+                    ReadReceiptItem(
+                        source_fragment_id=str(item[0]),
+                        source_version_id=str(item[1]),
+                        read_order=int(item[2]),
+                        text_sha256=str(item[3]),
+                    )
+                    for item in item_rows
+                )
+            except (TypeError, ValueError, ValidationError) as error:
+                raise PersistenceIntegrityError("persisted ReadReceipt is invalid") from error
             if any(str(item[3]) != str(item[4]) for item in item_rows):
                 raise PersistenceIntegrityError("ReadReceipt text hash differs from SourceFragment")
+        try:
             receipt = ReadReceipt(
                 query_request_hash=query_request_hash,
                 retrieval_corpus_hash=retrieval_corpus_hash,
@@ -1831,6 +2378,41 @@ def _retrieval_from_payload(payload: dict[str, object]) -> RetrievalReceipt:
     if receipt.semantic_payload() != payload:
         raise PersistenceIntegrityError("persisted RetrievalReceipt is not canonical")
     return receipt
+
+
+def _corpus_read_set_identity(
+    *,
+    library_id: str,
+    retrieval_corpus_hash: str,
+    items: tuple[ReadReceiptItem, ...],
+) -> _CorpusReadSetIdentity:
+    payload: dict[str, object] = {
+        "schema": "dithyramba.corpus_read_set/1.0",
+        "library_id": library_id,
+        "retrieval_corpus_hash": retrieval_corpus_hash,
+        "items": [item.payload() for item in items],
+    }
+    return _CorpusReadSetIdentity(
+        corpus_read_set_id=canonical_content_id("corpus_read_set", payload),
+        set_hash=canonical_sha256_hex(payload),
+        payload=payload,
+    )
+
+
+def _recall_batch_scope_payload(request: QueryRequest) -> bytes:
+    return canonical_json_bytes(
+        {
+            "schema": "dithyramba.recall_batch_scope/1.0",
+            "library_id": request.library_id,
+            "collection_ids": list(request.collection_ids),
+            "corpus_snapshot_id": request.corpus_snapshot_id,
+            "access_policy_id": request.access_policy_id,
+            "purpose": request.purpose,
+            "exclusions": request.exclusions.payload(),
+            "retrieval": request.retrieval.payload(),
+            "result_contract": request.result_contract.payload(),
+        }
+    )
 
 
 def _recall_omission_id(

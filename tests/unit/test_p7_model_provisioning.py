@@ -8,6 +8,7 @@ import os
 import shutil
 import stat
 import subprocess
+import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -754,6 +755,11 @@ def test_default_subprocess_is_shell_free_and_output_suppressed(
         (target / "config.json").write_text("{}", encoding="utf-8")
         return subprocess.CompletedProcess(arguments, 0)
 
+    monkeypatch.setattr(
+        provisioning_module,
+        "_resolve_hf_executable",
+        lambda: str(tmp_path / "isolated-hf"),
+    )
     monkeypatch.setattr(subprocess, "run", fake_run)
     path, _receipt = provision_model(_profile(), data_root=tmp_path, allow_network=True)
 
@@ -768,3 +774,95 @@ def test_default_subprocess_is_shell_free_and_output_suppressed(
             "shell": False,
         }
     ]
+
+
+def test_default_command_prefers_hf_next_to_the_active_interpreter(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scripts = tmp_path / "isolated-environment" / "bin"
+    scripts.mkdir(parents=True)
+    interpreter = scripts / "python"
+    interpreter.write_text("", encoding="utf-8")
+    hf = scripts / "hf"
+    hf.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    hf.chmod(0o700)
+    calls: list[tuple[str, ...]] = []
+
+    def fake_run(
+        arguments: tuple[str, ...],
+        **_kwargs: object,
+    ) -> subprocess.CompletedProcess[bytes]:
+        calls.append(arguments)
+        target = Path(arguments[arguments.index("--local-dir") + 1])
+        (target / "config.json").write_text("{}", encoding="utf-8")
+        return subprocess.CompletedProcess(arguments, 0)
+
+    monkeypatch.setattr(sys, "executable", str(interpreter))
+    monkeypatch.setenv("PATH", "/usr/bin:/bin")
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    provision_model(_profile(), data_root=tmp_path / "data", allow_network=True)
+
+    assert calls[0][0] == str(hf.resolve(strict=True))
+
+
+def test_default_command_falls_back_to_an_absolute_hf_from_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    interpreter = tmp_path / "isolated-environment" / "bin" / "python"
+    interpreter.parent.mkdir(parents=True)
+    interpreter.write_text("", encoding="utf-8")
+    path_bin = tmp_path / "path-bin"
+    path_bin.mkdir()
+    hf = path_bin / "hf"
+    hf.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    hf.chmod(0o700)
+    calls: list[tuple[str, ...]] = []
+
+    def fake_run(
+        arguments: tuple[str, ...],
+        **_kwargs: object,
+    ) -> subprocess.CompletedProcess[bytes]:
+        calls.append(arguments)
+        target = Path(arguments[arguments.index("--local-dir") + 1])
+        (target / "config.json").write_text("{}", encoding="utf-8")
+        return subprocess.CompletedProcess(arguments, 0)
+
+    monkeypatch.setattr(sys, "executable", str(interpreter))
+    monkeypatch.setenv("PATH", str(path_bin))
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    provision_model(_profile(), data_root=tmp_path / "data", allow_network=True)
+
+    assert calls[0][0] == str(hf.resolve(strict=True))
+
+
+def test_default_command_fails_closed_when_hf_is_absent(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    interpreter = tmp_path / "isolated-environment" / "bin" / "python"
+    interpreter.parent.mkdir(parents=True)
+    interpreter.write_text("", encoding="utf-8")
+    calls = 0
+
+    def unexpected_run(
+        _arguments: tuple[str, ...],
+        **_kwargs: object,
+    ) -> subprocess.CompletedProcess[bytes]:
+        nonlocal calls
+        calls += 1
+        raise AssertionError("subprocess must not run without a resolved hf executable")
+
+    monkeypatch.setattr(sys, "executable", str(interpreter))
+    monkeypatch.setenv("PATH", "")
+    monkeypatch.setattr(subprocess, "run", unexpected_run)
+
+    with pytest.raises(ModelProvisioningError, match="download command could not run"):
+        provision_model(_profile(), data_root=tmp_path / "data", allow_network=True)
+
+    assert calls == 0
+    assert not _target(tmp_path / "data").exists()
+    assert not tuple((tmp_path / "data" / "models").glob("*.partial"))

@@ -5,6 +5,7 @@ from typing import Any, NoReturn, cast
 
 import pytest
 
+import dithyramba.recall.service as recall_service_module
 from dithyramba.access import (
     AccessPolicySnapshot,
     CollectionRule,
@@ -34,8 +35,10 @@ from dithyramba.recall import (
     FtsSearchResult,
     OmissionCategory,
     PacketResultStatus,
+    PermittedFtsSession,
     QueryRequest,
     RetrievalBudget,
+    current_fts_runtime_profile,
 )
 from dithyramba.recall.service import (
     RecallDependencyMismatchError,
@@ -149,6 +152,7 @@ class FakeBackend:
         self.started_runs: list[ProcessingRunRecord] = []
         self.failed_runs: list[ProcessingRunRecord] = []
         self.completed_runs: list[ProcessingRunRecord] = []
+        self.authorization_scopes: list[RequestScope] = []
         self.read_ids: list[tuple[str, ...]] = []
         self.complete_error = False
         self.persist_error = False
@@ -202,6 +206,7 @@ class FakeBackend:
     ) -> AuthorizedRead:
         if access_policy_id != self.policy.access_policy_id:
             raise RuntimeError("unknown policy")
+        self.authorization_scopes.append(scope)
         compiled = compile_access(policy=self.policy, scope=scope, candidates=self.candidates)
         return AuthorizedRead(
             authorization_id=f"authorization_{len(self.started_runs)}",
@@ -1458,3 +1463,323 @@ def test_replay_rejects_packet_query_and_access_closure_drift(
 
     with pytest.raises(RecallRequestError, match="close over"):
         scenario.service.replay(drifted.evidence_packet_id)
+
+
+def _request_with_question(
+    request: QueryRequest,
+    question: str,
+    *,
+    purpose: str | None = None,
+    retrieval: RetrievalBudget | None = None,
+) -> QueryRequest:
+    return QueryRequest(
+        question=question,
+        library_id=request.library_id,
+        collection_ids=request.collection_ids,
+        corpus_snapshot_id=request.corpus_snapshot_id,
+        access_policy_id=request.access_policy_id,
+        purpose=purpose or request.purpose,
+        exclusions=request.exclusions,
+        retrieval=retrieval or request.retrieval,
+        result_contract=request.result_contract,
+    )
+
+
+def _canonical_fts_service(scenario: Scenario) -> RecallService:
+    return RecallService(
+        scenario.backend,
+        profile_version=current_fts_runtime_profile().profile_version,
+        code_version=CODE_VERSION,
+    )
+
+
+def test_recall_batch_matches_sequential_packets_with_one_read_and_session(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    specs = (
+        SourceSpec("alpha", "alpha evidence and common craft"),
+        SourceSpec("beta", "beta evidence and common craft"),
+        SourceSpec("gamma", "gamma evidence and common craft"),
+    )
+    sequential_scenario = _scenario(specs)
+    batch_scenario = _scenario(specs)
+    sequential_service = _canonical_fts_service(sequential_scenario)
+    batch_service = _canonical_fts_service(batch_scenario)
+    sequential_requests = tuple(
+        _request_with_question(sequential_scenario.request, question)
+        for question in ("alpha craft", "beta evidence", "gamma common")
+    )
+    batch_requests = tuple(
+        _request_with_question(batch_scenario.request, question)
+        for question in ("alpha craft", "beta evidence", "gamma common")
+    )
+    sequential = tuple(sequential_service.recall(request) for request in sequential_requests)
+
+    class CountingSession(PermittedFtsSession):
+        constructions = 0
+
+        def __init__(self, *, fragments: tuple[FtsFragment, ...]) -> None:
+            type(self).constructions += 1
+            super().__init__(fragments=fragments)
+
+    monkeypatch.setattr(recall_service_module, "PermittedFtsSession", CountingSession)
+    batched = batch_service.recall_batch(batch_requests)
+
+    assert CountingSession.constructions == 1
+    assert len(batch_scenario.backend.authorization_scopes) == 1
+    assert len(batch_scenario.backend.read_ids) == 1
+    assert len(batch_scenario.backend.started_runs) == len(batch_requests)
+    assert len(batch_scenario.backend.completed_runs) == len(batch_requests)
+    assert tuple(item.packet.canonical_bytes for item in batched) == tuple(
+        item.packet.canonical_bytes for item in sequential
+    )
+
+    for result in batched:
+        replayed = batch_service.replay(result.packet.evidence_packet_id)
+        assert replayed.packet.canonical_bytes == result.packet.canonical_bytes
+        assert replayed.run.kind == "replay"
+
+
+def test_recall_batch_rejects_mixed_scope_before_any_write() -> None:
+    scenario = _scenario((SourceSpec("allowed", "alpha public"),))
+    service = _canonical_fts_service(scenario)
+    first = _request_with_question(scenario.request, "alpha")
+    second = _request_with_question(
+        scenario.request,
+        "public",
+        retrieval=RetrievalBudget(max_candidates=20, max_source_fragments=10),
+    )
+
+    with pytest.raises(RecallRequestError, match="one exact shared request scope"):
+        service.recall_batch((first, second))
+
+    assert scenario.backend.queries == {}
+    assert scenario.backend.started_runs == []
+    assert scenario.backend.authorization_scopes == []
+    assert scenario.backend.read_ids == []
+
+
+@pytest.mark.parametrize("requests", [(), cast(Any, [])])
+def test_recall_batch_rejects_empty_or_inexact_containers_before_any_write(
+    requests: tuple[QueryRequest, ...],
+) -> None:
+    scenario = _scenario((SourceSpec("allowed", "alpha public"),))
+    service = _canonical_fts_service(scenario)
+
+    with pytest.raises(RecallRequestError, match="non-empty QueryRequest tuple"):
+        service.recall_batch(requests)
+
+    assert scenario.backend.queries == {}
+    assert scenario.backend.started_runs == []
+
+
+def test_recall_batch_rejects_duplicate_requests_before_any_write() -> None:
+    scenario = _scenario((SourceSpec("allowed", "alpha public"),))
+    service = _canonical_fts_service(scenario)
+
+    with pytest.raises(RecallRequestError, match="unique QueryRequests"):
+        service.recall_batch((scenario.request, scenario.request))
+
+    assert scenario.backend.queries == {}
+    assert scenario.backend.started_runs == []
+
+
+def test_recall_batch_rejects_substituted_fts_before_any_write() -> None:
+    scenario = _scenario((SourceSpec("allowed", "alpha public"),))
+
+    with pytest.raises(RecallDependencyMismatchError, match="canonical reusable FTS"):
+        scenario.service.recall_batch((scenario.request,))
+
+    assert scenario.backend.queries == {}
+    assert scenario.backend.started_runs == []
+
+
+def test_recall_batch_query_persistence_failure_starts_no_runs() -> None:
+    scenario = _scenario((SourceSpec("allowed", "alpha public"),))
+    service = _canonical_fts_service(scenario)
+    scenario.backend.persist_error = True
+
+    with pytest.raises(RecallPersistenceError, match="could not be persisted"):
+        service.recall_batch((scenario.request,))
+
+    assert scenario.backend.started_runs == []
+    assert scenario.backend.authorization_scopes == []
+
+
+def test_recall_batch_fails_all_runs_on_runtime_profile_drift() -> None:
+    scenario = _scenario((SourceSpec("allowed", "alpha public"),))
+    service = RecallService(
+        scenario.backend,
+        profile_version=FtsRuntimeProfile(
+            sqlite_version="3.45.1",
+            compile_options_hash="b" * 64,
+        ).profile_version,
+        code_version=CODE_VERSION,
+    )
+    requests = (
+        _request_with_question(scenario.request, "alpha"),
+        _request_with_question(scenario.request, "public"),
+    )
+
+    with pytest.raises(RecallDependencyMismatchError, match="runtime differs"):
+        service.recall_batch(requests)
+
+    assert len(scenario.backend.authorization_scopes) == 1
+    assert len(scenario.backend.read_ids) == 1
+    assert len(scenario.backend.failed_runs) == len(requests)
+    assert scenario.backend.completed_runs == []
+    assert scenario.backend.packets == {}
+
+
+def test_recall_batch_completion_failure_terminalizes_every_run() -> None:
+    scenario = _scenario(
+        (
+            SourceSpec("alpha", "alpha public"),
+            SourceSpec("beta", "beta public"),
+        )
+    )
+    service = _canonical_fts_service(scenario)
+    requests = (
+        _request_with_question(scenario.request, "alpha"),
+        _request_with_question(scenario.request, "beta"),
+    )
+    scenario.backend.complete_error = True
+
+    with pytest.raises(RecallPersistenceError, match="atomically persisted"):
+        service.recall_batch(requests)
+
+    assert len(scenario.backend.failed_runs) == len(requests)
+    assert scenario.backend.completed_runs == []
+    assert scenario.backend.packets == {}
+
+
+def test_recall_batch_rejects_malformed_atomic_completion_without_returning_partial_results(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scenario = _scenario(
+        (
+            SourceSpec("alpha", "alpha public"),
+            SourceSpec("beta", "beta public"),
+        )
+    )
+    service = _canonical_fts_service(scenario)
+    requests = (
+        _request_with_question(scenario.request, "alpha"),
+        _request_with_question(scenario.request, "beta"),
+    )
+
+    def incomplete_atomic_completion(
+        _backend: FakeBackend,
+        *,
+        completions: tuple[tuple[str, EvidencePacket], ...],
+    ) -> tuple[tuple[ProcessingRunRecord, EvidencePacket], ...]:
+        processing_run_id, packet = completions[0]
+        return (
+            _backend.complete_recall_run(
+                processing_run_id=processing_run_id,
+                packet=packet,
+            ),
+        )
+
+    monkeypatch.setattr(
+        FakeBackend,
+        "complete_recall_batch",
+        incomplete_atomic_completion,
+        raising=False,
+    )
+
+    with pytest.raises(RecallPersistenceError, match="invalid completion tuple"):
+        service.recall_batch(requests)
+
+    assert len(scenario.backend.failed_runs) == len(requests) - 1
+    assert len(scenario.backend.completed_runs) == 1
+    assert len(scenario.backend.packets) == 1
+
+
+def test_recall_batch_returns_no_partial_results_when_one_query_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scenario = _scenario(
+        (
+            SourceSpec("alpha", "alpha public"),
+            SourceSpec("beta", "beta public"),
+        )
+    )
+    service = _canonical_fts_service(scenario)
+    requests = (
+        _request_with_question(scenario.request, "alpha"),
+        _request_with_question(scenario.request, "beta"),
+    )
+
+    class FailingSecondSearch(PermittedFtsSession):
+        constructions = 0
+
+        def __init__(self, *, fragments: tuple[FtsFragment, ...]) -> None:
+            type(self).constructions += 1
+            self.search_count = 0
+            super().__init__(fragments=fragments)
+
+        def search(self, *, question: str, max_candidates: int) -> FtsSearchResult:
+            self.search_count += 1
+            if self.search_count == 2:
+                raise RuntimeError("simulated second-query failure")
+            return super().search(question=question, max_candidates=max_candidates)
+
+    monkeypatch.setattr(
+        recall_service_module,
+        "PermittedFtsSession",
+        FailingSecondSearch,
+    )
+
+    with pytest.raises(RecallExecutionError, match="batch recall execution"):
+        service.recall_batch(requests)
+
+    assert FailingSecondSearch.constructions == 1
+    assert len(scenario.backend.authorization_scopes) == 1
+    assert len(scenario.backend.read_ids) == 1
+    assert len(scenario.backend.failed_runs) == len(requests)
+    assert scenario.backend.completed_runs == []
+    assert scenario.backend.packets == {}
+
+
+def test_recall_batch_interruption_terminalizes_every_started_run(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scenario = _scenario(
+        (
+            SourceSpec("alpha", "alpha public"),
+            SourceSpec("beta", "beta public"),
+        )
+    )
+    service = _canonical_fts_service(scenario)
+    requests = (
+        _request_with_question(scenario.request, "alpha"),
+        _request_with_question(scenario.request, "beta"),
+    )
+
+    class InterruptSecondSearch(PermittedFtsSession):
+        def __init__(self, *, fragments: tuple[FtsFragment, ...]) -> None:
+            self.search_count = 0
+            super().__init__(fragments=fragments)
+
+        def search(self, *, question: str, max_candidates: int) -> FtsSearchResult:
+            self.search_count += 1
+            if self.search_count == 2:
+                raise KeyboardInterrupt
+            return super().search(question=question, max_candidates=max_candidates)
+
+    monkeypatch.setattr(
+        recall_service_module,
+        "PermittedFtsSession",
+        InterruptSecondSearch,
+    )
+
+    with pytest.raises(KeyboardInterrupt):
+        service.recall_batch(requests)
+
+    assert len(scenario.backend.failed_runs) == len(requests)
+    assert all(
+        run.error_code == RecallInterruptedError.code for run in scenario.backend.failed_runs
+    )
+    assert scenario.backend.completed_runs == []
+    assert scenario.backend.packets == {}

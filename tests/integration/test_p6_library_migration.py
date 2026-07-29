@@ -149,14 +149,14 @@ def test_v3_library_requires_explicit_backup_first_migration_and_emits_receipt(
 
     with Store.open_library_for_migration(paths) as historical:
         assert historical.schema_version == 3
-    with pytest.raises(MigrationStateError, match="behind code version 9"):
+    with pytest.raises(MigrationStateError, match="behind code version 10"):
         open_library(config.library_id, data_root=data_home)
 
     result = migrate_library(config.library_id, data_root=data_home)
 
     assert result.receipt.old_schema_version == 3
-    assert result.receipt.new_schema_version == 9
-    assert [item.version for item in result.receipt.applied_migrations] == [4, 5, 6, 7, 8, 9]
+    assert result.receipt.new_schema_version == 10
+    assert [item.version for item in result.receipt.applied_migrations] == [4, 5, 6, 7, 8, 9, 10]
     assert result.receipt.backup_manifest_hash == result.backup.manifest_hash
     assert result.receipt.payload()["status"] == "verified"
     assert result.receipt.canonical_bytes == canonical_json_bytes(result.receipt.payload())
@@ -170,7 +170,7 @@ def test_v3_library_requires_explicit_backup_first_migration_and_emits_receipt(
     assert any(entry.path.startswith("blobs/") for entry in historical_bundle.manifest.files)
 
     with open_library(config.library_id, data_root=data_home) as repository:
-        assert repository.schema_version == 9
+        assert repository.schema_version == 10
         assert repository.library.logical_identity_hash == result.receipt.logical_identity_hash
         source_row = repository._store.connection.execute(
             "SELECT canonical_uri FROM sources WHERE source_id = 'source_migration_fixture'"
@@ -251,7 +251,7 @@ def test_historical_migration_bundle_restores_then_migrates_without_overwrite(
     restored_home = tmp_path / "restored"
 
     with restore_backup_bundle(migrated.backup.path, data_root=restored_home) as restored:
-        assert restored.schema_version == 9
+        assert restored.schema_version == 10
         assert restored.library_id == config.library_id
         assert restored.library.logical_identity_hash == migrated.receipt.logical_identity_hash
         digest = hashlib.sha256(source.read_bytes()).hexdigest()
@@ -264,7 +264,7 @@ def test_historical_migration_bundle_restores_then_migrates_without_overwrite(
         )
 
     restored_database = restored_home / "libraries" / config.library_id / "memory.sqlite3"
-    assert _schema_version(restored_database) == 9
+    assert _schema_version(restored_database) == 10
     with pytest.raises(BackupBundleConflictError, match="already exists"):
         restore_backup_bundle(migrated.backup.path, data_root=restored_home)
 
@@ -382,12 +382,12 @@ def test_concurrent_writer_cannot_land_between_locked_proof_and_migration_sql(
     migrated = migrate_library(config.library_id, data_root=data_home)
     writer.join(timeout=5)
 
-    assert migrated.receipt.new_schema_version == 9
+    assert migrated.receipt.new_schema_version == 10
     assert observed_locked_proof is True
     assert writer.is_alive() is False
     assert writer_errors == []
     assert writer_acquired.is_set() is True
-    assert writer_versions == [9]
+    assert writer_versions == [10]
     with open_library(config.library_id, data_root=data_home) as repository:
         assert (
             repository._store.connection.execute(
@@ -560,7 +560,7 @@ def test_migration_rejects_identity_or_source_surface_drift(
     else:
         with pytest.raises(LibraryMigrationError, match="changed during migration"):
             migrate_library(config.library_id, data_root=data_home)
-        assert _schema_version(paths.database) == 9
+        assert _schema_version(paths.database) == 10
 
 
 def test_migration_rejects_database_replacement_and_final_backup_drift(
@@ -591,7 +591,7 @@ def test_migration_rejects_database_replacement_and_final_backup_drift(
     monkeypatch.setattr(MigrationRunner, "apply_all", replace_after_apply)
     with pytest.raises(LibraryMigrationError, match="database was replaced"):
         migrate_library(config.library_id, data_root=data_home)
-    assert _schema_version(paths.database) == 9
+    assert _schema_version(paths.database) == 10
 
     monkeypatch.undo()
     config, data_home, paths, _source = _v3_library(tmp_path / "final-backup")
@@ -620,7 +620,7 @@ def test_migration_rejects_database_replacement_and_final_backup_drift(
     monkeypatch.setattr(migration_module, "_verified_backup_proof", final_drift)
     with pytest.raises(LibraryMigrationError, match="changed during migration"):
         migrate_library(config.library_id, data_root=data_home)
-    assert _schema_version(paths.database) == 9
+    assert _schema_version(paths.database) == 10
 
 
 def test_backup_proof_identity_and_current_head_guards(tmp_path: Path) -> None:

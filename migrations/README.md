@@ -4,8 +4,12 @@ Numbered, immutable, checksummed SQLite migrations evolve the public storage
 contract. The initial migration preserves the legacy `VS0` contract name used
 inside schema identifiers; no generated migration framework is used.
 
-Schema head v9 adds hash-pinned connector-declared logical Source identity
-tables. Schema head v7 adds append-only, text-free SemanticSpan plans and vector-v2
+Schema head v10 normalizes repeated protected-read manifests into append-only
+`CorpusReadSet` records. Several receipts may reference one exact set only when
+Library, snapshot, policy, Collections, and purpose all match; public
+`ReadReceipt/1.0` remains unchanged and legacy v9 receipts remain readable.
+Schema v9 adds hash-pinned connector-declared logical Source identity tables.
+Schema v7 adds append-only, text-free SemanticSpan plans and vector-v2
 generations. SQLite enforces source lineage, profile/model/runtime bindings,
 token and character bounds, exact plan counts before generation, and float32
 blob length. The persistence layer must still reconstruct every canonical hash

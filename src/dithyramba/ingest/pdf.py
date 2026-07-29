@@ -202,7 +202,7 @@ def _start_rss_monitor(
 ) -> threading.Thread | None:
     """Enforce RSS on macOS, where ``RLIMIT_RSS`` is only advisory/unsupported."""
 
-    if sys.platform != "darwin":
+    if not _is_darwin_platform():
         return None
 
     def monitor() -> None:
@@ -233,6 +233,12 @@ def _start_rss_monitor(
     thread = threading.Thread(target=monitor, name="dithyramba-pdf-rss", daemon=True)
     thread.start()
     return thread
+
+
+def _is_darwin_platform() -> bool:
+    """Keep runtime platform selection testable without static-platform dead code."""
+
+    return sys.platform == "darwin"
 
 
 def _darwin_rss_bytes(pid: int) -> int | None:

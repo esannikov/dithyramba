@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
+import dithyramba.recall.provisioning as provisioning_module
 from dithyramba.cli import app
 
 runner = CliRunner()
@@ -45,6 +46,7 @@ def test_provision_then_offline_verify_is_machine_readable(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     calls: list[tuple[str, ...]] = []
+    fake_hf = tmp_path / "isolated-hf"
 
     def fake_run(
         arguments: tuple[str, ...],
@@ -58,6 +60,7 @@ def test_provision_then_offline_verify_is_machine_readable(
             path.write_text(f"{relative_path}\n", encoding="utf-8")
         return subprocess.CompletedProcess(arguments, 0)
 
+    monkeypatch.setattr(provisioning_module, "_resolve_hf_executable", lambda: str(fake_hf))
     monkeypatch.setattr(subprocess, "run", fake_run)
     first = runner.invoke(
         app,
@@ -77,7 +80,7 @@ def test_provision_then_offline_verify_is_machine_readable(
     assert first_payload["revision"] == "614241f622f53c4eeff9890bdc4f31cfecc418b3"
     assert first_payload["file_count"] == 9
     assert first_payload["network_authorized"] is True
-    assert calls and calls[0][:2] == ("hf", "download")
+    assert calls and calls[0][:2] == (str(fake_hf), "download")
 
     def forbidden_run(
         _arguments: tuple[str, ...],
@@ -120,6 +123,8 @@ def test_embedding_profiles_are_explicitly_pinned_and_machine_readable(
     model_id: str,
     revision: str,
 ) -> None:
+    fake_hf = tmp_path / "isolated-hf"
+
     def fake_run(
         arguments: tuple[str, ...],
         **_kwargs: object,
@@ -131,6 +136,7 @@ def test_embedding_profiles_are_explicitly_pinned_and_machine_readable(
             path.write_text(f"{relative_path}\n", encoding="utf-8")
         return subprocess.CompletedProcess(arguments, 0)
 
+    monkeypatch.setattr(provisioning_module, "_resolve_hf_executable", lambda: str(fake_hf))
     monkeypatch.setattr(subprocess, "run", fake_run)
     result = runner.invoke(
         app,
