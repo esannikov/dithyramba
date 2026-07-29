@@ -35,6 +35,7 @@ jobs:
       - name: Verify toolchain pins
         run: |
           uv_actual="$(uv --version | awk '{print $2}')"
+          uv python install "$PYTHON_VERSION"
           python_bin="$(uv python find "$PYTHON_VERSION")"
           python_actual="$("$python_bin" -c 'import platform; print(platform.python_version())')"
           printf 'uv=%s (expected %s)\n' "$uv_actual" "$UV_VERSION"
@@ -84,7 +85,7 @@ jobs:
           package = Path(dithyramba.__file__).resolve()
           assert Path(sys.prefix).resolve() in package.parents
           assert resources.files("dithyramba.store.sql").joinpath(
-              "0009_source_identity_manifest.sql"
+              "0010_corpus_read_sets.sql"
           ).is_file()
           print(dithyramba.__version__)
           PY
