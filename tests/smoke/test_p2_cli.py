@@ -104,7 +104,7 @@ def _scope(state: P2CliState) -> list[str]:
     ],
 )
 def test_p2_help_surfaces_are_discoverable(arguments: list[str], expected: str) -> None:
-    result = runner.invoke(app, arguments)
+    result = runner.invoke(app, arguments, env={"COLUMNS": "80"})
 
     assert result.exit_code == 0
     assert expected in result.stdout

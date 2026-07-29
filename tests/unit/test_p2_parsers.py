@@ -547,6 +547,43 @@ def test_darwin_rss_watchdog_accepts_exit_between_poll_and_observation(
     assert process.killed is False
 
 
+def test_darwin_rss_watchdog_accepts_preexisting_exit_and_stop(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(sys, "platform", "darwin")
+    exceeded = threading.Event()
+    monitor_failed = threading.Event()
+
+    exited = _FakeProcess(returncode=0)
+    exited_monitor = pdf._start_rss_monitor(
+        cast(Any, exited),
+        1,
+        threading.Event(),
+        exceeded,
+        monitor_failed,
+    )
+    assert exited_monitor is not None
+    exited_monitor.join(timeout=1)
+    assert not exited_monitor.is_alive()
+
+    running = _FakeProcess(returncode=None)
+    stop = threading.Event()
+    monkeypatch.setattr(pdf, "_darwin_rss_bytes", lambda _pid: 0)
+    running_monitor = pdf._start_rss_monitor(
+        cast(Any, running),
+        1,
+        stop,
+        exceeded,
+        monitor_failed,
+    )
+    assert running_monitor is not None
+    stop.set()
+    running_monitor.join(timeout=1)
+    assert not running_monitor.is_alive()
+    assert not exceeded.is_set()
+    assert not monitor_failed.is_set()
+
+
 def test_worker_runner_maps_rss_monitor_failure_to_parser_process_error(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
