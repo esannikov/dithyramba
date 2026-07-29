@@ -22,7 +22,6 @@ from .semantic_spans import ContentTokenOffset
 from .vector import PackedVector, pack_normalized_vector
 
 _MAX_PASSAGES = 512
-_MAX_PASSAGE_CHARACTERS = 32_768
 _MAX_PASSAGE_BATCH_CHARACTERS = 2_000_000
 _MAX_PARENT_CHARACTERS = 2_000_000
 
@@ -235,7 +234,7 @@ class SentenceTransformersProvider:
             _validate_text(
                 text,
                 field="passage",
-                maximum=_MAX_PASSAGE_CHARACTERS,
+                maximum=_MAX_PARENT_CHARACTERS,
                 require_unpadded=False,
             )
             prepared.append(self.model_profile.passage_prefix + text)
@@ -255,9 +254,14 @@ class SentenceTransformersProvider:
             _validate_text(
                 text,
                 field="prepared embedding input",
-                maximum=_MAX_PASSAGE_CHARACTERS + 128,
+                maximum=_MAX_PARENT_CHARACTERS + len(self.model_profile.passage_prefix),
                 require_unpadded=False,
             )
+        prepared_prefix_budget = len(self.model_profile.passage_prefix) * len(texts)
+        if sum(len(text) for text in texts) > (
+            _MAX_PASSAGE_BATCH_CHARACTERS + prepared_prefix_budget
+        ):
+            raise SemanticProviderError("token audit batch exceeds its character budget")
         return tuple(_exact_token_length(self._tokenizer, text) for text in texts)
 
     def count_prepared_tokens_no_truncation(self, prepared_text: str) -> int:

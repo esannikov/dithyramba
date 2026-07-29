@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
-from typing import ClassVar, Literal, Protocol, cast
+from typing import ClassVar, Literal, Protocol, cast, runtime_checkable
 
 from dithyramba._version import __version__
 from dithyramba.access import (
@@ -43,7 +43,14 @@ from .artifacts import (
     RetrievalReceipt,
     RetrievalTraceItem,
 )
-from .fts import FtsCandidate, FtsFragment, FtsRuntimeProfile, FtsSearchResult, search_ephemeral_fts
+from .fts import (
+    FtsCandidate,
+    FtsFragment,
+    FtsRuntimeProfile,
+    FtsSearchResult,
+    PermittedFtsSession,
+    search_ephemeral_fts,
+)
 from .models import QueryRequest
 
 RecallRunKind = Literal["recall", "replay"]
@@ -126,6 +133,19 @@ class _RecallLifecycle:
     packet: EvidencePacket | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class _PreparedRecallCorpus:
+    """One validated protected read reusable only inside an exact batch scope."""
+
+    authorization: AuthorizedRead
+    manifest: PermittedManifest
+    read_fragments: tuple[SourceFragmentText, ...]
+    read_receipt_items: tuple[ReadReceiptItem, ...]
+    fragments_by_id: dict[str, SourceFragmentText]
+    addresses: dict[str, dict[str, object]]
+    fts_fragments: tuple[FtsFragment, ...]
+
+
 class FtsSearch(Protocol):
     """Injected fresh-FTS seam; implementations must remain provider-free."""
 
@@ -189,6 +209,17 @@ class RecallBackend(Protocol):
     def load_evidence_packet(self, evidence_packet_id: str) -> EvidencePacket: ...
 
 
+@runtime_checkable
+class _AtomicRecallBatchBackend(Protocol):
+    """Optional backend extension for one-transaction batch completion."""
+
+    def complete_recall_batch(
+        self,
+        *,
+        completions: tuple[tuple[str, EvidencePacket], ...],
+    ) -> tuple[tuple[ProcessingRunRecord, EvidencePacket], ...]: ...
+
+
 class RecallService:
     """Build EvidencePackets from one exact snapshot through protected local FTS."""
 
@@ -237,6 +268,125 @@ class RecallService:
             snapshot=snapshot,
             expected_packet=None,
         )
+
+    def recall_batch(self, requests: tuple[QueryRequest, ...]) -> tuple[RecallResult, ...]:
+        """Recall one exact scope through one protected read and one FTS session.
+
+        Every request keeps its ordinary durable QueryRequest, ProcessingRun,
+        EvidencePacket, and receipt identities.  The optimization is restricted
+        to the immutable authorized corpus: mixed scopes and substituted
+        one-shot FTS dependencies are rejected before any run starts.
+        """
+
+        canonical_requests = _validated_batch_requests(requests)
+        if self._fts_search is not search_ephemeral_fts:
+            raise RecallDependencyMismatchError(
+                "batch recall requires the canonical reusable FTS dependency"
+            )
+        snapshot = self._load_and_validate_snapshot(canonical_requests[0])
+        self._persist_batch_requests(canonical_requests)
+        lifecycles = tuple(
+            _RecallLifecycle(processing_run_id=new_id("run"), kind="recall")
+            for _request in canonical_requests
+        )
+        try:
+            try:
+                for request, lifecycle in zip(canonical_requests, lifecycles, strict=True):
+                    lifecycle.started = self._begin_run(
+                        processing_run_id=lifecycle.processing_run_id,
+                        kind="recall",
+                        request=request,
+                    )
+                prepared = self._prepare_recall_corpus(
+                    request=canonical_requests[0],
+                    snapshot=snapshot,
+                )
+                with PermittedFtsSession(fragments=prepared.fts_fragments) as session:
+                    if session.profile.profile_version != self._profile_version:
+                        raise RecallDependencyMismatchError(
+                            "batch FTS runtime differs from the service profile"
+                        )
+                    for request, lifecycle in zip(canonical_requests, lifecycles, strict=True):
+                        result = session.search(
+                            question=request.question,
+                            max_candidates=request.retrieval.max_candidates,
+                        )
+                        validated_result = _validated_fts_result(
+                            result,
+                            fragments=prepared.fts_fragments,
+                            profile_version=self._profile_version,
+                            max_candidates=request.retrieval.max_candidates,
+                        )
+                        lifecycle.packet = self._assemble_packet(
+                            request=request,
+                            snapshot=snapshot,
+                            prepared=prepared,
+                            result=validated_result,
+                        )
+                prepared_completions: list[tuple[str, EvidencePacket]] = []
+                for lifecycle in lifecycles:
+                    if lifecycle.started is None or lifecycle.packet is None:
+                        raise RecallExecutionError("batch recall did not prepare every request")
+                    prepared_completions.append((lifecycle.processing_run_id, lifecycle.packet))
+                if isinstance(self._backend, _AtomicRecallBatchBackend):
+                    try:
+                        completions = self._backend.complete_recall_batch(
+                            completions=tuple(prepared_completions),
+                        )
+                    except Exception as error:
+                        raise RecallPersistenceError(
+                            "batch recall artifacts could not be atomically persisted"
+                        ) from error
+                    if type(completions) is not tuple or len(completions) != len(lifecycles):
+                        raise RecallPersistenceError(
+                            "atomic batch backend returned an invalid completion tuple"
+                        )
+                else:
+                    sequential: list[tuple[ProcessingRunRecord, EvidencePacket]] = []
+                    for processing_run_id, packet in prepared_completions:
+                        try:
+                            sequential.append(
+                                self._backend.complete_recall_run(
+                                    processing_run_id=processing_run_id,
+                                    packet=packet,
+                                )
+                            )
+                        except Exception as error:
+                            raise RecallPersistenceError(
+                                "batch recall artifacts could not be atomically persisted"
+                            ) from error
+                    completions = tuple(sequential)
+
+                results: list[RecallResult] = []
+                for completion, lifecycle in zip(completions, lifecycles, strict=True):
+                    started = lifecycle.started
+                    final_packet = lifecycle.packet
+                    if (
+                        started is None or final_packet is None
+                    ):  # pragma: no cover - invariant guard
+                        raise RecallExecutionError("batch recall did not prepare every request")
+                    completed_run, persisted_packet = _validated_completion(
+                        completion,
+                        started=started,
+                        packet=final_packet,
+                    )
+                    results.append(RecallResult(run=completed_run, packet=persisted_packet))
+                return tuple(results)
+            except Exception as error:
+                typed = (
+                    error
+                    if isinstance(error, RecallError)
+                    else RecallExecutionError("batch recall execution failed closed")
+                )
+                self._reconcile_batch_failure(lifecycles, typed)
+                if typed is error:
+                    raise
+                raise typed from error
+        except BaseException as interruption:
+            if isinstance(interruption, Exception):
+                raise
+            self._reconcile_batch_interruption(lifecycles)
+            raise
 
     def replay(self, evidence_packet_id: str) -> RecallResult:
         """Re-run an original request and byte-compare its complete packet."""
@@ -333,6 +483,20 @@ class RecallService:
         if snapshot.collection_ids != request.collection_ids:
             raise RecallSnapshotError("CorpusSnapshot Collection scope differs from QueryRequest")
         return snapshot
+
+    def _persist_batch_requests(self, requests: tuple[QueryRequest, ...]) -> None:
+        try:
+            for request in requests:
+                self._backend.persist_query_request(request)
+            for request in requests:
+                persisted = self._backend.load_query_request(request.query_request_id)
+                _require_same_request(persisted, request)
+        except RecallPersistenceError:
+            raise
+        except Exception as error:
+            raise RecallPersistenceError(
+                "batch QueryRequests could not be persisted and reloaded"
+            ) from error
 
     def _execute(
         self,
@@ -437,6 +601,31 @@ class RecallService:
         request: QueryRequest,
         snapshot: CorpusSnapshot,
     ) -> EvidencePacket:
+        prepared = self._prepare_recall_corpus(request=request, snapshot=snapshot)
+        result = self._fts_search(
+            question=request.question,
+            fragments=prepared.fts_fragments,
+            max_candidates=request.retrieval.max_candidates,
+        )
+        result = _validated_fts_result(
+            result,
+            fragments=prepared.fts_fragments,
+            profile_version=self._profile_version,
+            max_candidates=request.retrieval.max_candidates,
+        )
+        return self._assemble_packet(
+            request=request,
+            snapshot=snapshot,
+            prepared=prepared,
+            result=result,
+        )
+
+    def _prepare_recall_corpus(
+        self,
+        *,
+        request: QueryRequest,
+        snapshot: CorpusSnapshot,
+    ) -> _PreparedRecallCorpus:
         scope = RequestScope(
             library_id=request.library_id,
             snapshot_hash=snapshot.manifest_hash,
@@ -459,24 +648,11 @@ class RecallService:
             read_fragments,
             manifest=manifest,
         )
-        result = self._fts_search(
-            question=request.question,
-            fragments=fts_fragments,
-            max_candidates=request.retrieval.max_candidates,
-        )
-        result = _validated_fts_result(
-            result,
-            fragments=fts_fragments,
-            profile_version=self._profile_version,
-            max_candidates=request.retrieval.max_candidates,
-        )
-        selected_count = min(len(result.trace), request.retrieval.max_source_fragments)
-        selected_trace = result.trace[:selected_count]
-
-        read_receipt = ReadReceipt(
-            query_request_hash=request.request_hash,
-            retrieval_corpus_hash=result.retrieval_corpus_hash,
-            items=tuple(
+        return _PreparedRecallCorpus(
+            authorization=authorization,
+            manifest=manifest,
+            read_fragments=read_fragments,
+            read_receipt_items=tuple(
                 ReadReceiptItem(
                     source_fragment_id=fragment.source_fragment_id,
                     source_version_id=fragment.source_version_id,
@@ -485,9 +661,29 @@ class RecallService:
                 )
                 for order, fragment in enumerate(read_fragments)
             ),
+            fragments_by_id=fragments_by_id,
+            addresses=addresses,
+            fts_fragments=fts_fragments,
         )
-        token = authorization.compiled.token
-        public_result = authorization.compiled.public_result
+
+    def _assemble_packet(
+        self,
+        *,
+        request: QueryRequest,
+        snapshot: CorpusSnapshot,
+        prepared: _PreparedRecallCorpus,
+        result: FtsSearchResult,
+    ) -> EvidencePacket:
+        selected_count = min(len(result.trace), request.retrieval.max_source_fragments)
+        selected_trace = result.trace[:selected_count]
+
+        read_receipt = ReadReceipt(
+            query_request_hash=request.request_hash,
+            retrieval_corpus_hash=result.retrieval_corpus_hash,
+            items=prepared.read_receipt_items,
+        )
+        token = prepared.authorization.compiled.token
+        public_result = prepared.authorization.compiled.public_result
         access_receipt = AccessReceipt(
             library_id=request.library_id,
             query_request_hash=request.request_hash,
@@ -521,7 +717,7 @@ class RecallService:
         )
         coverage = RecallCoverageReport(
             query_request_hash=request.request_hash,
-            processed_count=len({item.source_version_id for item in read_fragments}),
+            processed_count=len({item.source_version_id for item in prepared.read_fragments}),
             skipped_count=0,
             failed_count=0,
             policy_omission_present=public_result.policy_omission_present,
@@ -532,13 +728,13 @@ class RecallService:
                 policy_omission_present=public_result.policy_omission_present,
             ),
         )
-        manifest_by_id = {item.source_fragment_id: item for item in manifest.items}
+        manifest_by_id = {item.source_fragment_id: item for item in prepared.manifest.items}
         evidence = tuple(
             _evidence_fragment(
                 candidate,
-                source=fragments_by_id[candidate.source_fragment_id],
+                source=prepared.fragments_by_id[candidate.source_fragment_id],
                 source_family_id=manifest_by_id[candidate.source_fragment_id].source_family_id,
-                source_address=addresses[candidate.source_fragment_id],
+                source_address=prepared.addresses[candidate.source_fragment_id],
             )
             for candidate in selected_trace
         )
@@ -576,6 +772,43 @@ class RecallService:
             error=error,
             re_raise_transition_interruption=True,
         )
+
+    def _reconcile_batch_failure(
+        self,
+        lifecycles: tuple[_RecallLifecycle, ...],
+        error: RecallError,
+    ) -> None:
+        """Terminalize every started batch run and never return partial results."""
+
+        first_failure: BaseException | None = None
+        for lifecycle in lifecycles:
+            try:
+                self._reconcile_ordinary_failure(lifecycle, error)
+            except BaseException as reconcile_error:
+                if first_failure is None:
+                    first_failure = reconcile_error
+        if first_failure is not None:
+            if not isinstance(first_failure, Exception):
+                raise first_failure
+            raise RecallPersistenceError(
+                "batch recall failure could not terminalize every started run"
+            ) from first_failure
+
+    def _reconcile_batch_interruption(
+        self,
+        lifecycles: tuple[_RecallLifecycle, ...],
+    ) -> None:
+        """Best-effort terminalization for every batch run after interruption."""
+
+        first_failure: BaseException | None = None
+        for lifecycle in lifecycles:
+            try:
+                self._reconcile_interruption(lifecycle)
+            except BaseException as reconcile_error:
+                if first_failure is None:
+                    first_failure = reconcile_error
+        if first_failure is not None:
+            raise first_failure
 
     def _reconcile_interruption(self, lifecycle: _RecallLifecycle) -> None:
         """Terminalize a known running row, preserving any committed terminal state."""
@@ -764,6 +997,37 @@ def _validated_request(value: QueryRequest) -> QueryRequest:
     except Exception as error:
         raise RecallRequestError("QueryRequest is not canonical") from error
     return canonical
+
+
+def _validated_batch_requests(
+    values: tuple[QueryRequest, ...],
+) -> tuple[QueryRequest, ...]:
+    if type(values) is not tuple or not values:
+        raise RecallRequestError("batch recall requires a non-empty QueryRequest tuple")
+    canonical = tuple(_validated_request(value) for value in values)
+    identifiers = tuple(request.query_request_id for request in canonical)
+    if len(set(identifiers)) != len(identifiers):
+        raise RecallRequestError("batch recall requires unique QueryRequests")
+    expected_scope = _batch_scope_bytes(canonical[0])
+    if any(_batch_scope_bytes(request) != expected_scope for request in canonical[1:]):
+        raise RecallRequestError("batch recall requires one exact shared request scope")
+    return canonical
+
+
+def _batch_scope_bytes(request: QueryRequest) -> bytes:
+    return canonical_json_bytes(
+        {
+            "schema": "dithyramba.recall_batch_scope/1.0",
+            "library_id": request.library_id,
+            "collection_ids": list(request.collection_ids),
+            "corpus_snapshot_id": request.corpus_snapshot_id,
+            "access_policy_id": request.access_policy_id,
+            "purpose": request.purpose,
+            "exclusions": request.exclusions.payload(),
+            "retrieval": request.retrieval.payload(),
+            "result_contract": request.result_contract.payload(),
+        }
+    )
 
 
 def _require_same_request(value: QueryRequest, expected: QueryRequest) -> None:

@@ -41,6 +41,7 @@ from dithyramba.backup import (
 from dithyramba.collections import CollectionConfig, CollectionKind, CollectionRoot
 from dithyramba.contracts import ContractError, canonical_json_bytes, new_id
 from dithyramba.ingest.errors import IngestError
+from dithyramba.ingest.models import parser_profile
 from dithyramba.ingest.service import IngestService
 from dithyramba.library import LibraryConfig
 from dithyramba.persistence import (
@@ -247,12 +248,25 @@ def index_collection(
             help="Absolute application-data root; defaults to the OS Dithyramba directory.",
         ),
     ] = None,
+    parser_profile_name: Annotated[
+        str,
+        typer.Option(
+            "--parser-profile",
+            help="Bounded ingest profile: default or large-document.",
+        ),
+    ] = "default",
     json_output: Annotated[bool, typer.Option("--json", help="Emit canonical JSON.")] = False,
 ) -> None:
     """Synchronously ingest every discovered input in one Collection."""
 
+    try:
+        profile_version, limits = parser_profile(parser_profile_name)
+    except ValueError as exc:
+        raise ContractError(str(exc)) from exc
     with open_library(library, data_root=data_home) as repository:
-        result = IngestService(repository).ingest_collection(collection)
+        result = IngestService(
+            repository, limits=limits, profile_version=profile_version
+        ).ingest_collection(collection)
     _emit_ingest_result(
         result,
         library_id=library,
@@ -588,14 +602,26 @@ def source_add(
             help="Absolute application-data root; defaults to the OS Dithyramba directory.",
         ),
     ] = None,
+    parser_profile_name: Annotated[
+        str,
+        typer.Option(
+            "--parser-profile",
+            help="Bounded ingest profile: default or large-document.",
+        ),
+    ] = "default",
     json_output: Annotated[bool, typer.Option("--json", help="Emit canonical JSON.")] = False,
 ) -> None:
     """Ingest one explicit source path and emit its complete outcome receipt."""
 
+    try:
+        profile_version, limits = parser_profile(parser_profile_name)
+    except ValueError as exc:
+        raise ContractError(str(exc)) from exc
     with open_library(library, data_root=data_home) as repository:
         record = repository.get_collection(collection)
         _validate_collection_root_selection(record, collection_root)
-        result = IngestService(repository).ingest_path(
+        service = IngestService(repository, limits=limits, profile_version=profile_version)
+        result = service.ingest_path(
             collection,
             relative_path,
             collection_root_id=collection_root,

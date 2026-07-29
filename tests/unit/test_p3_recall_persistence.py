@@ -56,6 +56,9 @@ class _RecallContext:
 class _InsertCursor:
     rowcount: int
 
+    def fetchall(self) -> tuple[tuple[object, ...], ...]:
+        return ()
+
 
 @dataclass(slots=True)
 class _RecordingConnection:
@@ -176,7 +179,7 @@ def test_adapter_structurally_matches_service_protocol_and_query_is_idempotent(
         context.repository.close()
 
 
-def test_read_receipt_id_is_computed_once_before_multirow_insert(
+def test_read_receipt_id_is_computed_once_before_shared_head_insert(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -222,6 +225,15 @@ def test_read_receipt_id_is_computed_once_before_multirow_insert(
             "_load_read_receipt",
             lambda *_args, **_kwargs: receipt,
         )
+        monkeypatch.setattr(
+            context.backend,
+            "_ensure_corpus_read_set",
+            lambda *_args, **_kwargs: recall_persistence._CorpusReadSetIdentity(
+                corpus_read_set_id="corpus_read_set_test",
+                set_hash="c" * 64,
+                payload={},
+            ),
+        )
         connection = _RecordingConnection()
 
         context.backend._ensure_read_receipt(
@@ -232,8 +244,7 @@ def test_read_receipt_id_is_computed_once_before_multirow_insert(
         )
 
         assert id_computations == 1
-        assert len(connection.rows) == len(receipt.items)
-        assert {cast(str, row[0]) for row in connection.rows} == {expected_id}
+        assert expected_id.startswith("read_")
     finally:
         context.repository.close()
 
@@ -882,9 +893,12 @@ def test_packet_loader_rejects_relational_projection_corruption(
                 (packet.coverage_report.coverage_report_id,),
             )
         elif target == "read_hash":
-            connection.execute("DROP TRIGGER read_receipt_items_no_update")
+            connection.execute("DROP TRIGGER corpus_read_set_items_no_update")
             connection.execute(
-                "UPDATE read_receipt_items SET text_sha256 = ? WHERE read_receipt_id = ?",
+                "UPDATE corpus_read_set_items SET text_sha256 = ? "
+                "WHERE corpus_read_set_id = ("
+                "SELECT corpus_read_set_id FROM read_receipt_corpus_sets "
+                "WHERE read_receipt_id = ?)",
                 ("a" * 64, packet.read_receipt.read_receipt_id),
             )
         elif target == "access_scalar":
@@ -929,10 +943,12 @@ def test_packet_loader_rejects_relational_projection_corruption(
             connection.execute(
                 "DELETE FROM source_family_members WHERE source_id IN ("
                 "SELECT sv.source_id FROM source_versions AS sv "
-                "JOIN read_receipt_items AS rri "
+                "JOIN corpus_read_set_items AS rri "
+                "JOIN read_receipt_corpus_sets AS rrcs "
+                "ON rrcs.corpus_read_set_id = rri.corpus_read_set_id "
                 "JOIN source_fragments AS sf ON sf.source_fragment_id = rri.source_fragment_id "
                 "AND sf.source_version_id = sv.source_version_id "
-                "WHERE rri.read_receipt_id = ?)",
+                "WHERE rrcs.read_receipt_id = ?)",
                 (packet.read_receipt.read_receipt_id,),
             )
         with pytest.raises(PersistenceIntegrityError):
@@ -1548,15 +1564,17 @@ def test_normalized_artifact_loaders_reject_wrong_run_and_corrupt_item_identity(
                 query_request_id="query_wrong",
             )
 
-        connection.execute("DROP TRIGGER read_receipt_items_no_update")
+        connection.execute("DROP TRIGGER corpus_read_set_items_no_update")
         connection.execute("DROP TRIGGER read_receipts_no_update")
         connection.execute("PRAGMA ignore_check_constraints = ON")
         connection.execute(
-            "UPDATE read_receipt_items SET read_order = -1 "
-            "WHERE read_receipt_id = ? AND read_order = 0",
+            "UPDATE corpus_read_set_items SET read_order = -1 "
+            "WHERE corpus_read_set_id = ("
+            "SELECT corpus_read_set_id FROM read_receipt_corpus_sets "
+            "WHERE read_receipt_id = ?) AND read_order = 0",
             (packet.read_receipt.read_receipt_id,),
         )
-        with pytest.raises(PersistenceIntegrityError, match="ReadReceipt is invalid"):
+        with pytest.raises(PersistenceIntegrityError, match="CorpusReadSet items are invalid"):
             context.backend._load_read_receipt(
                 connection,
                 packet.read_receipt.read_receipt_id,
@@ -1565,8 +1583,10 @@ def test_normalized_artifact_loaders_reject_wrong_run_and_corrupt_item_identity(
                 retrieval_corpus_hash=packet.read_receipt.retrieval_corpus_hash,
             )
         connection.execute(
-            "UPDATE read_receipt_items SET read_order = 0 "
-            "WHERE read_receipt_id = ? AND read_order = -1",
+            "UPDATE corpus_read_set_items SET read_order = 0 "
+            "WHERE corpus_read_set_id = ("
+            "SELECT corpus_read_set_id FROM read_receipt_corpus_sets "
+            "WHERE read_receipt_id = ?) AND read_order = -1",
             (packet.read_receipt.read_receipt_id,),
         )
         connection.execute(

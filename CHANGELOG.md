@@ -7,6 +7,12 @@ history belong in dated evaluation reports, not in the product changelog.
 
 ### Added
 
+- Schema v10 `CorpusReadSet` storage and `RecallService.recall_batch(...)`:
+  several questions in one exact scope reuse one protected corpus read and one
+  FTS session while retaining separate request, packet, receipt, and review
+  identities. Public `ReadReceipt/1.0` and `EvidencePacket/1.0` stay unchanged.
+- An explicit bounded `large-document` ingest profile for book-length local
+  sources; the conservative default profile remains unchanged.
 - Live library-only adaptive recall route with bounded FTS50/100 discovery,
   deterministic lexical repair, q0-anchored Harrier ranking, body-proof
   admission, Wide `EvidenceCoverageGate`, and optional QueryCloud q1/q2.
@@ -25,6 +31,11 @@ history belong in dated evaluation reports, not in the product changelog.
 
 ### Changed
 
+- Harrier input validation now uses an explicit two-million-character safety
+  bound and the exact no-truncation token audit as the decisive model limit,
+  avoiding false rejection of valid long passages.
+- Model provisioning can resolve the pinned Hugging Face CLI from the active
+  project environment even when that executable is not on the shell `PATH`.
 - Coverage output now uses two decimal places so a value below 95% cannot pass
   by integer display rounding.
 - The guarded full update checks the unrounded JSON coverage value.

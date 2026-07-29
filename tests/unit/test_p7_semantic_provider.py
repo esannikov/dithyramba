@@ -378,8 +378,46 @@ def test_passage_batch_is_bounded_and_text_is_exact(tmp_path: Path) -> None:
             provider.embed_passages(value)
     with pytest.raises(SemanticProviderError, match="character budget"):
         provider.embed_passages(tuple("x" * 4_000 for _item in range(501)))
-    with pytest.raises(SemanticProviderError, match="passage text"):
-        provider.embed_passages(("x" * 32_769,))
+    with pytest.raises(SemanticProviderError, match="character budget"):
+        provider.embed_passages(("x" * 2_000_001,))
+
+
+def test_provider_encodes_character_long_passage_when_exact_token_count_fits(
+    tmp_path: Path,
+) -> None:
+    text = "x" * 40_000
+    prepared = f"passage: {text}"
+    tokenizer = _Tokenizer(model_max_length=64, lengths={prepared: 64})
+    provider, model = _provider(tmp_path, model=_Model(tokenizer=tokenizer))
+
+    vectors = provider.embed_passages((text,))
+
+    assert len(vectors) == 1
+    assert model.calls[0][0] == [prepared]
+    assert tokenizer.calls[0]["text"] == [prepared]
+    assert tokenizer.calls[0]["truncation"] is False
+
+
+def test_prepared_token_audit_accommodates_full_parent_plus_passage_prefix(
+    tmp_path: Path,
+) -> None:
+    profile = _profile()
+    prepared = f"{profile.passage_prefix}{'x' * 2_000_000}"
+    tokenizer = _Tokenizer(model_max_length=64, lengths={prepared: 64})
+    provider, model = _provider(
+        tmp_path,
+        profile=profile,
+        model=_Model(tokenizer=tokenizer),
+    )
+
+    assert provider.prepared_token_counts((prepared,)) == (64,)
+    assert model.calls == []
+    with pytest.raises(SemanticProviderError, match="prepared embedding input text"):
+        provider.prepared_token_counts((f"{prepared}x",))
+
+    over_batch = f"{profile.passage_prefix}{'x' * 1_000_001}"
+    with pytest.raises(SemanticProviderError, match="character budget"):
+        provider.prepared_token_counts((over_batch, over_batch))
 
 
 def test_provider_audits_complete_inputs_and_forbids_silent_truncation(

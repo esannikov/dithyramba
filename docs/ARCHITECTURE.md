@@ -57,6 +57,12 @@ The stable route persists `EvidencePacket/1.0`: the query identity, exact
 snapshot and policy scope, selected passages, source addresses, profile, read
 receipts, and packet hash required for exact replay.
 
+When several questions share one exact scope, schema v10 stores their permitted
+fragment manifest once as a content-addressed `CorpusReadSet`. Each question
+still has an independent `QueryRequest`, processing run, `ReadReceipt`, packet,
+and review history. Sharing storage never merges questions or permits a scope
+to cross a Library, snapshot, policy, Collection set, or purpose boundary.
+
 The experimental adaptive route adds `EvidenceCoverageGate`. Its caller freezes
 explicit requirements such as actor, date, source role, mechanism, direction,
 or independent provenance group. The gate scans proof-eligible passage bodies
@@ -74,7 +80,7 @@ memory during read-only inspection.
 
 | Material | Storage | Authority |
 |---|---|---|
-| source versions, fragments, identities, policies, snapshots, packets, reviews | SQLite plus content-addressed blobs | durable record |
+| source versions, fragments, identities, policies, snapshots, shared read sets, packets, reviews | SQLite plus content-addressed blobs | durable record |
 | FTS index | SQLite FTS5 | rebuildable discovery index |
 | semantic vectors and reranker caches | optional local model data | rebuildable discovery aid |
 | graph and Atlas projections | versioned derived artifacts | navigational view |
@@ -90,8 +96,8 @@ corpus folders.
 source files
   → SourceVersion + SourceFragment + SourceAddress
   → CorpusSnapshot + compiled AccessPolicy
-  → local FTS candidate discovery
-  → persisted EvidencePacket/1.0
+  → one protected read + local FTS candidate discovery
+  → one persisted EvidencePacket/1.0 per question
   → inspect / read receipt / exact replay
   → scoped human review
 ```

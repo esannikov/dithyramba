@@ -16,6 +16,7 @@ from dithyramba.contracts import canonical_json_bytes, canonical_sha256_hex, sha
 
 SOURCE_ADDRESS_SCHEMA = "dithyramba.source_address/1.0"
 PARSER_PROFILE = "index/1.0"
+LARGE_DOCUMENT_PARSER_PROFILE = "index/large-document/1.0"
 
 _SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 _POINT_PATTERN = re.compile(r"^-?(?:0|[1-9][0-9]*)\.[0-9]{3}$")
@@ -70,6 +71,25 @@ class ParserLimits:
             value = getattr(self, name)
             if type(value) is not int or value <= 0:
                 raise ValueError(f"{name} must be a positive integer")
+
+
+def parser_profile(name: str) -> tuple[str, ParserLimits]:
+    """Return one explicit, bounded core-ingest parser profile."""
+
+    if name == "default":
+        return PARSER_PROFILE, ParserLimits()
+    if name == "large-document":
+        return (
+            LARGE_DOCUMENT_PARSER_PROFILE,
+            ParserLimits(
+                max_file_bytes=512 * 1024 * 1024,
+                max_pdf_pages=1_500,
+                max_extracted_codepoints=20_000_000,
+                timeout_seconds=180,
+                max_rss_mib=1_024,
+            ),
+        )
+    raise ValueError("unknown parser profile; expected default or large-document")
 
 
 @dataclass(frozen=True, slots=True)

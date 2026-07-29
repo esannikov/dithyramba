@@ -23,6 +23,7 @@ from .errors import (
     UnsupportedFormatError,
 )
 from .models import (
+    LARGE_DOCUMENT_PARSER_PROFILE,
     PARSER_PROFILE,
     SOURCE_ADDRESS_SCHEMA,
     FileIdentity,
@@ -37,9 +38,11 @@ from .models import (
     SourceAddress,
     SourceBytes,
     format_pdf_point,
+    parser_profile,
 )
 
 __all__ = [
+    "LARGE_DOCUMENT_PARSER_PROFILE",
     "PARSER_PROFILE",
     "SOURCE_ADDRESS_SCHEMA",
     "ExtractedTextLimitExceededError",
@@ -74,4 +77,5 @@ __all__ = [
     "UnsupportedEncryptedPdfError",
     "UnsupportedFormatError",
     "format_pdf_point",
+    "parser_profile",
 ]

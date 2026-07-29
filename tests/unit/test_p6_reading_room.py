@@ -178,7 +178,7 @@ def test_projection_is_authorized_text_free_deterministic_and_current_schema(
 
     assert first == second
     assert first.projection_hash == second.projection_hash
-    assert first.library.storage_schema_version == 9
+    assert first.library.storage_schema_version == 10
     assert first.payload()["schema"] == ReadingRoomProjection.SCHEMA
     assert first.corpus.source_count == 1
     assert first.corpus.source_version_count == 1
