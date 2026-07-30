@@ -24,6 +24,11 @@ uv run python -m dithyramba.store.migrations verify
 uv run python scripts/demo.py
 ```
 
+The development group intentionally includes the optional Candidate Ontology
+runtime because the canonical test aggregate exercises that surface. The base
+package remains lightweight; ordinary users install the ontology dependencies
+only with `dithyramba[ontology]`.
+
 The demo creates a temporary Library, verifies its local runtime, ingests the
 public example corpus, freezes a snapshot, recalls one packet, and replays it.
 Use `dithyramba library doctor --library <id> --data-home <path>` for an existing
