@@ -161,6 +161,7 @@ def test_success_is_pinned_atomic_receipted_and_idempotent(tmp_path: Path) -> No
         arguments[-1],
     )
     assert ".partial" in arguments[-1]
+    assert Path(arguments[-1]).parent == tmp_path
     assert timeout == 123
     assert tuple(item.relative_path for item in receipt.files) == (
         "1_Pooling/config.json",
@@ -253,6 +254,7 @@ def test_failed_command_leaves_no_partial_tree_or_provider_detail(
     assert not _target(tmp_path).exists()
     models = tmp_path / "models"
     assert not models.exists() or not tuple(models.glob("*.partial"))
+    assert not tuple(tmp_path.glob(".*.partial"))
 
 
 def test_command_must_return_an_exact_zero_integer(tmp_path: Path) -> None:

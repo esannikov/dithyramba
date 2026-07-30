@@ -140,6 +140,7 @@ or worker-memory guards.
 | Reading Room | read-only inspection of one Library, snapshot, policy, and scope | implemented preview |
 | Research Atlas / Lens | case-specific questions, hypotheses, timeline, and exact sources | implemented projection surface |
 | Compact connectors | small source-closed packets for downstream agents | implemented library contracts |
+| Universal Cartography | text-free, rebuildable corpus areas and inquiry signals | experimental Python contracts; no stable CLI yet |
 
 ## Experimental boundary
 
@@ -161,6 +162,32 @@ explicit evidence requirement. Human acceptance remains a separate decision.
 The optional `semantic` dependency set has a larger native dependency surface
 and is not part of the core package-acceptance gate.
 
+Universal Cartography is a second experimental path for mixed corpora that do
+not begin with one known subject or a fixed question list. It builds a local,
+zero-LLM `AreaMap` from an exact bounded snapshot, emits observable
+`InquirySignal` objects, and leaves question formulation and synthesis for a
+later selective step. The durable map contains hashes, memberships, exact
+fragment references, and statistics—no source text or raw lexical tokens.
+Readable labels and representative excerpts are separate local views.
+
+```text
+authorized fragments → conservative projection → local vectors
+  → text-free AreaMap → InquirySignal
+  → reviewed Inquiry → selective exact evidence → BoundedTrace candidate
+```
+
+Obvious markup or unreadable OCR may be excluded from the geometric map while
+remaining searchable in SQLite FTS5. A cluster is a navigation hypothesis, not
+a fact, topic canon, or proof.
+
+The contracts are implemented, but no global vector profile is accepted as a
+universal default. Internal frozen-corpus screens rejected TF-IDF/SVD, raw
+Harrier, Harrier with batch PCA, and one document-first multilingual-E5-small
+challenger because they produced corpus-dependent mega-clusters, excessive
+noise, or strong sample sensitivity. The stable product route remains
+question-led recall. The next cartography design separates deterministic
+structural facets from small semantic neighbourhoods built on demand.
+
 ## Evidence so far
 
 Dithyramba separates public reproducibility from internal development evidence.
@@ -178,6 +205,7 @@ because their source rights and project boundaries differ.
 | Artists retrieval stress test | 404 Markdown files; 31.2 MB; about 2.40M words; 48,072 fragments; 18 questions | Exact address-group recovery at top 10 ranged from 17/31 for FTS to 25/31 for the best tested reranking lane. The test exposed parser, isolation, and late-fragment issues; it did not establish a semantic winner. |
 | Maulstick knowledge connector | 383 section/file units; 36 craft cases | Median context fell from 21,174 to 1,147 tokens (−94.6%), but required-anchor coverage also fell from 49/77 to 43/77. The result was `ITERATE`, not lossless compression. |
 | Directing and screenwriting craft corpora | 268 admitted sources; 107,031 fragments; 120 frozen query-language rows | Stable FTS completed 120/120 rows and 16/16 sampled cold replays without provider calls. In a five-question blinded Ukrainian directing slice, Harrier rescued one late axis passage and substantially improved a homonym-heavy blocking list, but still left unsafe passages in the top 10 and could not repair two zero-candidate questions. This is a diagnostic result, not an accuracy claim. |
+| Universal Cartography screen on the same craft corpora | 1,342 directing and 1,787 screenwriting/dramaturgy source-stratified fragments | All final maps were deterministic under reordered input and canonical reopen, but every tested global profile failed the preregistered navigation-quality gate. The core contracts remain experimental; no automatic semantic map claim is made. |
 
 These are internal development and calibration results, not an independent
 cross-domain benchmark. Retrieval metrics do not establish source truth,

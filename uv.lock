@@ -544,6 +544,11 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+cartography = [
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "scikit-learn" },
+]
 semantic = [
     { name = "sentence-transformers" },
 ]
@@ -566,14 +571,16 @@ requires-dist = [
     { name = "defusedxml", specifier = "==0.7.1" },
     { name = "fastapi", specifier = "==0.139.2" },
     { name = "jinja2", specifier = "==3.1.6" },
+    { name = "numpy", marker = "extra == 'cartography'", specifier = ">=2.0,<3" },
     { name = "pdfplumber", specifier = "==0.11.10" },
     { name = "platformdirs", specifier = ">=4.3,<5" },
     { name = "pydantic", specifier = ">=2.10,<3" },
+    { name = "scikit-learn", marker = "extra == 'cartography'", specifier = ">=1.8,<2" },
     { name = "sentence-transformers", marker = "extra == 'semantic'", specifier = "==5.6.0" },
     { name = "typer", specifier = ">=0.15,<1" },
     { name = "uvicorn", specifier = "==0.51.0" },
 ]
-provides-extras = ["semantic"]
+provides-extras = ["semantic", "cartography"]
 
 [package.metadata.requires-dev]
 dev = [

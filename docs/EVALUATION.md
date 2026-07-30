@@ -198,6 +198,36 @@ The corpus is not distributed, only three questions had non-empty pools, and
 the reviewers were agents rather than independent human researchers. The result
 is therefore a failure diagnosis, not an accuracy or state-of-the-art claim.
 
+### Universal Cartography profile screen
+
+The experimental cartography contracts were exercised on source-stratified
+samples from the same two craft corpora without generative calls. Every sample
+retained all source documents and bound exact fragment, address, text, vector,
+runtime, policy, and input-manifest hashes.
+
+| Profile | Corpus | Areas | Assigned | Largest assigned area |
+|---|---|---:|---:|---:|
+| TF-IDF/SVD | directing | 17 | 604/1,342 | 163/604 |
+| TF-IDF/SVD | screenwriting/dramaturgy | 2 | 1,776/1,787 | 1,756/1,776 |
+| raw Harrier | directing | 2 | 980/1,353 | 956/980 |
+| Harrier with batch PCA, before refinement | directing | 10 | 841/1,353 | 268/841 |
+| Harrier with batch PCA, before refinement | screenwriting/dramaturgy | 16 | 842/1,789 | 244/842 |
+| document-first E5-small, no PCA | directing | 2 document / 5 fragment | 605/1,342 | 542/605 |
+| document-first E5-small, no PCA | screenwriting/dramaturgy | 6 document / 2 fragment | 57/1,787 | 39/57 |
+
+All recorded final maps were equivalent under reordered input and canonical
+reopen. None passed the preregistered automatic navigation gate across both
+corpora: 8–35 fragment areas, 50–85% assigned mass, no area above 25% of
+assigned mass, and a median of at least three sources per area. Independent
+human coherence scoring was therefore not opened.
+
+This is a useful negative result. It validates deterministic, text-free map
+construction while rejecting the claim that one flat global embedding geometry
+is already a useful universal map. Stable Dithyramba still uses question-led
+FTS and bounded reranking. Future cartography work is limited to deterministic
+structural facets and local semantic neighbourhoods, not another broad model
+sweep.
+
 ## Mixed adaptive-route replay
 
 One ten-task development replay combined four Tesla tasks, four Mars tasks,
@@ -219,12 +249,13 @@ the exact proof was already present deeper in a bounded union.
 
 ## Engineering verification
 
-The current public update collects 2,595 engineering cases. In its canonical
+The current public update collects 2,615 engineering cases. In its canonical
 local gate:
 
-- 2,593 passed and two declared browser cases were skipped;
-- exact combined line/branch coverage was `95.0138%` at a strict `95.00%` gate;
-- terminology, format, lint, and strict typing across 238 files passed;
+- 2,613 passed and two declared browser cases were skipped;
+- exact combined line/branch coverage was `95.0442%` at a strict `95.00%` gate;
+- statement coverage was `96.2195%`; branch coverage was `91.3454%`;
+- terminology, format, lint, and strict typing across 243 files passed;
 - the dependency audit found no known vulnerabilities;
 - a separate sdist-to-wheel closure installed non-editably in isolated Python
   3.11.12, imported from temporary `site-packages`, and included the schema-v10

@@ -76,6 +76,50 @@ stored state for a person. Connectors produce compact source-closed packets for
 another agent. These surfaces do not become new truth stores and do not mutate
 memory during read-only inspection.
 
+## Experimental universal cartography
+
+Question-led recall works when the operator already knows what to ask. A mixed
+notebook or research library may first need a map. The experimental
+`dithyramba.cartography` package adds a rebuildable navigation layer without
+promoting clusters into source truth:
+
+```text
+authorized SourceFragments
+  → conservative projection admission
+  → one exact local vector-generation receipt
+  → HDBSCAN hard areas plus explicit unassigned mass
+  → content-addressed, text-free AreaMap
+  → deterministic InquirySignals
+  → human or on-demand model formulates an Inquiry candidate
+  → selective recall and evidence closure
+  → reviewable BoundedTrace
+```
+
+`AreaProjection` stores canonical fragment/source/version references,
+text/address/vector hashes, memberships, representatives, and a boundary hash.
+It stores no source text or lexical labels. A readable area name or excerpt is
+an independent local view that can be rebuilt or translated without changing
+map identity.
+
+Cartography admission never deletes source memory. It can keep obvious layout
+markup or unreadable OCR out of dense geometry while the exact original remains
+available to FTS and provenance inspection. The transform profile belongs to
+the vector-generation receipt. `InquirySignal` records an observable bridge,
+source concentration, or unmapped mass; it is not itself a research question.
+
+This path remains experimental until independent representative review, a
+cold-process replay, and selective inquiry/evidence tests are complete. It is
+not invoked by the stable CLI route.
+
+The first two-corpus screen rejected every tested global partition profile.
+TF-IDF/SVD, raw Harrier, Harrier with batch PCA, and a document-first
+multilingual-E5-small hierarchy each collapsed, rejected too much mass, or
+changed topology after a small input refinement. This is a representation
+failure, not evidence that cluster labels should be promoted into knowledge.
+The next design step separates a deterministic structural-facet map from local
+semantic neighbourhoods created around a selected source, concept, or inquiry.
+No further model sweep is part of the current release path.
+
 ## Storage model
 
 | Material | Storage | Authority |

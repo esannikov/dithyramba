@@ -41,6 +41,10 @@ Issues = "https://github.com/esannikov/dithyramba/issues"
 semantic = [
   "sentence-transformers==5.6.0",
 ]
+cartography = [
+  "numpy>=2.0,<3",
+  "scikit-learn>=1.8,<2",
+]
 
 [project.scripts]
 dithyramba = "dithyramba.cli:app"

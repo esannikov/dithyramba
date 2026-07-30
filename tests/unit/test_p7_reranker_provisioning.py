@@ -102,6 +102,7 @@ def test_reranker_provision_is_explicit_pinned_receipted_and_idempotent(
         arguments[-1],
     )
     assert ".partial" in arguments[-1]
+    assert Path(arguments[-1]).parent == tmp_path
     assert timeout == 321
     assert receipt.reranker_profile_id == _profile().profile_id
     assert receipt.reranker_profile_hash == _profile().profile_hash

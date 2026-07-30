@@ -46,6 +46,7 @@ all-knowing service.
 | `ingest`, `provenance`, `contracts` | Read-only source intake, exact addresses, hashes, receipts, and canonical serialization |
 | `store`, `persistence`, `backup` | SQLite schema, repositories, immutable records, backup, restore, and migration |
 | `recall`, `evidence`, `answers` | Candidate discovery, replayable packets, explicit evidence coverage, and answer validation |
+| `cartography` | Experimental text-free areas, inquiry signals, and bounded synthesis contracts; not used by the stable CLI |
 | `meaning`, `relations`, `structure`, `research` | Typed interpretive objects and source-bound research structures |
 | `review` | Append-only human acceptance, revision, rejection, and deferral |
 | `connectors` | Compact source-closed packets for downstream tools and agents |
@@ -61,6 +62,7 @@ separate products, hardware requirements, or recommended user workflows.
 The test suite mirrors observable boundaries:
 
 - `tests/unit/` checks one contract or failure rule in isolation;
+- `tests/cartography/` checks the optional map contracts, tamper resistance, and deterministic construction;
 - `tests/integration/` checks persistence and multi-module closure;
 - `tests/api/` and `tests/browser/` check loopback and human-facing surfaces;
 - `tests/smoke/` checks small complete routes;

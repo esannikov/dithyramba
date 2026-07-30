@@ -18,6 +18,7 @@ uv run dithyramba <command> --help
 | Package environment | `uv` for development; wheel build uses Hatchling |
 | Base runtime | no model, GPU, external service, or Docker required |
 | Optional semantic extra | `sentence-transformers==5.6.0` |
+| Optional cartography extra | `numpy>=2,<3`; `scikit-learn>=1.8,<2` |
 | Current database schema | v10 |
 | Package version | `0.1.0rc0` |
 
@@ -191,6 +192,24 @@ new version. Applied migrations remain immutable.
 These contracts are executable and tested, but they do not imply a stable
 CLI/HTTP compatibility promise.
 
+## Experimental cartography types
+
+| Type | Schema or identity | Current boundary |
+|---|---|---|
+| `CartographyConfig` | `dithyramba.cartography_config/1.0` | frozen clustering configuration |
+| `AreaProjection` | member of `AreaMap/1.0` | text-free, content-addressed derived area |
+| `AreaMap` | `dithyramba.area_map/1.0` | in-memory/rebuildable; no stable persistence route |
+| `InquirySignal` | `dithyramba.inquiry_signal/1.0` identity | deterministic observation, not a question |
+| `Inquiry` | typed candidate | human or on-demand formulation only |
+| `BoundedTrace` | typed candidate | reviewable synthesis; never accepted automatically |
+
+`build_cartography(...)` requires one exact bounded set of normalized vectors
+and records runtime, vector-generation, policy, permitted-set, input-manifest,
+and area-boundary hashes. The durable payload contains no source text or
+lexical labels. No tested vector profile is currently accepted as a universal
+global map, so these types are not exposed through the stable CLI or HTTP
+surface.
+
 ## Adaptive compatibility contracts
 
 | Contract | Schema | Current boundary |
@@ -256,7 +275,7 @@ probability.
 | Profile | Role | Current status |
 |---|---|---|
 | none / FTS5 | exact lexical recall | default |
-| multilingual E5-small | compact dense control | optional |
+| multilingual E5-small | compact dense control; rejected as the tested global cartography geometry | optional |
 | Harrier 270M | bounded q0 candidate reranking | adaptive library route |
 
 Model scores never set `body_proof_eligible`, source authority, independence,
