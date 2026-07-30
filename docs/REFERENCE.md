@@ -1,6 +1,6 @@
 # Dithyramba reference
 
-This reference describes the `0.1.0rc0` pre-alpha source preview. The command
+This reference describes the `0.1.0rc1` pre-alpha source preview. The command
 itself is authoritative for exact options and defaults:
 
 ```bash
@@ -18,9 +18,9 @@ uv run dithyramba <command> --help
 | Package environment | `uv` for development; wheel build uses Hatchling |
 | Base runtime | no model, GPU, external service, or Docker required |
 | Optional semantic extra | `sentence-transformers==5.6.0` |
-| Optional cartography extra | `numpy>=2,<3`; `scikit-learn>=1.8,<2` |
-| Current database schema | v10 |
-| Package version | `0.1.0rc0` |
+| Optional ontology extra | `numpy>=2,<3`; `scikit-learn>=1.8,<2` |
+| Current database schema | v11 |
+| Package version | `0.1.0rc1` |
 
 ## Command inventory
 
@@ -86,6 +86,8 @@ dithyramba serve
 dithyramba reading-room
 dithyramba atlas
 dithyramba flow-view
+dithyramba concept-lens
+dithyramba reasoning-check
 ```
 
 `Lens` is the umbrella name for researcher-facing views, not a separate CLI
@@ -94,6 +96,10 @@ command. Today it is assembled from ReadingRoom, Research Atlas, and Flow View.
 `reading-room` requires `--library`, `--snapshot`, `--access-policy`, at least
 one `--collection`, `--purpose`, and `--data-home`. It starts a separate GET-only
 loopback server. `atlas` and `flow-view` also start read-only loopback views.
+
+`reasoning-check` consumes one absolute-path `IdeaTrace`, exact claim-evidence
+case set, and semantic entailment result. It makes no provider call and emits a
+canonical closure receipt. A non-passed closure exits non-zero.
 
 ### Models
 
@@ -164,12 +170,19 @@ not create a compatibility promise beyond the declared `0.1.x` preview.
 | `EvidencePacket` | `dithyramba.evidence_packet/1.0` | persisted bounded FTS result |
 | `ReviewDecision` | `dithyramba.review_decision/1.0` | append-only scoped human decision |
 | `BackupBundle` | `dithyramba.backup_bundle/1.0` | portable hash-closed Library backup |
+| `IdeaTrace` | `dithyramba.idea_trace/1.0` | short public reasoning candidate over exact claim-evidence cases |
+| `ReasoningClosureResult` | `dithyramba.reasoning_closure/1.0` | deterministic structural closure; review eligibility only |
 
-Schema v10 adds an internal append-only `CorpusReadSet`: one exact protected
+Schema v10 added an internal append-only `CorpusReadSet`: one exact protected
 fragment manifest can be shared by several recall requests over the same
 Library, snapshot, policy, Collections, and purpose. Public `ReadReceipt/1.0`
 and `EvidencePacket/1.0` payloads remain unchanged, and v9 Libraries remain
 readable after migration.
+
+Schema v11 adds append-only `idea_traces` and
+`reasoning_closure_results`. It stores only canonical public trace artifacts,
+not private chain-of-thought text. A passed closure does not create a human
+`ReviewDecision` and does not promote a claim into accepted memory.
 
 Changing the meaning or required fields of one of these schemas requires a
 new version. Applied migrations remain immutable.
@@ -192,23 +205,23 @@ new version. Applied migrations remain immutable.
 These contracts are executable and tested, but they do not imply a stable
 CLI/HTTP compatibility promise.
 
-## Experimental cartography types
+## Experimental scoped-ontology types
 
 | Type | Schema or identity | Current boundary |
 |---|---|---|
-| `CartographyConfig` | `dithyramba.cartography_config/1.0` | frozen clustering configuration |
-| `AreaProjection` | member of `AreaMap/1.0` | text-free, content-addressed derived area |
-| `AreaMap` | `dithyramba.area_map/1.0` | in-memory/rebuildable; no stable persistence route |
-| `InquirySignal` | `dithyramba.inquiry_signal/1.0` identity | deterministic observation, not a question |
-| `Inquiry` | typed candidate | human or on-demand formulation only |
-| `BoundedTrace` | typed candidate | reviewable synthesis; never accepted automatically |
+| `OntologyConfig` | `dithyramba.ontology_config/1.0` | frozen local extraction profile |
+| `OntologyEvidence` | content-addressed exact fragment support | source/version/address/text closure |
+| `OntologyConcept` | member of `CandidateOntologyManifest/1.0` | `scope_anchor` or `emergent`; always candidate |
+| `OntologyRelation` | `co_occurs_with` only | exact shared fragments; never causation |
+| `CandidateOntologyManifest` | `dithyramba.candidate_ontology/1.0` | rebuildable scoped navigation projection |
 
-`build_cartography(...)` requires one exact bounded set of normalized vectors
-and records runtime, vector-generation, policy, permitted-set, input-manifest,
-and area-boundary hashes. The durable payload contains no source text or
-lexical labels. No tested vector profile is currently accepted as a universal
-global map, so these types are not exposed through the stable CLI or HTTP
-surface.
+`build_candidate_ontology(...)` consumes one bounded, already-authorized
+neighbourhood. The optional `ontology` extra supplies deterministic TF-IDF/NMF
+extraction. `dithyramba concept-lens --projection /absolute/ontology.json`
+opens the validated result on loopback. `--presentation
+/absolute/presentation.json` optionally adds an ontology-bound human view with
+one title, question, summary, and entry concept per cluster. The command is
+GET-only and does not promote candidates or mutate a Library.
 
 ## Adaptive compatibility contracts
 

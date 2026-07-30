@@ -1,6 +1,6 @@
 # Development
 
-Dithyramba `0.1.0rc0` is a pre-alpha source preview. This guide covers work from
+Dithyramba `0.1.0rc1` is a pre-alpha source preview. This guide covers work from
 a repository checkout; it does not define a public compatibility promise.
 
 ## Supported development target

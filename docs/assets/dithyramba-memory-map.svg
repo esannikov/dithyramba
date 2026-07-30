@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1120" viewBox="0 0 1800 1120" role="img" aria-labelledby="title description">
   <title id="title">Dithyramba research-memory architecture</title>
-  <desc id="description">Academic architecture figure separating the stable persisted evidence path, the authorization control plane, the optional adaptive evidence-sufficiency path, durable records, and rebuildable discovery aids.</desc>
+  <desc id="description">Academic architecture figure separating the stable persisted evidence path, the authorization control plane, optional evidence sufficiency and public reasoning, durable records, and rebuildable discovery aids.</desc>
   <defs>
     <marker id="arrow-stable" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
       <path d="M0,0 L10,5 L0,10 Z" fill="#243746"/>
@@ -35,7 +35,7 @@
   <rect x="34" y="30" width="1732" height="1060" rx="6" fill="#fffefd" stroke="#c9c9c3" stroke-width="1.5"/>
 
   <g class="ui">
-    <text x="72" y="72" class="figure">FIG. 1 · SYSTEM ARCHITECTURE · v0.1.0rc0</text>
+    <text x="72" y="72" class="figure">FIG. 1 · SYSTEM ARCHITECTURE · v0.1.0rc1</text>
     <text x="72" y="122" class="title serif">Dithyramba research-memory architecture</text>
     <text x="72" y="154" class="subtitle">A source-bound evidence record for researchers and agents; retrieval aids remain replaceable.</text>
     <line x1="72" y1="178" x2="1728" y2="178" class="guide"/>
@@ -122,7 +122,7 @@
     <path d="M1535 594 V610" class="derived-edge"/>
     <path d="M1685 594 V610" class="derived-edge"/>
 
-    <text x="72" y="716" class="lane" fill="#a95032">OPTIONAL ADAPTIVE SUFFICIENCY PATH · EXPERIMENTAL</text>
+    <text x="72" y="716" class="lane" fill="#a95032">OPTIONAL EVIDENCE SUFFICIENCY + PUBLIC REASONING · EXPERIMENTAL</text>
 
     <rect x="730" y="740" width="320" height="142" rx="4" fill="#fffaf6" stroke="#a95032" stroke-width="1.6" stroke-dasharray="7 5"/>
     <text x="750" y="774" class="node-title">Candidate expansion</text>
@@ -139,11 +139,11 @@
     <text x="1135" y="857" class="small">exact text → matched / partial / gap</text>
 
     <rect x="1470" y="740" width="280" height="142" rx="4" fill="#fffaf6" stroke="#a95032" stroke-width="1.6" stroke-dasharray="7 5"/>
-    <text x="1490" y="774" class="node-title">Adaptive result</text>
+    <text x="1490" y="774" class="node-title">Public reasoning</text>
     <text x="1726" y="774" text-anchor="end" class="contract mono">[E]</text>
-    <text x="1490" y="805" class="contract mono">AdaptiveRecallResult/2.2</text>
-    <text x="1490" y="831" class="copy">matched proof or EvidenceGap</text>
-    <text x="1490" y="857" class="small">volatile; no durable promotion in v0.1</text>
+    <text x="1490" y="805" class="contract mono">IdeaTrace/1.0</text>
+    <text x="1490" y="831" class="copy">ReasoningClosureGate → review</text>
+    <text x="1490" y="857" class="small">public steps only · no private CoT · no promotion</text>
 
     <path d="M890 602 V732" class="adaptive-edge"/>
     <text x="907" y="684" class="edge-label" fill="#a95032">opt in</text>
@@ -159,7 +159,7 @@
 
     <rect x="1390" y="930" width="360" height="92" rx="4" fill="#fff8f4" stroke="#c98972" stroke-width="1.3"/>
     <text x="1410" y="962" class="lane" fill="#a95032">EXPERIMENTAL, VOLATILE</text>
-    <text x="1410" y="992" class="copy">[E] adaptive stages · durable contract pending</text>
+    <text x="1410" y="992" class="copy">[E] adaptive recall · ontology · IdeaTrace</text>
 
     <line x1="72" y1="1050" x2="1728" y2="1050" class="guide"/>
     <line x1="86" y1="1073" x2="130" y2="1073" stroke="#243746" stroke-width="2.2"/>

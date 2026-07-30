@@ -505,7 +505,7 @@ class ReadingRoomProjection:
     """Canonical access-safe dashboard state; no raw source or evidence text."""
 
     SCHEMA: ClassVar[str] = "dithyramba.reading_room_projection/1.0"
-    STORAGE_SCHEMA_VERSION: ClassVar[int] = 10
+    STORAGE_SCHEMA_VERSION: ClassVar[int] = 11
 
     library: ReadingRoomLibrary
     access: ReadingRoomAccess

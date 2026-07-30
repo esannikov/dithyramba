@@ -76,55 +76,86 @@ stored state for a person. Connectors produce compact source-closed packets for
 another agent. These surfaces do not become new truth stores and do not mutate
 memory during read-only inspection.
 
-## Experimental universal cartography
+## Evidence-grounded reasoning
 
-Question-led recall works when the operator already knows what to ask. A mixed
-notebook or research library may first need a map. The experimental
-`dithyramba.cartography` package adds a rebuildable navigation layer without
-promoting clusters into source truth:
+An accepted answer may be followed by one bounded `IdeaTrace/1.0`. This is a
+public research artifact, not a hidden chain of thought:
 
 ```text
-authorized SourceFragments
-  → conservative projection admission
-  → one exact local vector-generation receipt
-  → HDBSCAN hard areas plus explicit unassigned mass
-  → content-addressed, text-free AreaMap
-  → deterministic InquirySignals
-  → human or on-demand model formulates an Inquiry candidate
-  → selective recall and evidence closure
-  → reviewable BoundedTrace
+accepted ResearchAnswer claim
+  → exact ClaimEvidenceCase
+  → bound semantic judgment receipt
+  → extract / compare / connect / infer step
+  → ReasoningClosureGate
+  → passed, failed, or review_required
+  → separate human review
 ```
 
-`AreaProjection` stores canonical fragment/source/version references,
-text/address/vector hashes, memberships, representatives, and a boundary hash.
-It stores no source text or lexical labels. A readable area name or excerpt is
-an independent local view that can be rebuilt or translated without changing
-map identity.
+Every step repeats the exact claim text, names its operation and earlier
+premises, and binds to one claim-evidence case. Derived steps require a concise
+public warrant. The trace is a small ordered DAG with at most 32 steps; all
+steps must contribute to the final step, so cycles and decorative orphan nodes
+fail closed.
 
-Cartography admission never deletes source memory. It can keep obvious layout
-markup or unreadable OCR out of dense geometry while the exact original remains
-available to FTS and provenance inspection. The transform profile belongs to
-the vector-generation receipt. `InquirySignal` records an observable bridge,
-source concentration, or unmapped mass; it is not itself a research question.
+`ReasoningClosureGate` is deterministic and provider-free. It verifies trace,
+answer, packet, case-set, and judgment-receipt identities; then applies a small
+operation/qualifier policy to the already judged claim states. It does not
+rejudge historical truth. A passed closure is `review_eligible`, never accepted
+memory by itself.
 
-This path remains experimental until independent representative review, a
-cold-process replay, and selective inquiry/evidence tests are complete. It is
-not invoked by the stable CLI route.
+Schema v11 stores the canonical trace and closure receipt in two append-only
+SQLite tables. The graph is rebuilt from their JSON; no second graph database
+or vector index is required.
 
-The first two-corpus screen rejected every tested global partition profile.
-TF-IDF/SVD, raw Harrier, Harrier with batch PCA, and a document-first
-multilingual-E5-small hierarchy each collapsed, rejected too much mass, or
-changed topology after a small input refinement. This is a representation
-failure, not evidence that cluster labels should be promoted into knowledge.
-The next design step separates a deterministic structural-facet map from local
-semantic neighbourhoods created around a selected source, concept, or inquiry.
-No further model sweep is part of the current release path.
+## Experimental scoped candidate ontology
+
+Question-led recall works when the operator already knows what to ask. A scoped
+ontology helps before that moment without pretending to understand the entire
+Library at once:
+
+```text
+one named scope + compact query expansion
+  → one permitted local FTS result, balanced across sources
+  → bounded exact-fragment neighbourhood
+  → local TF-IDF/NMF candidate areas
+  → scope anchors plus emergent phrases
+  → exact multi-source co-occurrence links
+  → GET-only Concept Lens
+  → ordinary question-led recall and EvidenceCoverageGate
+  → separate query branches only when a named gap remains
+```
+
+`CandidateOntologyManifest` stores clusters, candidate concepts, explicit
+concept origin, exact evidence addresses, and `co_occurs_with` relations. It is
+content-addressed and replayable. A scope anchor comes from the expanded scope
+vocabulary only when the literal term recurs in enough independent sources. An
+emergent concept comes from the bounded corpus neighbourhood. Neither is
+automatically accepted.
+
+The ontology is deliberately outside the truth path. It cannot add support to a
+claim, infer causation, or promote a relation. Selecting a concept merely opens
+its exact excerpts or starts the normal evidence route. Lens is a projection,
+not a second store.
+
+The optional Concept Lens presentation is a separate, ontology-bound view
+artifact. It can replace raw automatic labels with reviewed questions and
+plain-language area names, but it cannot add concepts, relations, sources, or
+support. The interface begins with a decision map and opens only the selected
+area, so internal cluster indices never become the researcher's navigation
+model.
+
+The removed global cartography experiment remains a negative evaluation record.
+Flat TF-IDF/SVD, raw Harrier, Harrier with batch PCA, and document-first E5 maps
+were deterministic but not navigationally coherent. The replacement is smaller:
+local scope, FTS-first neighbourhood, no required embedding model, and no global
+ontology claim.
 
 ## Storage model
 
 | Material | Storage | Authority |
 |---|---|---|
 | source versions, fragments, identities, policies, snapshots, shared read sets, packets, reviews | SQLite plus content-addressed blobs | durable record |
+| IdeaTrace candidates and structural closure receipts | append-only canonical JSON in SQLite | durable candidate/audit record; not accepted truth |
 | FTS index | SQLite FTS5 | rebuildable discovery index |
 | semantic vectors and reranker caches | optional local model data | rebuildable discovery aid |
 | graph and Atlas projections | versioned derived artifacts | navigational view |

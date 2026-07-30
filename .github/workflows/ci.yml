@@ -85,7 +85,7 @@ jobs:
           package = Path(dithyramba.__file__).resolve()
           assert Path(sys.prefix).resolve() in package.parents
           assert resources.files("dithyramba.store.sql").joinpath(
-              "0010_corpus_read_sets.sql"
+              "0011_reasoning_closure.sql"
           ).is_file()
           print(dithyramba.__version__)
           PY

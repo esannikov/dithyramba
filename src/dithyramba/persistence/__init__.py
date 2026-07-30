@@ -49,6 +49,7 @@ from .models import (
     OutboxExportResult,
     SourceFragmentText,
 )
+from .reasoning import SQLiteReasoningRepository
 from .recall import SQLiteRecallBackend
 from .relations import SQLiteRelationRepository
 from .repository import (
@@ -97,6 +98,7 @@ __all__ = [
     "RecallArtifactNotFoundError",
     "SQLiteHybridStore",
     "SQLiteMeaningRepository",
+    "SQLiteReasoningRepository",
     "SQLiteRecallBackend",
     "SQLiteRelationRepository",
     "SQLiteSemanticSpanStore",

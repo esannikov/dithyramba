@@ -3,9 +3,24 @@
 This file records package changes. Detailed experiment metrics and decision
 history belong in dated evaluation reports, not in the product changelog.
 
-## Unreleased — 2026-07-28
+## 0.1.0rc1 — 2026-07-31
 
 ### Added
+
+- `IdeaTrace/1.0`, a bounded public reasoning artifact made of short
+  statements, named operations, explicit premises, concise warrants,
+  qualifiers, exact claim-evidence bindings, and open gaps. It never stores or
+  requests private chain-of-thought text.
+- Deterministic `ReasoningClosureGate` and
+  `ReasoningClosureResult/1.0`. Closure checks trace topology, stale bindings,
+  semantic claim verdicts, and operation policy without a model call. A pass is
+  `review_eligible`, not an automatic promotion.
+- Schema v11 append-only `idea_traces` and `reasoning_closure_results` storage,
+  exact reopen/cold replay, corruption checks, and audit outbox events.
+- `dithyramba reasoning-check` for provider-free verification of one trace,
+  case set, and claim-evidence result.
+- Scoped `CandidateOntologyManifest/1.0` and GET-only Concept Lens as the
+  smaller replacement for the rejected global-cartography experiment.
 
 - Schema v10 `CorpusReadSet` storage and `RecallService.recall_batch(...)`:
   several questions in one exact scope reuse one protected corpus read and one
@@ -30,6 +45,12 @@ history belong in dated evaluation reports, not in the product changelog.
   separates installed runtime code from contributor-only support files.
 
 ### Changed
+
+- Replaced the optional `cartography` dependency group with `ontology`; global
+  automatic corpus maps are no longer presented as a product module.
+- Candidate ontology and evidence-grounded reasoning remain separate from the
+  accepted truth path. Both can orient or synthesize, but neither can create a
+  human `ReviewDecision` or grant itself evidential authority.
 
 - Migration verification accepts the single audited private pre-release
   checksum of `0003_recall_run_artifacts.sql` while keeping the published

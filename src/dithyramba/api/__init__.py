@@ -1,6 +1,7 @@
 """Loopback FastAPI and read-only packet-backed source viewer."""
 
 from .app import bearer_token_for, create_app
+from .concept_lens import ConceptLensWebConfig, create_concept_lens_app
 from .config import LoopbackApiConfig
 from .flow_view import FlowViewWebConfig, create_flow_view_app
 from .models import (
@@ -19,6 +20,7 @@ from .reading_room import (
 from .research_atlas import ResearchAtlasWebConfig, create_research_atlas_app
 
 __all__ = [
+    "ConceptLensWebConfig",
     "EvidenceBoardWebConfig",
     "EvidencePacketResponse",
     "FlowViewWebConfig",
@@ -32,6 +34,7 @@ __all__ = [
     "SourceChipResponse",
     "bearer_token_for",
     "create_app",
+    "create_concept_lens_app",
     "create_flow_view_app",
     "create_reading_room_app",
     "create_research_atlas_app",

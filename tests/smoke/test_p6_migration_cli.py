@@ -78,7 +78,7 @@ def test_library_migrate_cli_emits_canonical_verified_receipt(tmp_path: Path) ->
     assert payload["schema"] == "dithyramba.library_migration_receipt/1.0"
     assert payload["library_id"] == config.library_id
     assert payload["old_schema_version"] == 3
-    assert payload["new_schema_version"] == 10
+    assert payload["new_schema_version"] == 11
     assert payload["status"] == "verified"
     assert len(cast(str, payload["backup_manifest_hash"])) == 64
     assert len(cast(str, payload["receipt_hash"])) == 64
@@ -86,7 +86,7 @@ def test_library_migrate_cli_emits_canonical_verified_receipt(tmp_path: Path) ->
     assert result.stdout.encode("utf-8") == canonical_json_bytes(payload) + b"\n"
 
     with open_library(config.library_id, data_root=data_home) as repository:
-        assert repository.schema_version == 10
+        assert repository.schema_version == 11
 
     repeated = runner.invoke(
         app,
@@ -100,4 +100,4 @@ def test_library_migrate_cli_emits_canonical_verified_receipt(tmp_path: Path) ->
         ],
     )
     assert repeated.exit_code == 1
-    assert "already at schema head version 10" in repeated.output
+    assert "already at schema head version 11" in repeated.output

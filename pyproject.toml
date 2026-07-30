@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dithyramba"
-version = "0.1.0rc0"
+version = "0.1.0rc1"
 description = "A local, source-grounded interpretive memory engine."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -41,7 +41,7 @@ Issues = "https://github.com/esannikov/dithyramba/issues"
 semantic = [
   "sentence-transformers==5.6.0",
 ]
-cartography = [
+ontology = [
   "numpy>=2.0,<3",
   "scikit-learn>=1.8,<2",
 ]

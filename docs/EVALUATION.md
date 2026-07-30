@@ -1,7 +1,7 @@
 # Evaluation evidence and limits
 
 This page records what Dithyramba has actually been exercised on as of the
-`0.1.0rc0` source preview. It separates three different claims:
+`0.1.0rc1` source preview. It separates three different claims:
 
 1. **Public reproducibility:** checks anyone can run from this repository.
 2. **Internal development evidence:** corpus-specific tests whose sources or
@@ -37,6 +37,7 @@ All committed fixture text is repository-authored and released as `CC0-1.0`.
 | `public_multilingual` | 12 fragments; 12 preregistered queries: 6 Ukrainian and 6 English | recall@10 `12/12`; macro, UA, and EN recall `1.000` | Exact multilingual lexical retrieval over a tiny frozen fixture. |
 | `synthetic_1000` | 1,000 generated fragments; 20 deterministic lexical probes | expected fragment selected; packet hashes `1/1`; provider calls `0` | Ingest, scope compilation, FTS recall, receipts, persistence, and deterministic packet replay. |
 | Isolation fixtures | 2 Libraries; 4 public/private/holdout/excluded canaries | all fixture invariants passed | Scope is compiled before reading and excluded data does not silently enter recall. |
+| IdeaTrace closure fixtures | 2-step public chain plus stale, tampered, orphaned, failed-claim, persistence, corruption, and CLI cases | deterministic replay matched; unsafe paths failed or required review; provider calls `0` | Contract closure and fail-closed persistence, not the usefulness or truth of a generated idea. |
 
 The 1,000-fragment run is an engineering workload, not a semantic research
 benchmark. Its text and queries are deliberately easy and synthetic.
@@ -132,7 +133,7 @@ without human adjudication, so the result is diagnostic rather than final.
 
 These figures belong to an earlier Qwen/graph/BGE development route, not the
 current default FTS path. They are retained as evaluation history and should
-not be read as the performance of `0.1.0rc0`. A later coverage-gate replay on
+not be read as the performance of `0.1.0rc1`. A later coverage-gate replay on
 four known failures across three lanes produced six preserved gaps, two
 partials, four insufficients, and no unsupported `ready` promotion.
 
@@ -198,9 +199,9 @@ The corpus is not distributed, only three questions had non-empty pools, and
 the reviewers were agents rather than independent human researchers. The result
 is therefore a failure diagnosis, not an accuracy or state-of-the-art claim.
 
-### Universal Cartography profile screen
+### Retired universal-cartography profile screen
 
-The experimental cartography contracts were exercised on source-stratified
+The former global-cartography contracts were exercised on source-stratified
 samples from the same two craft corpora without generative calls. Every sample
 retained all source documents and bound exact fragment, address, text, vector,
 runtime, policy, and input-manifest hashes.
@@ -221,12 +222,53 @@ corpora: 8–35 fragment areas, 50–85% assigned mass, no area above 25% of
 assigned mass, and a median of at least three sources per area. Independent
 human coherence scoring was therefore not opened.
 
-This is a useful negative result. It validates deterministic, text-free map
-construction while rejecting the claim that one flat global embedding geometry
-is already a useful universal map. Stable Dithyramba still uses question-led
-FTS and bounded reranking. Future cartography work is limited to deterministic
-structural facets and local semantic neighbourhoods, not another broad model
-sweep.
+This is a useful negative result. It rejected the claim that one flat global
+embedding geometry is already a useful universal map. The public cartography
+module was removed rather than retained as architectural ballast.
+
+### Scoped dialogue-directing ontology
+
+The replacement was tested on seven locally held foundational craft books:
+5,432 extracted fragments and a bounded 500-result FTS neighbourhood.
+Construction used no generative calls or tokens. The first run balanced twelve
+QueryCloud branches before local TF-IDF/NMF extraction so a popular camera
+vocabulary could not consume the entire neighbourhood.
+
+The result is a candidate navigation projection, not a knowledge-quality score.
+The preregistered diagnostic checks are:
+
+- at least 8/10 named craft facets visibly represented;
+- no HTML/markup labels in the visible concept set;
+- every shown `co_occurs_with` relation supported by at least two sources;
+- byte-exact replay under reversed input order.
+
+The final automatic gate passed: 7 clusters, 41 concepts, 36 multi-source
+co-occurrences, 9/10 diagnostic facets, no visible markup concepts, and
+byte-exact reordered-input replay. `subtext` was the missing visible facet.
+These counts describe projection closure and breadth, not truth or human
+coherence.
+
+A local Harrier reorder was retained only as an A/B comparator. It reduced
+facet breadth in the final run (`9/10 → 8/10`), so the minimal ontology route
+does not require an embedding model. Human cluster-coherence review is still
+needed; lexical facet coverage cannot establish that an area name is useful to
+a director.
+
+A follow-up ablation held the corpus and final fragment budget fixed and
+compared five retrieval routes at 180 and 360 fragments: one question, one flat
+expanded question, multi-query fusion, balanced branches, and balanced branches
+plus Harrier. The flat expanded query reached 10/10 visible diagnostic facets
+and all seven sources at both budgets. Multi-query routes reached 9/10 and
+Harrier 8/10. Balanced branches did retain all top-20 branch results at the
+360-fragment budget, but that mechanical breadth did not improve the final
+candidate map. A complete rerun produced an identical metrics hash.
+
+The resulting simplification is evidence-specific: a clear scope defaults to
+one compact expansion and one FTS search. Separate branches are reserved for an
+ambiguous scope or a coverage gap. The 180-fragment view is a useful preview,
+but only 67.3% of flat-route concepts overlapped with the 360-fragment map, so
+the larger budget remains appropriate for a final orientation view. These are
+lexical and structural diagnostics, not a human relevance or truth score.
 
 ## Mixed adaptive-route replay
 
@@ -249,16 +291,16 @@ the exact proof was already present deeper in a bounded union.
 
 ## Engineering verification
 
-The current public update collects 2,615 engineering cases. In its canonical
+The current public update collects 2,668 engineering cases. In its canonical
 local gate:
 
-- 2,613 passed and two declared browser cases were skipped;
-- exact combined line/branch coverage was `95.0442%` at a strict `95.00%` gate;
-- statement coverage was `96.2195%`; branch coverage was `91.3454%`;
-- terminology, format, lint, and strict typing across 243 files passed;
+- 2,666 passed and two declared browser cases were skipped;
+- exact combined line/branch coverage was `95.0573%` at a strict `95.00%` gate;
+- statement coverage was `96.2412%`; branch coverage was `91.3447%`;
+- terminology, format, lint, and strict typing across 256 files passed;
 - the dependency audit found no known vulnerabilities;
 - a separate sdist-to-wheel closure installed non-editably in isolated Python
-  3.11.12, imported from temporary `site-packages`, and included the schema-v10
+  3.11.12, imported from temporary `site-packages`, and included the schema-v11
   migration;
 - the deterministic 1,000-fragment replay remains the rights-safe public
   research-path fixture.

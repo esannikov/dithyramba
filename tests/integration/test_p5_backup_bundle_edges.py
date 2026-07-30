@@ -432,7 +432,7 @@ def test_private_manifest_helpers_reject_nonarrays_and_bad_scalar_types() -> Non
 @pytest.mark.parametrize(
     ("field", "replacement", "message"),
     [
-        ("schema_version", 11, "schema version"),
+        ("schema_version", 12, "schema version"),
         ("migrations", "different", "migrations differ"),
         ("library_name", "Changed name", "identity/schema/rows"),
         ("event_count", "increment", "event cursor"),
@@ -449,8 +449,8 @@ def test_verify_compares_manifest_to_database_semantics(
     migrations = payload["migrations"]
     assert type(migrations) is list
     if field == "schema_version":
-        payload["schema_version"] = 11
-        migrations.append({"version": 11, "name": "0011_future.sql", "sha256": _ZERO_HASH})
+        payload["schema_version"] = 12
+        migrations.append({"version": 12, "name": "0012_future.sql", "sha256": _ZERO_HASH})
     elif field == "migrations":
         first = cast(dict[str, object], migrations[0])
         first["sha256"] = _ONE_HASH if first["sha256"] != _ONE_HASH else _ZERO_HASH
