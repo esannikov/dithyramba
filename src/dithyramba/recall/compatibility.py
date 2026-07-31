@@ -1,4 +1,4 @@
-"""Content-addressed compatibility contracts for adaptive recall inputs.
+"""Content-addressed compatibility contracts for external recall inputs.
 
 The contracts in this module freeze three boundaries that used to be caller
 convention only:

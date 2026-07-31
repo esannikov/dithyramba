@@ -63,11 +63,11 @@ still has an independent `QueryRequest`, processing run, `ReadReceipt`, packet,
 and review history. Sharing storage never merges questions or permits a scope
 to cross a Library, snapshot, policy, Collection set, or purpose boundary.
 
-The experimental adaptive route adds `EvidenceCoverageGate`. Its caller freezes
-explicit requirements such as actor, date, source role, mechanism, direction,
-or independent provenance group. The gate scans proof-eligible passage bodies
-and reports which requirements are covered. Missing requirements remain an
-`EvidenceGap`; a high search score cannot fill them.
+The optional evidence-sufficiency route adds `EvidenceCoverageGate`. Its caller
+freezes explicit requirements such as actor, date, source role, mechanism,
+direction, or independent provenance group. The gate scans proof-eligible
+passage bodies and reports which requirements are covered. Missing requirements
+remain an `EvidenceGap`; a high search score cannot fill them.
 
 ### 4. Memory in use
 
@@ -187,10 +187,10 @@ area, so internal cluster indices never become the researcher's navigation
 model.
 
 The removed global cartography experiment remains a negative evaluation record.
-Flat TF-IDF/SVD, raw Harrier, Harrier with batch PCA, and document-first E5 maps
-were deterministic but not navigationally coherent. The replacement is smaller:
-local scope, FTS-first neighbourhood, no required embedding model, and no global
-ontology claim.
+Its flat lexical, retired neural-reranking, and document-first E5 maps were
+deterministic but not navigationally coherent. The replacement is smaller:
+local scope, FTS-first neighbourhood, no required embedding model, and no
+global ontology claim.
 
 ## Storage model
 
@@ -235,21 +235,21 @@ Optional rerankers or embeddings may repair those measured cases, but they stay
 rebuildable adapters: they cannot grant access, certify a claim, or replace the
 route to exact source text.
 
-## Adaptive route
+## Expanded discovery and evidence route
 
 ```text
 FTS50
   → deterministic lexical repair
-  → optional q0-anchored reranking
   → EvidenceCoverageGate
   → FTS100 only if a requirement remains uncovered
   → optional QueryCloud q1/q2 for the named gap
   → final proof scan
 ```
 
-The adaptive route is currently an in-memory Python API. It will not replace the
-stable route until every intermediate artifact is atomically persisted and a
-cold process can reconstruct the exact result bytes and hashes.
+The default remains the persisted FTS route. Query expansion is a bounded
+discovery aid and cannot replace the original question or become evidence. Any
+future default expansion must atomically persist its plan and survive cold
+byte-exact replay.
 
 ## Security and failure semantics
 

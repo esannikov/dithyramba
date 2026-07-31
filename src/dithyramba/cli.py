@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import sqlite3
 from collections.abc import Callable
@@ -34,6 +35,7 @@ from dithyramba.api import (
     create_reading_room_app,
     create_research_atlas_app,
 )
+from dithyramba.atlas import migrate_legacy_research_atlas
 from dithyramba.backup import (
     BackupBundleError,
     create_backup_bundle,
@@ -71,7 +73,6 @@ from dithyramba.reasoning import (
     ReasoningClosureGate,
 )
 from dithyramba.recall import (
-    HARRIER_OSS_V1_270M_PROFILE,
     MULTILINGUAL_E5_SMALL_PROFILE,
     FtsError,
     HybridContractError,
@@ -98,7 +99,6 @@ _R = TypeVar("_R")
 _PURPOSE_PATTERN = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
 _EMBEDDING_PROFILES = {
     "e5-small": MULTILINGUAL_E5_SMALL_PROFILE,
-    "harrier-270m": HARRIER_OSS_V1_270M_PROFILE,
 }
 
 app = typer.Typer(
@@ -181,8 +181,82 @@ def about() -> None:
     typer.echo(
         "Dithyramba 0.1.0rc1 is a pre-alpha source preview with a persisted, "
         "replayable local FTS evidence route. It is not yet a validated memory system; "
-        "adaptive retrieval, graph recall, and synthesis remain experimental or incomplete."
+        "graph recall and synthesis remain experimental or incomplete."
     )
+
+
+@app.command("atlas-migrate")
+@_guard
+def atlas_migrate(
+    source: Annotated[
+        Path,
+        typer.Argument(help="Historical Research Atlas manifest."),
+    ],
+    output: Annotated[
+        Path,
+        typer.Option("--output", help="New manifest path; parent must already exist."),
+    ],
+    artifact_root: Annotated[
+        Path | None,
+        typer.Option(
+            "--artifact-root",
+            help="Existing case-data root used to rebuild exact line bindings.",
+        ),
+    ] = None,
+    trace_overrides: Annotated[
+        Path | None,
+        typer.Option(
+            "--trace-overrides",
+            help="Optional JSON map of exact visible spans to evidence IDs.",
+        ),
+    ] = None,
+    receipt_output: Annotated[
+        Path | None,
+        typer.Option(
+            "--receipt-output",
+            help="Optional migration receipt path; defaults beside the output manifest.",
+        ),
+    ] = None,
+) -> None:
+    """Migrate one historical Atlas without modifying its frozen input."""
+
+    if not source.is_file():
+        raise ContractError("Atlas source must be an existing file")
+    if not output.is_absolute() or not output.parent.is_dir():
+        raise ContractError("Atlas output must be absolute and its parent must exist")
+    if artifact_root is not None and (
+        not artifact_root.is_absolute() or not artifact_root.is_dir()
+    ):
+        raise ContractError("artifact root must be an existing absolute directory")
+    try:
+        payload = json.loads(source.read_text(encoding="utf-8"))
+        overrides = (
+            {}
+            if trace_overrides is None
+            else json.loads(trace_overrides.read_text(encoding="utf-8"))
+        )
+        if not isinstance(payload, dict) or not isinstance(overrides, dict):
+            raise ValueError("Atlas input and trace overrides must be JSON objects")
+        migrated = migrate_legacy_research_atlas(
+            payload,
+            artifact_root=artifact_root,
+            trace_overrides=overrides,
+        )
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise ContractError(str(exc)) from exc
+    receipt_path = receipt_output or output.with_name("MIGRATION_RECEIPT.json")
+    if not receipt_path.is_absolute() or not receipt_path.parent.is_dir():
+        raise ContractError("receipt output must be absolute and its parent must exist")
+    output.write_bytes(
+        canonical_json_bytes(migrated.manifest.model_dump(mode="json", exclude_none=True)) + b"\n"
+    )
+    receipt_path.write_bytes(canonical_json_bytes(migrated.receipt.model_dump(mode="json")) + b"\n")
+    typer.echo(f"manifest: {output}")
+    typer.echo(f"receipt: {receipt_path}")
+    typer.echo(f"sources: {migrated.receipt.source_count}")
+    typer.echo(f"evidence: {migrated.receipt.evidence_count}")
+    typer.echo(f"exact_bindings: {migrated.receipt.exact_binding_count}")
+    typer.echo(f"trace_spans: {migrated.receipt.trace_span_count}")
 
 
 @model_app.command("provision")
@@ -191,7 +265,7 @@ def model_provision(
     profile: Annotated[
         str,
         typer.Argument(
-            help=("Pinned profile name: e5-small or harrier-270m."),
+            help="Pinned profile name: e5-small.",
         ),
     ] = "e5-small",
     data_home: Annotated[
@@ -214,7 +288,7 @@ def model_provision(
 
     selected = _EMBEDDING_PROFILES.get(profile)
     if selected is None:
-        raise HybridContractError("unknown embedding profile; expected e5-small or harrier-270m")
+        raise HybridContractError("unknown embedding profile; expected e5-small")
     path, receipt = provision_model(
         selected,
         data_root=data_home,

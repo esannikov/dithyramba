@@ -200,10 +200,6 @@ new version. Applied migrations remain immutable.
 | `EvidenceRequirement` | `dithyramba.evidence_requirement/1.0` | caller-owned input |
 | `EvidenceGateSpec` | `dithyramba.evidence_gate_spec/1.0` | caller-owned input |
 | `EvidenceCoverageResult` | `dithyramba.evidence_coverage_result/1.0` | in-memory |
-| `QueryRepairPlan` | `dithyramba.query_repair_plan/1.0` | in-memory |
-| `HarrierScoreBatch` | `dithyramba.harrier_score_batch/1.0` | in-memory |
-| `AdaptiveStageReceipt` | `dithyramba.adaptive_stage_receipt/2.0` | in-memory |
-| `AdaptiveRecallResult` | `dithyramba.adaptive_recall_result/2.2` | in-memory |
 | `AnswerProjection` | `dithyramba.answer_projection/1.0` | append-only canonical JSON in schema v12 |
 | `AnswerProjectionJudgmentReceipt` | `dithyramba.answer_projection_receipt/1.0` | append-only canonical JSON in schema v12 |
 | `PropositionCoverageResult` | typed result | in-memory; display eligibility only |
@@ -246,7 +242,7 @@ opens the validated result on loopback. `--presentation
 one title, question, summary, and entry concept per cluster. The command is
 GET-only and does not promote candidates or mutate a Library.
 
-## Adaptive compatibility contracts
+## Fragment compatibility contracts
 
 | Contract | Schema | Current boundary |
 |---|---|---|
@@ -254,22 +250,9 @@ GET-only and does not promote candidates or mutate a Library.
 | `ExternalReferenceMap` | `dithyramba.external_reference_map/1.0` | tested library artifact; not run-bound |
 | `ProofMetadataManifest` | `dithyramba.proof_metadata_manifest/1.0` | tested library artifact; not persisted |
 
-These contracts are present and tested in the source preview. They fail closed,
-but the adaptive route does not yet bind their instances into one persisted run.
-
-## Planned durable adaptive contracts
-
-The following names are reserved for the durable adaptive slice:
-
-| Contract | Responsibility |
-|---|---|
-| `AdaptiveQueryPlan/1.0` | freeze scope, budgets, Gate, providers, and compatibility hashes |
-| `AdaptiveEvidencePacket/2.0` | persist matched proof, gaps, and text-free discovery trace |
-
-`AdaptiveEvidencePacket/2.0` is distinct from the existing
-`ExpandedEvidencePacket/2.0`; neither extends `EvidencePacket/1.0` in place.
-The three compatibility artifacts listed in the previous section are already
-executable and fail closed, but are not yet bound to a persisted adaptive run.
+These contracts are present and tested in the source preview. They fail closed
+when an external fragment projection no longer matches Dithyramba's exact
+source identity or proof metadata.
 
 ## Default budgets
 
@@ -286,12 +269,11 @@ session, then persists a separate ordinary request, run, packet, and receipt
 identity for each question. Mixed scopes fail before execution. A batch does
 not merge questions, evidence, or review history.
 
-### Adaptive route
+### Expanded discovery route
 
-The route uses bounded FTS50, conditional FTS100, a Harrier scoring cap, a
-bounded total discovered-candidate cap, and at most two QueryCloud queries.
-Exact constants are versioned in `AdaptiveRetrievalConfig`; callers should not
-reimplement them from prose.
+Development evaluations use bounded FTS50, conditional FTS100, a bounded total
+candidate cap, and at most two QueryCloud queries. These are evaluation
+parameters, not a public persisted request contract.
 
 ## Evidence gate results
 
@@ -312,7 +294,6 @@ probability.
 |---|---|---|
 | none / FTS5 | exact lexical recall | default |
 | multilingual E5-small | compact dense control; rejected as the tested global cartography geometry | optional |
-| Harrier 270M | bounded q0 candidate reranking | adaptive library route |
 
 Model scores never set `body_proof_eligible`, source authority, independence,
 or a human ReviewDecision.

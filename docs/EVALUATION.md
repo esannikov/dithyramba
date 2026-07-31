@@ -52,19 +52,19 @@ benchmark. Its text and queries are deliberately easy and synthetic.
 | Retrieval units | 53,747 |
 | Normalized text | approximately 103.8 million characters |
 | Evaluation cases | 72 bilingual cases: 51 positive, 21 controls |
-| Candidate union in the Harrier ablation | 7,273 units |
-| Exact fragment @1 / @5 / @10 | 18/51 · 38/51 · 43/51 |
-| Correct source @10 | 48/51 |
-| Exact MRR | 0.510 |
+| Current route | bounded flat FTS expansion + exact proof admission |
+| Exact fragment @1 / @5 / @10 | 22/51 · 39/51 · 42/51 |
+| Correct source @10 | 49/51 |
+| Exact MRR | 0.572 |
 | Non-body items after structural admission | 0 |
 | Network, generative calls, generative tokens | 0 · 0 · 0 |
 
-This was the largest retrieval-scale calibration. It showed that exact FTS
-candidates followed by bounded Harrier reranking were stronger and simpler
-than placing another semantic candidate generator before Harrier. It did not
-test complete generated answers. Candidate availability was known during
-development, so these numbers are calibration evidence rather than a held-out
-benchmark.
+This was the largest retrieval-scale calibration. The current model-free route
+recovered the exact fragment at top 10 for 42/51 positive cases (82.4%) and the
+correct source for 49/51 (96.1%). It was byte-equivalent on replay and required
+no model. It did not test complete generated answers. Candidate availability
+was known during development, so these numbers are calibration evidence rather
+than a held-out benchmark.
 
 The reports record units and characters, but not a trustworthy aggregate page
 or original-document count. No page estimate is inferred here.
@@ -272,18 +272,19 @@ byte-exact reordered-input replay. `subtext` was the missing visible facet.
 These counts describe projection closure and breadth, not truth or human
 coherence.
 
-A local Harrier reorder was retained only as an A/B comparator. It reduced
-facet breadth in the final run (`9/10 → 8/10`), so the minimal ontology route
-does not require an embedding model. Human cluster-coherence review is still
-needed; lexical facet coverage cannot establish that an area name is useful to
-a director.
+A local neural reorder was tested only as an A/B comparator. It reduced facet
+breadth in the final run (`9/10 → 8/10`) and has since been removed from the
+runtime. The minimal ontology route does not require an embedding model. Human
+cluster-coherence review is still needed; lexical facet coverage cannot
+establish that an area name is useful to a director.
 
 A follow-up ablation held the corpus and final fragment budget fixed and
 compared five retrieval routes at 180 and 360 fragments: one question, one flat
-expanded question, multi-query fusion, balanced branches, and balanced branches
-plus Harrier. The flat expanded query reached 10/10 visible diagnostic facets
-and all seven sources at both budgets. Multi-query routes reached 9/10 and
-Harrier 8/10. Balanced branches did retain all top-20 branch results at the
+expanded question, multi-query fusion, balanced branches, and a historical
+model-assisted branch. The flat expanded query reached 10/10 visible diagnostic
+facets and all seven sources at both budgets. Multi-query routes reached 9/10
+and the retired model-assisted branch 8/10. Balanced branches did retain all
+top-20 branch results at the
 360-fragment budget, but that mechanical breadth did not improve the final
 candidate map. A complete rerun produced an identical metrics hash.
 
@@ -294,13 +295,13 @@ but only 67.3% of flat-route concepts overlapped with the 360-fragment map, so
 the larger budget remains appropriate for a final orientation view. These are
 lexical and structural diagnostics, not a human relevance or truth score.
 
-## Mixed adaptive-route replay
+## Historical mixed-route replay
 
 One ten-task development replay combined four Tesla tasks, four Mars tasks,
 one Van Gogh task, and one Parisian Ten task:
 
 - previous proof-window route: 7/10 correct final states;
-- experimental Wide Gate: 10/10 final states;
+- Wide Gate proof scan: 10/10 final states;
 - positive tasks ready: 4/7 → 7/7;
 - declared gaps preserved: 3/3;
 - declared hard negative admitted: 0/1;
@@ -315,14 +316,13 @@ the exact proof was already present deeper in a bounded union.
 
 ## Engineering verification
 
-The current public update collects 2,701 engineering cases. In its canonical
+The current public update collects 2,591 engineering cases. In its canonical
 local gate:
 
-- 2,699 passed and two declared browser cases were skipped until Chromium was
-  provisioned;
-- a separate real-Chromium run passed both browser cases with zero skips;
-- exact combined line/branch coverage was `95.0172%` at a strict `95.00%` gate;
-- statement coverage was `96.2082%`; branch coverage was `91.2933%`;
+- all 2,591 passed, including both real-Chromium browser cases, with zero
+  skips;
+- exact combined line/branch coverage was `95.0053%` at a strict `95.00%` gate;
+- statement coverage was `96.1902%`; branch coverage was `91.2494%`;
 - terminology, format, lint, and strict typing across 260 files passed;
 - the dependency audit found no known vulnerabilities;
 - a separate sdist-to-wheel closure installed non-editably in isolated Python
@@ -345,7 +345,7 @@ Dithyramba has not yet established:
 - calibrated near-domain abstention;
 - automatic construction of equally strong memory units from arbitrary raw
   corpora;
-- durable cold replay of the opt-in adaptive route;
+- durable cold replay of optional query-expansion plans;
 - superiority over conversational-memory or research-agent systems measured
   under the same corpus, task, model, and review protocol.
 

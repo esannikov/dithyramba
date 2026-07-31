@@ -15,6 +15,11 @@ from .memory_packet import (
     RouteTraceStage,
     TaskRouter,
 )
+from .migration import (
+    AtlasMigrationReceipt,
+    MigratedResearchAtlas,
+    migrate_legacy_research_atlas,
+)
 from .models import (
     AtlasEvidence,
     AtlasGap,
@@ -53,6 +58,7 @@ __all__ = [
     "AtlasEvidence",
     "AtlasGap",
     "AtlasHypothesis",
+    "AtlasMigrationReceipt",
     "AtlasQuestion",
     "AtlasRelation",
     "AtlasSource",
@@ -64,6 +70,7 @@ __all__ = [
     "LexicalQuestionCandidate",
     "LoadedResearchAtlas",
     "LoadedResearchProjection",
+    "MigratedResearchAtlas",
     "ProjectionCollection",
     "ProjectionMaterial",
     "ProjectionMaterialKind",
@@ -90,5 +97,6 @@ __all__ = [
     "build_route_candidate_receipt",
     "load_research_atlas",
     "load_research_projection",
+    "migrate_legacy_research_atlas",
     "normalize_route_query",
 ]

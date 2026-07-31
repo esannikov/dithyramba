@@ -34,8 +34,8 @@ terminology.
 
 - Evidence precedes interpretation.
 - Candidate recall, relevance ranking, and evidence sufficiency are three
-  separate decisions. Harrier may improve the second; only exact proof and the
-  coverage gate decide the third.
+  separate decisions. Candidate ordering may improve the second; only exact
+  proof and the coverage gate decide the third.
 - A generated or rewritten query may discover a source fragment but is never
   itself evidence and never replaces the operator's original question.
 - AccessPolicy is compiled before any read or projection.

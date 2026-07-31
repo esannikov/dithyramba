@@ -205,17 +205,15 @@ uv run dithyramba restore /absolute/private/backups/<bundle> \
 Restore verifies paths, file modes, hashes, schema, migrations, rows, event
 stream, and blob closure before opening the Library.
 
-## Experimental adaptive API
+## Optional query expansion
 
-`dithyramba.recall.execute_adaptive_retrieval` is a Python library surface,
-not a persisted CLI route. Its caller must provide already authorized exact
-fragments, explicit proof metadata, a frozen `EvidenceGateSpec`, and a pinned
-Harrier scorer. QueryCloud is optional and bounded to two derived queries.
+Use the original question first. A compact deterministic expansion may add
+aliases, translated names, and close domain phrases. QueryCloud is reserved for
+a named coverage gap and is bounded to two derived queries.
 
-Do not use this API as a durable record yet. Compatibility contracts exist,
-but the route does not yet bind or persist them. Until the adaptive plan,
-execution artifacts, persistence, and cold replay are complete, the stable CLI
-packet above remains the auditable result.
+Derived queries are discovery instructions, not evidence. Persist the original
+question, exact source fragments, and evidence decision; do not cite a generated
+query or a search score.
 
 ## Common mistakes
 
@@ -224,5 +222,5 @@ packet above remains the auditable result.
 - Treating a search score as proof.
 - Ignoring skips in the ingest CoverageReport.
 - Reusing a snapshot after adding sources and assuming it changed.
-- Calling a library-only adaptive result replayable when it exists only in
-  process memory.
+- Treating a derived query as evidence or as a replacement for the operator's
+  original question.

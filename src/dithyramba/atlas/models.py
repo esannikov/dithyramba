@@ -122,7 +122,7 @@ class AtlasTraceSpan(BaseModel):
 class AtlasSource(_AtlasModel):
     source_id: str = Field(pattern=_ID_PATTERN)
     title: str = Field(min_length=1, max_length=500)
-    creator: str = Field(min_length=1, max_length=300)
+    creator: str = Field(min_length=1, max_length=2_000)
     source_kind: SourceKind
     voice_kind: VoiceKind
     date_label: str | None = Field(default=None, max_length=120)
@@ -322,7 +322,7 @@ class ResearchAtlasManifest(_AtlasModel):
     language: str = Field(pattern=r"^[a-z]{2}(?:-[A-Z]{2})?$")
     read_only: bool
     corpus: AtlasCorpus
-    sources: tuple[AtlasSource, ...] = Field(max_length=2_000)
+    sources: tuple[AtlasSource, ...] = Field(max_length=10_000)
     evidence: tuple[AtlasEvidence, ...] = Field(max_length=10_000)
     questions: tuple[AtlasQuestion, ...] = Field(max_length=1_000)
     hypotheses: tuple[AtlasHypothesis, ...] = Field(max_length=1_000)

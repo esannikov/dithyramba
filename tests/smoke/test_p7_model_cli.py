@@ -29,7 +29,7 @@ def test_unknown_profile_and_implicit_network_fail_cleanly(tmp_path: Path) -> No
         ["model", "provision", "unknown", "--data-home", str(tmp_path)],
     )
     assert unknown.exit_code == 1
-    assert "expected e5-small or harrier-270m" in unknown.stderr
+    assert "expected e5-small" in unknown.stderr
     assert "Traceback" not in unknown.stderr
 
     missing = runner.invoke(
@@ -104,56 +104,3 @@ def test_provision_then_offline_verify_is_machine_readable(
     second_payload = json.loads(second.stdout)
     assert second_payload["receipt_hash"] == first_payload["receipt_hash"]
     assert second_payload["network_authorized"] is False
-
-
-@pytest.mark.parametrize(
-    ("alias", "model_id", "revision"),
-    [
-        (
-            "harrier-270m",
-            "microsoft/harrier-oss-v1-270m",
-            "31de22b673913c7d658c0f03f792d77c2dcf8ebd",
-        ),
-    ],
-)
-def test_embedding_profiles_are_explicitly_pinned_and_machine_readable(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    alias: str,
-    model_id: str,
-    revision: str,
-) -> None:
-    fake_hf = tmp_path / "isolated-hf"
-
-    def fake_run(
-        arguments: tuple[str, ...],
-        **_kwargs: object,
-    ) -> subprocess.CompletedProcess[bytes]:
-        target = Path(arguments[arguments.index("--local-dir") + 1])
-        for relative_path in arguments[3 : arguments.index("--revision")]:
-            path = target / relative_path
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(f"{relative_path}\n", encoding="utf-8")
-        return subprocess.CompletedProcess(arguments, 0)
-
-    monkeypatch.setattr(provisioning_module, "_resolve_hf_executable", lambda: str(fake_hf))
-    monkeypatch.setattr(subprocess, "run", fake_run)
-    result = runner.invoke(
-        app,
-        [
-            "model",
-            "provision",
-            alias,
-            "--data-home",
-            str(tmp_path),
-            "--allow-network",
-            "--json",
-        ],
-    )
-
-    assert result.exit_code == 0, result.output
-    payload = json.loads(result.stdout)
-    assert payload["model_id"] == model_id
-    assert payload["revision"] == revision
-    assert payload["file_count"] == 9
-    assert payload["profile_id"].startswith("embedding_profile_")

@@ -1,6 +1,6 @@
 <p align="center">
   <a href="docs/assets/dithyramba-memory-map.svg">
-    <img src="docs/assets/dithyramba-memory-map.svg" alt="Dithyramba architecture: a stable source-to-evidence path, explicit scope control, an optional adaptive evidence gate, and separate durable, rebuildable, and experimental state" width="100%">
+    <img src="docs/assets/dithyramba-memory-map.svg" alt="Dithyramba architecture: a stable source-to-evidence path, explicit scope control, an optional evidence-sufficiency path, and separate durable, rebuildable, and experimental state" width="100%">
   </a>
 </p>
 
@@ -17,7 +17,7 @@ local corpus into versioned, addressable evidence packets that can be inspected,
 replayed, challenged, and reused without asking a model to reread everything.
 
 > **Current status:** `0.1.0rc1` is a substantial pre-alpha source preview. The
-> local FTS evidence route is persisted and replayable. Adaptive retrieval,
+> local FTS evidence route is persisted and replayable. Conditional QueryCloud,
 > candidate ontology, and evidence-grounded synthesis remain experimental.
 > Schema v12 now persists public reasoning traces, proposition-level answer
 > projections, and their deterministic or semantic receipts without promoting
@@ -167,13 +167,13 @@ or worker-memory guards.
 
 ## Experimental boundary
 
-The adaptive Python route can combine bounded FTS expansion, deterministic
-lexical repair, optional Harrier reranking, an optional two-query QueryCloud,
-and `EvidenceCoverageGate`. It remains opt-in because its complete plan and
+The model-free research route can combine bounded FTS expansion, deterministic
+lexical repair, an optional two-query QueryCloud, and
+`EvidenceCoverageGate`. QueryCloud remains opt-in because its complete plan and
 intermediate artifacts are not yet persisted for cold exact replay.
 
 ```text
-FTS50 → bounded repair → optional reranking → coverage check
+FTS50 → bounded repair → coverage check
       → FTS100 only when needed
       → optional q1/q2 only for a named gap
       → matched proof or explicit gap
@@ -231,15 +231,15 @@ because their source rights and project boundaries differ.
 | Corpus or test surface | Scale | What the test showed |
 |---|---:|---|
 | Public synthetic | 12 multilingual fragments and queries; 1,000 generated fragments with 20 probes | Current staging replay returned 12/12 expected multilingual sources at top 10; the 1,000-fragment pipeline selected the exact expected fragment with one stable packet hash and zero provider calls. |
-| Mars working corpus | 53,747 retrieval units; about 103.8M characters; 72 bilingual cases | On 51 positive development cases, FTS top-50 followed by Harrier and structural admission placed the exact fragment in the top 10 for 43/51 and the correct source for 48/51. |
+| Mars working corpus | 2,051 sources; 53,747 retrieval units; about 103.8M characters; 72 bilingual cases | The current model-free route with bounded flat expansion and exact proof admission placed the exact fragment in the top 10 for 42/51 positive cases (82.4%) and the correct source for 49/51 (96.1%). The complete replay was byte-identical and used zero generative calls or tokens. |
 | Mars IdeaTrace-24 | 24 frozen evidence packets: 6 direct, 6 multi-source, 6 contested, 6 unsupported traps | With retrieval held constant, one gate-directed repair improved complete evidence closure from 6/18 to 16/18, complete answers from 21/24 to 23/24, and answer-status correctness from 22/24 to 24/24. Safe abstention remained 6/6; one semantic overclaim and one exact-quote mismatch remained blocked. |
 | Parisian Ten structured records | 28,006 records from 40 files and 7 source families; 56 bilingual queries | Prepared memory packets delivered the complete evidence set in 56/56 queries. At the same per-query evidence budget, raw FTS delivered all required records in 43/56, hybrid search in 42/56, and E5 in 37/56. |
 | Van Gogh equal-source A/B | 18 Markdown files; 4 tasks | Compact packets returned 16/16 exact quotations and 13/13 required facets versus 3/7 and 2/13 for direct search. A later claim-level audit still marked only 5/14 claims directly supported and only 1/4 answers ready for promotion without revision. |
 | Tesla historical evaluation | 50 sources; 6,183 fragments; 40 questions | An earlier model-heavy route recovered the correct source in the top 10 for 86.7% of required evidence roles, but the exact required fragment for only 58.1%; deliberate-gap recognition was 40.0%. These numbers do not describe the current default route. |
 | Artists retrieval stress test | 404 Markdown files; 31.2 MB; about 2.40M words; 48,072 fragments; 18 questions | Exact address-group recovery at top 10 ranged from 17/31 for FTS to 25/31 for the best tested reranking lane. The test exposed parser, isolation, and late-fragment issues; it did not establish a semantic winner. |
 | Maulstick knowledge connector | 383 section/file units; 36 craft cases | Median context fell from 21,174 to 1,147 tokens (−94.6%), but required-anchor coverage also fell from 49/77 to 43/77. The result was `ITERATE`, not lossless compression. |
-| Directing and screenwriting craft corpora | 268 admitted sources; 107,031 fragments; 120 frozen query-language rows | Stable FTS completed 120/120 rows and 16/16 sampled cold replays without provider calls. In a five-question blinded Ukrainian directing slice, Harrier rescued one late axis passage and substantially improved a homonym-heavy blocking list, but still left unsafe passages in the top 10 and could not repair two zero-candidate questions. This is a diagnostic result, not an accuracy claim. |
-| Scoped dialogue-directing ontology | 7 foundational books; 5,432 extracted fragments; 5 retrieval routes at 180 and 360 selected fragments | One flat expanded FTS query produced 10/10 diagnostic facets with all seven sources. Multi-query fusion and balanced branches produced 9/10; Harrier produced 8/10. The complete rerun was byte-identical and used zero generative calls or tokens; human coherence remains unmeasured. |
+| Directing and screenwriting craft corpora | 268 admitted sources; 107,031 fragments; 120 frozen query-language rows | Stable FTS completed 120/120 rows and 16/16 sampled cold replays without provider calls. A historical reranker trial helped one late passage and one homonym-heavy list but still left unsafe passages and could not repair two zero-candidate questions; that model route is now retired. |
+| Scoped dialogue-directing ontology | 7 foundational books; 5,432 extracted fragments; 5 retrieval routes at 180 and 360 selected fragments | One flat expanded FTS query produced 10/10 diagnostic facets with all seven sources. Multi-query fusion and balanced branches produced 9/10; the retired model-assisted comparator produced 8/10. The complete rerun was byte-identical and used zero generative calls or tokens; human coherence remains unmeasured. |
 
 These are internal development and calibration results, not an independent
 cross-domain benchmark. Retrieval metrics do not establish source truth,
@@ -328,11 +328,10 @@ uv build
 ./scripts/acceptance.sh --quick
 ```
 
-For this update, the canonical gate collected 2,701 tests: 2,699 passed and
-two declared browser cases were skipped until Chromium was provisioned. A
-separate real-Chromium run then passed both browser cases with zero skips.
-Strict typing across 260 files, zero terminology findings, 95.0172% exact
-combined line/branch coverage, and the dependency audit also passed.
+For this update, the canonical gate passed all 2,591 collected tests, including
+the two real-Chromium browser cases, with zero skips. Strict typing across 260
+files, zero terminology findings, 95.0053% exact combined line/branch coverage,
+and the dependency audit also passed.
 Distribution closure verifies every schema migration through v12, the Lens
 assets, and that the wheel is built from the sdist and imports from an isolated
 non-editable environment.

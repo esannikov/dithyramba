@@ -63,8 +63,9 @@ derived query can place a fragment in a bounded candidate list.
 
 ### 2. Is it relevant?
 
-Harrier may rank that bounded list against the original human question. A high
-rank means the passage looks useful, not that it proves the answer.
+FTS rank, phrase overlap, aliases, and bounded query variants may order the
+candidate list. A high rank means the passage may be useful, not that it proves
+the answer.
 
 ### 3. Is the evidence sufficient?
 
@@ -75,27 +76,24 @@ direction, status, independent provenance group, or literal anchor.
 Only the third step can mark a requirement covered. If one part is missing,
 the result stays partial or becomes an `EvidenceGap`.
 
-## Why the adaptive route starts with FTS
+## Why the research route starts with FTS
 
 FTS is cheap, deterministic, local, and excellent for proper names, numbers,
 patent IDs, dates, quotations, and rare terms. It is also easy to audit.
 
-The adaptive route adds complexity only when needed:
+The route adds complexity only when needed:
 
 ```text
 FTS50
   → controlled lexical repair
-  → Harrier ranking against q0
   → Wide Gate
   → FTS100 only if coverage is incomplete
   → QueryCloud q1/q2 only if a named gap remains
-  → Harrier still ranks against q0
   → Wide Gate again
 ```
 
-This avoids embedding the whole corpus merely to answer a few questions. The
-model processes a bounded candidate union, while exact FTS remains available
-without any model.
+This avoids embedding or reranking the whole corpus merely to answer a few
+questions. Exact FTS remains available without any model.
 
 ## What “Wide Gate” means
 
@@ -104,9 +102,8 @@ passage at rank 60 could be present in the candidate union but invisible to
 the proof check.
 
 The Wide Gate scans every body-proof-eligible passage in the bounded union.
-It may accept a lower-ranked exact proof, but the in-memory adaptive result
-exposes only the passages that satisfied requirements, not the text of the
-entire union. A persisted adaptive packet is still planned.
+It may accept a lower-ranked exact proof, but the result exposes only the
+passages that satisfied requirements, not the text of the entire union.
 
 This separates two budgets:
 
@@ -183,19 +180,17 @@ the same proof route.
 The interface does not make evidence stronger. It makes the stored relation
 between conclusion and proof inspectable.
 
-## Why the stable CLI is still FTS-only
+## Why the stable CLI is FTS-first
 
-The adaptive route already works in memory, but a default persisted query must be
-replayable after the process exits. The versioned projection,
-external-reference, and proof-metadata contracts now exist, but the route must
-still bind and persist their exact instances together with every intermediate
-FTS and Harrier artifact, an immutable query plan, and a final packet. Cold
-reconstruction must then produce the same bytes and hashes.
+The default persisted query must be replayable after the process exits. FTS
+provides a local, deterministic candidate route whose exact scope and result
+can be stored with `EvidencePacket/1.0`. Bounded lexical variants and
+QueryCloud may widen discovery, but they do not replace the original question
+or become evidence.
 
-Until that closure exists, changing the default would create a feature that
-looks complete in a live session but cannot provide the same audit guarantee
-as `EvidencePacket/1.0`. The library-only boundary is therefore a quality
-decision, not a missing UI toggle.
+This keeps the auditable route small. A future discovery aid must demonstrate
+better evidence recall and preserve cold replay before it enters the default
+path.
 
 ## What Dithyramba cannot guarantee
 

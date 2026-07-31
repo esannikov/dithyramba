@@ -21,7 +21,6 @@ from dithyramba.contracts import canonical_json_bytes
 from dithyramba.recall import provisioning as provisioning_module
 from dithyramba.recall.hybrid_models import EmbeddingModelProfile
 from dithyramba.recall.provisioning import (
-    HARRIER_OSS_V1_270M_PROFILE,
     MULTILINGUAL_E5_SMALL_PROFILE,
     ModelProvisioningError,
     ModelProvisioningReceipt,
@@ -92,42 +91,6 @@ def _target(data_root: Path, profile: EmbeddingModelProfile | None = None) -> Pa
     return data_root / "models" / selected.profile_id
 
 
-def test_harrier_profile_is_pinned_for_long_context_recall() -> None:
-    assert HARRIER_OSS_V1_270M_PROFILE.model_id == "microsoft/harrier-oss-v1-270m"
-    assert HARRIER_OSS_V1_270M_PROFILE.revision == ("31de22b673913c7d658c0f03f792d77c2dcf8ebd")
-    assert HARRIER_OSS_V1_270M_PROFILE.license == "MIT"
-    assert HARRIER_OSS_V1_270M_PROFILE.dimensions == 640
-    assert HARRIER_OSS_V1_270M_PROFILE.max_tokens == 32_768
-    assert HARRIER_OSS_V1_270M_PROFILE.query_prefix == (
-        "Instruct: Given a web search query, retrieve relevant passages that answer the query\n"
-        "Query: "
-    )
-    assert HARRIER_OSS_V1_270M_PROFILE.passage_prefix == ""
-
-
-def test_harrier_profile_uses_exact_pinned_allowlist(tmp_path: Path) -> None:
-    command = _PinnedDownload()
-
-    provision_model(
-        HARRIER_OSS_V1_270M_PROFILE,
-        data_root=tmp_path,
-        allow_network=True,
-        command=command,
-    )
-
-    assert command.requested == (
-        "1_Pooling/config.json",
-        "config.json",
-        "config_sentence_transformers.json",
-        "model.safetensors",
-        "modules.json",
-        "mteb_v2_eval_prompts.json",
-        "special_tokens_map.json",
-        "tokenizer.json",
-        "tokenizer_config.json",
-    )
-
-
 def test_provision_requires_explicit_network_before_running_command(tmp_path: Path) -> None:
     command = _Download()
 
@@ -176,17 +139,10 @@ def test_success_is_pinned_atomic_receipted_and_idempotent(tmp_path: Path) -> No
     assert second.calls == []
 
 
-@pytest.mark.parametrize(
-    "profile",
-    [
-        MULTILINGUAL_E5_SMALL_PROFILE,
-        HARRIER_OSS_V1_270M_PROFILE,
-    ],
-)
 def test_maintained_profile_requires_its_complete_minimal_allowlist(
     tmp_path: Path,
-    profile: EmbeddingModelProfile,
 ) -> None:
+    profile = MULTILINGUAL_E5_SMALL_PROFILE
     complete = _PinnedDownload()
     path, receipt = provision_model(
         profile,

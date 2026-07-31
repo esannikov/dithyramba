@@ -58,7 +58,7 @@ _MAX_ARTIFACT_BYTES = 25 * 1024 * 1024
 _VIEW_LABELS = {
     "overview": "Огляд теми",
     "questions": "Питання й відповіді",
-    "hypotheses": "Граф гіпотез",
+    "hypotheses": "Гіпотези",
     "timeline": "Часова лінія",
     "materials": "Матеріали памʼяті",
     "gaps": "Прогалини",
@@ -396,9 +396,13 @@ def _template_context(
                 selected_trace_span,
                 evidence_views=evidence_views,
             )
-            or _first_evidence(
-                selected_object,
-                evidence_views=evidence_views,
+            or (
+                _first_evidence(
+                    selected_object,
+                    evidence_views=evidence_views,
+                )
+                if isinstance(selected_object, AtlasSource)
+                else None
             )
         )
     evidence_by_id = {
@@ -459,10 +463,13 @@ def _template_context(
 
     page_size = 30
     page_count = max(1, (len(projection_materials) + page_size - 1) // page_size)
-    if page > page_count:
+    source_page_count = max(1, (len(manifest.sources) + page_size - 1) // page_size)
+    active_page_count = source_page_count if view == "sources" else page_count
+    if page > active_page_count:
         raise HTTPException(status_code=404, detail="not found")
     page_start = (page - 1) * page_size
     paged_materials = projection_materials[page_start : page_start + page_size]
+    paged_sources = manifest.sources[page_start : page_start + page_size]
     theme_metrics = _theme_metrics(projection, manifest=manifest)
     hypothesis_projection_metrics = _hypothesis_projection_metrics(
         projection,
@@ -519,6 +526,10 @@ def _template_context(
         "material_page": page,
         "material_page_count": page_count,
         "material_total": len(projection_materials),
+        "sources": paged_sources,
+        "source_page": page,
+        "source_page_count": source_page_count,
+        "source_total": len(manifest.sources),
         "artifact_links_enabled": artifact_root is not None,
     }
 
@@ -637,6 +648,8 @@ def _selected_object(
         "gaps": (),
     }
     values = collections[view]
+    if selected is None:
+        return None
     for item in values:
         identifier = _object_id(item)
         if selected is not None and identifier == selected:

@@ -1,4 +1,4 @@
-"""Causal tests for adaptive compatibility receipts and proof metadata."""
+"""Causal tests for recall compatibility receipts and proof metadata."""
 
 from __future__ import annotations
 

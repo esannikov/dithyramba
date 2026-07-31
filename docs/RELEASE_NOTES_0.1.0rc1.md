@@ -82,11 +82,9 @@ uncertain, or rejected evidence exits non-zero with an explicit decision.
 
 ## Validation boundary
 
-The canonical local gate collected 2,701 tests: 2,699 passed and two declared
-browser cases were skipped until Chromium was provisioned. A separate
-real-Chromium run passed both browser cases with zero skips. Strict typing
-across 260 files, 95.0172% exact combined line/branch coverage, and the
-dependency audit passed.
+The canonical local gate passed all 2,591 collected tests, including the two
+real-Chromium browser cases, with zero skips. Strict typing across 260 files,
+95.0053% exact combined line/branch coverage, and the dependency audit passed.
 
 The committed tests cover canonical identities, topology, stale and tampered
 artifacts, failed semantic claims, append-only persistence, corruption,

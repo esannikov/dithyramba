@@ -50,19 +50,6 @@ MULTILINGUAL_E5_BASE_PROFILE = EmbeddingModelProfile(
     passage_prefix="passage: ",
 )
 
-HARRIER_OSS_V1_270M_PROFILE = EmbeddingModelProfile(
-    model_id="microsoft/harrier-oss-v1-270m",
-    revision="31de22b673913c7d658c0f03f792d77c2dcf8ebd",
-    license="MIT",
-    dimensions=640,
-    max_tokens=32_768,
-    query_prefix=(
-        "Instruct: Given a web search query, retrieve relevant passages that answer the query\n"
-        "Query: "
-    ),
-    passage_prefix="",
-)
-
 _PINNED_MODEL_FILES: dict[tuple[str, str], tuple[str, ...]] = {
     (
         MULTILINGUAL_E5_SMALL_PROFILE.model_id,
@@ -88,20 +75,6 @@ _PINNED_MODEL_FILES: dict[tuple[str, str], tuple[str, ...]] = {
         "modules.json",
         "sentence_bert_config.json",
         "sentencepiece.bpe.model",
-        "special_tokens_map.json",
-        "tokenizer.json",
-        "tokenizer_config.json",
-    ),
-    (
-        HARRIER_OSS_V1_270M_PROFILE.model_id,
-        HARRIER_OSS_V1_270M_PROFILE.revision,
-    ): (
-        "1_Pooling/config.json",
-        "config.json",
-        "config_sentence_transformers.json",
-        "model.safetensors",
-        "modules.json",
-        "mteb_v2_eval_prompts.json",
         "special_tokens_map.json",
         "tokenizer.json",
         "tokenizer_config.json",

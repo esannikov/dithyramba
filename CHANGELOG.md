@@ -23,6 +23,14 @@ history belong in dated evaluation reports, not in the product changelog.
 
 ### Changed
 
+- Simplified the research route to local FTS, bounded lexical expansion,
+  conditional QueryCloud, exact proof admission, and deterministic evidence
+  gates.
+- Reworked Lens into a sparse reading workspace: one central column, compact
+  route navigation, an inspector opened only by a selected exact trace or
+  source, and paginated full-corpus sources.
+- Added strict migration of legacy Atlas projections to the current schema
+  without rewriting the original artifact.
 - Replaced the proposed whole-answer equivalence rule with proposition-level
   coverage. Factual spans remain strict; exploratory spans may be useful and
   expressive without being promoted to fact.
@@ -34,6 +42,13 @@ history belong in dated evaluation reports, not in the product changelog.
 - Preserved byte-compatible `CompactMemoryPacket/1.0` and `/1.1` identities by
   omitting empty trace metadata and rejecting non-empty Lens spans when a
   legacy connector cannot preserve them.
+
+### Removed
+
+- Removed Harrier from runtime architecture, provisioning, public interfaces,
+  and current documentation. Historical comparison results remain labelled as
+  retired evaluation evidence; model weights, caches, and case artifacts are
+  not part of the package.
 
 ## 0.1.0rc1 — 2026-07-31
 

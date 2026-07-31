@@ -144,10 +144,10 @@ The compact packet, exact answer contract, required-facet gate, and
 claim/evidence judgment receipts are implemented library contracts. They remain
 outside the default persisted CLI recall route.
 
-The active adaptive target starts with bounded FTS, may use optional reranking,
-and invokes `EvidenceCoverageGate` only against explicit requirements. Historic
-model comparisons and private-corpus measurements are development records, not
-public performance claims.
+The active discovery target starts with bounded FTS, may add compact lexical
+variants or a conditional QueryCloud, and invokes `EvidenceCoverageGate` only
+against explicit requirements. Historic model comparisons and private-corpus
+measurements are development records, not public performance claims.
 
 These contracts verify identity, declared coverage, and recorded judgments.
 They do not establish universal retrieval accuracy, source truth, or human
