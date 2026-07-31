@@ -263,7 +263,6 @@ def _assert_runtime_closure(package: dict[str, bytes]) -> None:
         "dithyramba/api/static/research_atlas.css",
         "dithyramba/store/sql/__init__.py",
         "dithyramba/persistence/answer_projection.py",
-        "dithyramba/recall/adaptive.py",
         "dithyramba/recall/compatibility.py",
         "dithyramba/connectors/books.py",
     }
