@@ -107,6 +107,34 @@ Schema v11 stores the canonical trace and closure receipt in two append-only
 SQLite tables. The graph is rebuilt from their JSON; no second graph database
 or vector index is required.
 
+### A factual spine with room for exploration
+
+`ResearchAnswer/1.0` remains the strict factual spine. An optional
+`AnswerProjection/1.0` divides its exact displayed `short_answer` into
+contiguous propositions with one declared role:
+
+```text
+fact | synthesis | hypothesis | question | framing
+```
+
+`PropositionCoverageGate` checks each span against the already accepted
+claim-evidence receipt. A fact must close over a directly supported factual
+claim. A synthesis may combine supported premises without claiming more than
+they establish. A hypothesis must name its premises and carry a test question,
+falsifier, and next evidence. A research question must point to the premises
+that made it relevant. Framing may carry no claim binding and must be judged
+non-propositional.
+
+This avoids forcing a useful research answer to be a literal restatement of one
+verified claim. It also prevents fluent speculation from entering memory as
+fact. The projection pass is display governance only: even a passed synthesis
+or hypothesis remains exploratory and needs a separate human decision before
+promotion.
+
+The deterministic gate makes no provider call. A semantic author or reviewer
+may be used on the final short answer only; it does not reread or embed the
+corpus.
+
 ## Experimental scoped candidate ontology
 
 Question-led recall works when the operator already knows what to ask. A scoped
@@ -178,6 +206,20 @@ source files
 ```
 
 This route needs no external model.
+
+## Default computational profile
+
+The core is **lexical-first, evidence-first, and embedding-optional**. Source
+identity, FTS5 recall, exact addresses, packets, gates, receipts, and review
+work on CPU without model weights, a vector database, a graph database, or a
+corpus-wide semantic pass.
+
+This is an operational advantage, not a claim that lexical retrieval is always
+more accurate. FTS is strong for names, quotations, dates, terminology, and
+deterministic replay. It can miss distant paraphrases or implicit concepts.
+Optional rerankers or embeddings may repair those measured cases, but they stay
+rebuildable adapters: they cannot grant access, certify a claim, or replace the
+route to exact source text.
 
 ## Adaptive route
 

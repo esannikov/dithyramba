@@ -80,6 +80,13 @@ answer claims to a working conclusion. `ReasoningClosureGate` verifies that
 every step closes over the exact claim-evidence receipt. Passing makes the
 trace eligible for review; it never promotes the conclusion automatically.
 
+An optional `AnswerProjection/1.0` lets the final prose be richer than a literal
+claim restatement. It marks each exact span as fact, bounded synthesis,
+disclosed hypothesis, research question, or framing. Facts stay strict;
+hypotheses must expose their premises, falsifier, test question, and next
+evidence. `PropositionCoverageGate` checks the roles without promoting
+exploratory text into accepted memory.
+
 Several questions over one exact scope may use `RecallService.recall_batch`.
 Schema v10 stores the shared protected fragment manifest once as a
 content-addressed `CorpusReadSet`, while every question still receives its own
@@ -149,6 +156,7 @@ or worker-memory guards.
 | Compact connectors | small source-closed packets for downstream agents | implemented library contracts |
 | Candidate Ontology / Lens | scoped concepts and exact co-occurrence links over one bounded question neighbourhood | experimental, GET-only projection |
 | Evidence-grounded reasoning | short public IdeaTrace steps closed over exact semantic receipts | experimental contracts, persistence, and CLI verifier |
+| Rich answer projection | proposition-level fact, synthesis, hypothesis, question, and framing governance | experimental in-memory contract and deterministic gate |
 
 ## Experimental boundary
 

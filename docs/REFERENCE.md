@@ -198,12 +198,22 @@ new version. Applied migrations remain immutable.
 | `HarrierScoreBatch` | `dithyramba.harrier_score_batch/1.0` | in-memory |
 | `AdaptiveStageReceipt` | `dithyramba.adaptive_stage_receipt/2.0` | in-memory |
 | `AdaptiveRecallResult` | `dithyramba.adaptive_recall_result/2.2` | in-memory |
+| `AnswerProjection` | `dithyramba.answer_projection/1.0` | in-memory display-governance overlay |
+| `AnswerProjectionJudgmentReceipt` | `dithyramba.answer_projection_receipt/1.0` | in-memory semantic role receipt |
+| `PropositionCoverageResult` | typed result | in-memory; display eligibility only |
 | `RouteCandidateReceipt` | `dithyramba.route_candidate_receipt/1.0` | library artifact |
 | `CompactMemoryPacket` | `dithyramba.compact_memory_packet/1.1` | library artifact |
 | `CompactConnectorPacket` | `dithyramba.compact_connector_packet/1.0` | library artifact |
 
 These contracts are executable and tested, but they do not imply a stable
 CLI/HTTP compatibility promise.
+
+`AnswerProjection` never changes `ResearchAnswer/1.0`. It binds exact character
+spans of the displayed answer to accepted claims and labels them as fact,
+synthesis, hypothesis, question, or framing. Hypotheses require a falsifiable
+probe. `PropositionCoverageGate` is deterministic and provider-free; a separate
+semantic receipt is required to verify that the prose actually matches its
+declared roles.
 
 ## Experimental scoped-ontology types
 

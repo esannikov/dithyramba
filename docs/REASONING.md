@@ -35,6 +35,31 @@ bindings, step topology, claim text, claim state, semantic verdicts, and the
 operation/qualifier policy. A failed or uncertain source claim cannot silently
 become a verified reasoning step.
 
+## Letting the answer breathe
+
+An `IdeaTrace` explains how accepted claims were connected. It does not by
+itself decide which sentences in the final prose are facts, syntheses, or
+research hypotheses. The optional `AnswerProjection/1.0` supplies that missing
+display layer.
+
+It partitions the exact `short_answer` into contiguous spans:
+
+| Role | What must close |
+|---|---|
+| `fact` | at least one directly supported factual claim |
+| `synthesis` | named supported premises plus a `bounded_synthesis` judgment |
+| `hypothesis` | named supported premises, explicit hypothesis label, falsifier, test question, and next evidence |
+| `question` | named premises that explain why the question is worth asking |
+| `framing` | no factual binding and a `non_propositional` judgment |
+
+The `PropositionCoverageGate` returns `passed`, `failed`, or
+`review_required`. Only a passed projection may be displayed as a checked rich
+answer. Passing does not turn a synthesis or hypothesis into accepted memory.
+
+This is stricter than checking citations at the end of a paragraph, but less
+restrictive than requiring the whole paragraph to be logically equivalent to
+one verified claim. The strictness follows the epistemic role of each span.
+
 ## What the decisions mean
 
 | Closure result | Meaning |
@@ -76,7 +101,8 @@ or needs review.
 ## Current limit
 
 The release implements contracts, validation, replay, persistence, corruption
-checks, and a CLI verifier. It does not yet generate traces, judge their
-research usefulness, or expose a human acceptance workflow for them. Those
-remain separate future surfaces so that a convenient synthesis cannot grant
-itself authority.
+checks, and a CLI verifier for IdeaTrace. `AnswerProjection` and
+`PropositionCoverageGate` are currently typed, tested in-memory contracts. They
+are not yet persisted, exposed through CLI/HTTP, automatically generated, or
+connected to a human acceptance workflow. Those surfaces remain separate so a
+convenient synthesis cannot grant itself authority.

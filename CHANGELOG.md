@@ -3,6 +3,27 @@
 This file records package changes. Detailed experiment metrics and decision
 history belong in dated evaluation reports, not in the product changelog.
 
+## Unreleased
+
+### Added
+
+- `AnswerProjection/1.0` and `PropositionCoverageGate`: an optional in-memory
+  display-governance layer that partitions the exact final answer into facts,
+  bounded syntheses, disclosed hypotheses, research questions, and framing.
+- Falsifiable hypothesis probes with an explicit test question, falsifier, and
+  next evidence, while retaining exact premise claim routes.
+- Deterministic fail-closed checks for complete span coverage, stale answer and
+  receipt bindings, unsupported overclaim, uncertain roles, and policy drift.
+
+### Changed
+
+- Replaced the proposed whole-answer equivalence rule with proposition-level
+  coverage. Factual spans remain strict; exploratory spans may be useful and
+  expressive without being promoted to fact.
+- Documented the default profile as lexical-first, evidence-first, and
+  embedding-optional. No claim is made that lexical retrieval wins every
+  semantic-recall case.
+
 ## 0.1.0rc1 — 2026-07-31
 
 ### Added
