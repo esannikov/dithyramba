@@ -104,6 +104,16 @@ remains present below the main view.
 - Candidate materials use a different inspector contract from accepted
   evidence. The interface states that the material is visible and replayable
   but does not support an accepted conclusion until review.
+- Concept Lens begins with a question-led decision map rather than cluster
+  indices or a force-directed graph. Its center names the scope; seven bounded
+  paths use reviewed plain-language titles and orientation questions. Only the
+  selected area reveals automatic corpus terms, relations, and exact excerpts.
+- Automatic ontology and human presentation remain separate artifacts. The
+  presentation can rename an area or choose a useful entry concept, but it
+  cannot add evidence or alter ontology identity.
+- A relation labelled `зустрічається поруч із` means literal co-occurrence
+  only. It must never be styled or phrased as influence, causation, agreement,
+  or proof.
 - Overview simplicity comes from progressive disclosure: theme, period and
   status filters fold the wider memory into stable routes instead of deleting
   context.
@@ -148,3 +158,19 @@ Do not literalize:
 - automatic refresh, export, or filters until backed by real contracts;
 - untyped visual proximity or co-occurrence edges;
 - a source quote outside the authorized packet-backed evidence path.
+
+## Concept Lens finish review — 2026-07-30
+
+- Desktop pass: the first viewport shows one central research question and
+  seven readable perspectives; no internal IDs or numeric cluster indices are
+  visible.
+- Mobile pass at 390 × 844: cards become one column, touch targets remain at
+  least 44 pixels, and exact evidence follows the selected concept in document
+  order.
+- Epistemic pass: `co_occurs_with` is rendered only as “зустрічається поруч
+  із”; candidate state and the route to an exact book passage remain visible.
+- Automated Impeccable detector: no findings on the final template or CSS.
+
+**Verdict:** accept as an experimental research Lens. The layout is complete;
+independent human coherence review of the seven automatic areas remains a
+product-quality gate, not a visual defect.

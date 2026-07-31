@@ -1,6 +1,6 @@
 # Dithyramba reference
 
-This reference describes the `0.1.0rc0` pre-alpha source preview. The command
+This reference describes the `0.1.0rc1` pre-alpha source preview. The command
 itself is authoritative for exact options and defaults:
 
 ```bash
@@ -18,8 +18,9 @@ uv run dithyramba <command> --help
 | Package environment | `uv` for development; wheel build uses Hatchling |
 | Base runtime | no model, GPU, external service, or Docker required |
 | Optional semantic extra | `sentence-transformers==5.6.0` |
-| Current database schema | v10 |
-| Package version | `0.1.0rc0` |
+| Optional ontology extra | `numpy>=2,<3`; `scikit-learn>=1.8,<2` |
+| Current database schema | v11 |
+| Package version | `0.1.0rc1` |
 
 ## Command inventory
 
@@ -85,6 +86,8 @@ dithyramba serve
 dithyramba reading-room
 dithyramba atlas
 dithyramba flow-view
+dithyramba concept-lens
+dithyramba reasoning-check
 ```
 
 `Lens` is the umbrella name for researcher-facing views, not a separate CLI
@@ -93,6 +96,10 @@ command. Today it is assembled from ReadingRoom, Research Atlas, and Flow View.
 `reading-room` requires `--library`, `--snapshot`, `--access-policy`, at least
 one `--collection`, `--purpose`, and `--data-home`. It starts a separate GET-only
 loopback server. `atlas` and `flow-view` also start read-only loopback views.
+
+`reasoning-check` consumes one absolute-path `IdeaTrace`, exact claim-evidence
+case set, and semantic entailment result. It makes no provider call and emits a
+canonical closure receipt. A non-passed closure exits non-zero.
 
 ### Models
 
@@ -163,12 +170,19 @@ not create a compatibility promise beyond the declared `0.1.x` preview.
 | `EvidencePacket` | `dithyramba.evidence_packet/1.0` | persisted bounded FTS result |
 | `ReviewDecision` | `dithyramba.review_decision/1.0` | append-only scoped human decision |
 | `BackupBundle` | `dithyramba.backup_bundle/1.0` | portable hash-closed Library backup |
+| `IdeaTrace` | `dithyramba.idea_trace/1.0` | short public reasoning candidate over exact claim-evidence cases |
+| `ReasoningClosureResult` | `dithyramba.reasoning_closure/1.0` | deterministic structural closure; review eligibility only |
 
-Schema v10 adds an internal append-only `CorpusReadSet`: one exact protected
+Schema v10 added an internal append-only `CorpusReadSet`: one exact protected
 fragment manifest can be shared by several recall requests over the same
 Library, snapshot, policy, Collections, and purpose. Public `ReadReceipt/1.0`
 and `EvidencePacket/1.0` payloads remain unchanged, and v9 Libraries remain
 readable after migration.
+
+Schema v11 adds append-only `idea_traces` and
+`reasoning_closure_results`. It stores only canonical public trace artifacts,
+not private chain-of-thought text. A passed closure does not create a human
+`ReviewDecision` and does not promote a claim into accepted memory.
 
 Changing the meaning or required fields of one of these schemas requires a
 new version. Applied migrations remain immutable.
@@ -190,6 +204,24 @@ new version. Applied migrations remain immutable.
 
 These contracts are executable and tested, but they do not imply a stable
 CLI/HTTP compatibility promise.
+
+## Experimental scoped-ontology types
+
+| Type | Schema or identity | Current boundary |
+|---|---|---|
+| `OntologyConfig` | `dithyramba.ontology_config/1.0` | frozen local extraction profile |
+| `OntologyEvidence` | content-addressed exact fragment support | source/version/address/text closure |
+| `OntologyConcept` | member of `CandidateOntologyManifest/1.0` | `scope_anchor` or `emergent`; always candidate |
+| `OntologyRelation` | `co_occurs_with` only | exact shared fragments; never causation |
+| `CandidateOntologyManifest` | `dithyramba.candidate_ontology/1.0` | rebuildable scoped navigation projection |
+
+`build_candidate_ontology(...)` consumes one bounded, already-authorized
+neighbourhood. The optional `ontology` extra supplies deterministic TF-IDF/NMF
+extraction. `dithyramba concept-lens --projection /absolute/ontology.json`
+opens the validated result on loopback. `--presentation
+/absolute/presentation.json` optionally adds an ontology-bound human view with
+one title, question, summary, and entry concept per cluster. The command is
+GET-only and does not promote candidates or mutate a Library.
 
 ## Adaptive compatibility contracts
 
@@ -256,7 +288,7 @@ probability.
 | Profile | Role | Current status |
 |---|---|---|
 | none / FTS5 | exact lexical recall | default |
-| multilingual E5-small | compact dense control | optional |
+| multilingual E5-small | compact dense control; rejected as the tested global cartography geometry | optional |
 | Harrier 270M | bounded q0 candidate reranking | adaptive library route |
 
 Model scores never set `body_proof_eligible`, source authority, independence,

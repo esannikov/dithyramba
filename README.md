@@ -16,10 +16,11 @@ on their behalf—who return to the same body of sources over time. It turns a
 local corpus into versioned, addressable evidence packets that can be inspected,
 replayed, challenged, and reused without asking a model to reread everything.
 
-> **Current status:** `0.1.0rc0` is a substantial pre-alpha source preview. The
+> **Current status:** `0.1.0rc1` is a substantial pre-alpha source preview. The
 > local FTS evidence route is persisted and replayable. Adaptive retrieval,
-> graph recall, and synthesis remain experimental or incomplete. The first
-> clean-checkout distribution and installation run is the next release gate.
+> candidate ontology, and evidence-grounded synthesis remain experimental. A
+> clean-checkout distribution and installation remain mandatory release gates;
+> commit-bound results are reported by continuous integration.
 
 ## Why it exists
 
@@ -74,6 +75,11 @@ research agents. Typical uses include:
 6. **Keep human judgment separate.** Review decisions are scoped, append-only,
    and never overwritten by a later model run.
 
+An optional `IdeaTrace/1.0` can then expose a short public path from accepted
+answer claims to a working conclusion. `ReasoningClosureGate` verifies that
+every step closes over the exact claim-evidence receipt. Passing makes the
+trace eligible for review; it never promotes the conclusion automatically.
+
 Several questions over one exact scope may use `RecallService.recall_batch`.
 Schema v10 stores the shared protected fragment manifest once as a
 content-addressed `CorpusReadSet`, while every question still receives its own
@@ -90,6 +96,7 @@ read work, not the meaning of the public packet contracts.
 | evidence packets and read receipts | graph projections |
 | shared, content-addressed corpus read sets | model and candidate caches |
 | append-only review decisions | Reading Room and Lens pages |
+| append-only IdeaTrace candidates and closure receipts | rebuilt trace graph views |
 
 This boundary lets Dithyramba replace a search model or rebuild a visual view
 without losing citations or human decisions.
@@ -140,6 +147,8 @@ or worker-memory guards.
 | Reading Room | read-only inspection of one Library, snapshot, policy, and scope | implemented preview |
 | Research Atlas / Lens | case-specific questions, hypotheses, timeline, and exact sources | implemented projection surface |
 | Compact connectors | small source-closed packets for downstream agents | implemented library contracts |
+| Candidate Ontology / Lens | scoped concepts and exact co-occurrence links over one bounded question neighbourhood | experimental, GET-only projection |
+| Evidence-grounded reasoning | short public IdeaTrace steps closed over exact semantic receipts | experimental contracts, persistence, and CLI verifier |
 
 ## Experimental boundary
 
@@ -161,6 +170,40 @@ explicit evidence requirement. Human acceptance remains a separate decision.
 The optional `semantic` dependency set has a larger native dependency surface
 and is not part of the core package-acceptance gate.
 
+Evidence-grounded reasoning is a separate post-answer path. It stores only
+public statements, named operations, premise links, concise warrants, gaps, and
+exact receipt bindings. It does not store private chain-of-thought text. Schema
+v11 persists the candidate trace and deterministic closure receipt in two
+append-only tables; a passed closure is only `review_eligible`.
+
+Candidate Ontology is the smaller replacement for the rejected global-map
+experiment. It starts from one named scope and a compact expansion of its
+vocabulary, uses one FTS search to form a source-balanced neighbourhood, and
+extracts source-grounded candidate concepts. Separate query branches are a
+repair for an ambiguous scope or a measured gap, not the default. No generative
+model is required. Every concept and every visible relation closes over exact
+source fragments; the projection remains a navigation aid, never accepted
+memory or proof.
+
+Concept Lens separates the automatic projection from its human explanation.
+The required ontology JSON remains deterministic and machine-generated. An
+optional ontology-bound presentation JSON may give the seven areas readable
+titles, orientation questions, short explanations, and a useful entry concept.
+Changing this view does not rewrite the ontology or its evidence.
+
+```text
+scope + compact expansion → one local FTS neighbourhood → candidate concepts
+  → exact co-occurrence links → Dithyramba Lens
+  → selected question → evidence recall and coverage gate
+  → optional branch repair only for a named gap
+```
+
+The earlier global vector profiles remain documented as a negative result:
+they produced corpus-dependent mega-clusters, excessive noise, or strong sample
+sensitivity. They are no longer a product module. The stable product route
+remains question-led recall; scoped ontology only helps a person decide what to
+inspect next.
+
 ## Evidence so far
 
 Dithyramba separates public reproducibility from internal development evidence.
@@ -178,6 +221,7 @@ because their source rights and project boundaries differ.
 | Artists retrieval stress test | 404 Markdown files; 31.2 MB; about 2.40M words; 48,072 fragments; 18 questions | Exact address-group recovery at top 10 ranged from 17/31 for FTS to 25/31 for the best tested reranking lane. The test exposed parser, isolation, and late-fragment issues; it did not establish a semantic winner. |
 | Maulstick knowledge connector | 383 section/file units; 36 craft cases | Median context fell from 21,174 to 1,147 tokens (−94.6%), but required-anchor coverage also fell from 49/77 to 43/77. The result was `ITERATE`, not lossless compression. |
 | Directing and screenwriting craft corpora | 268 admitted sources; 107,031 fragments; 120 frozen query-language rows | Stable FTS completed 120/120 rows and 16/16 sampled cold replays without provider calls. In a five-question blinded Ukrainian directing slice, Harrier rescued one late axis passage and substantially improved a homonym-heavy blocking list, but still left unsafe passages in the top 10 and could not repair two zero-candidate questions. This is a diagnostic result, not an accuracy claim. |
+| Scoped dialogue-directing ontology | 7 foundational books; 5,432 extracted fragments; 5 retrieval routes at 180 and 360 selected fragments | One flat expanded FTS query produced 10/10 diagnostic facets with all seven sources. Multi-query fusion and balanced branches produced 9/10; Harrier produced 8/10. The complete rerun was byte-identical and used zero generative calls or tokens; human coherence remains unmeasured. |
 
 These are internal development and calibration results, not an independent
 cross-domain benchmark. Retrieval metrics do not establish source truth,
@@ -238,6 +282,8 @@ responsibility of each directory and package group.
 - [How source-grounded memory works](docs/EXPLANATION.md)
 - [CLI and contract reference](docs/REFERENCE.md)
 - [Evidence coverage explained](docs/EVIDENCE_COVERAGE_GATE.md)
+- [Evidence-grounded reasoning and IdeaTrace](docs/REASONING.md)
+- [0.1.0rc1 release notes](docs/RELEASE_NOTES_0.1.0rc1.md)
 - [Development and verification](docs/DEVELOPMENT.md)
 - [Repository and module guide](docs/REPOSITORY_GUIDE.md)
 - [Evaluation evidence and limitations](docs/EVALUATION.md)
@@ -263,9 +309,9 @@ uv build
 ./scripts/acceptance.sh --quick
 ```
 
-For this update, the canonical gate completed with 2,593 passing tests, two
-declared skips, strict typing across 238 files, zero terminology findings,
-95.014% exact combined line/branch coverage, and no known dependency
+For this update, the canonical gate completed with 2,666 passing tests, two
+declared browser skips, strict typing across 256 files, zero terminology
+findings, 95.0573% exact combined line/branch coverage, and no known dependency
 vulnerabilities. Distribution closure then verifies that the wheel is built
 from the sdist and imports from an isolated non-editable environment.
 

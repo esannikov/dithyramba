@@ -23,10 +23,13 @@ from dithyramba.access import (
     RequestScope,
     SourceRule,
 )
+from dithyramba.answers import ClaimEvidenceCaseSet, ClaimEvidenceEntailmentResult
 from dithyramba.api import (
+    ConceptLensWebConfig,
     EvidenceBoardWebConfig,
     bearer_token_for,
     create_app,
+    create_concept_lens_app,
     create_flow_view_app,
     create_reading_room_app,
     create_research_atlas_app,
@@ -62,6 +65,11 @@ from dithyramba.provenance import (
     SourceVersionRecord,
 )
 from dithyramba.reading_room import ReadingRoomError, ReadingRoomLimits
+from dithyramba.reasoning import (
+    IdeaTrace,
+    ReasoningClosureDecision,
+    ReasoningClosureGate,
+)
 from dithyramba.recall import (
     HARRIER_OSS_V1_270M_PROFILE,
     MULTILINGUAL_E5_SMALL_PROFILE,
@@ -171,7 +179,7 @@ def about() -> None:
     """Describe the current pre-alpha source preview and its limits."""
 
     typer.echo(
-        "Dithyramba 0.1.0rc0 is a pre-alpha source preview with a persisted, "
+        "Dithyramba 0.1.0rc1 is a pre-alpha source preview with a persisted, "
         "replayable local FTS evidence route. It is not yet a validated memory system; "
         "adaptive retrieval, graph recall, and synthesis remain experimental or incomplete."
     )
@@ -1553,6 +1561,114 @@ def flow_view(
         server_header=False,
         date_header=False,
     )
+
+
+@app.command("concept-lens")
+@_guard
+def concept_lens(
+    projection: Annotated[
+        Path,
+        typer.Option(
+            "--projection",
+            help="Absolute path to one validated candidate-ontology projection.",
+        ),
+    ],
+    presentation: Annotated[
+        Path | None,
+        typer.Option(
+            "--presentation",
+            help="Optional ontology-bound JSON with human-facing cluster labels.",
+        ),
+    ] = None,
+    port: Annotated[
+        int,
+        typer.Option("--port", min=1_024, max=65_535, help="Loopback TCP port."),
+    ] = 8352,
+) -> None:
+    """Open one scoped, read-only candidate ontology in Dithyramba Lens."""
+
+    if not projection.is_absolute():
+        raise typer.BadParameter("projection must be an absolute path")
+    if presentation is not None and not presentation.is_absolute():
+        raise typer.BadParameter("presentation must be an absolute path")
+    origin = f"http://127.0.0.1:{port}"
+    application = create_concept_lens_app(
+        projection_path=projection,
+        presentation_path=presentation,
+        allowed_origin=origin,
+    )
+    config: ConceptLensWebConfig = application.state.concept_lens_config
+    typer.echo(f"concept_lens: {origin}")
+    typer.echo(f"ontology_id: {config.ontology.manifest.ontology_id}")
+    typer.echo(f"manifest_hash: {config.ontology.manifest_hash}")
+    typer.echo("mode: candidate-only read-only projection")
+    uvicorn.run(
+        application,
+        host="127.0.0.1",
+        port=port,
+        log_level="info",
+        access_log=False,
+        server_header=False,
+        date_header=False,
+    )
+
+
+@app.command("reasoning-check")
+@_guard
+def reasoning_check(
+    trace_path: Annotated[
+        Path,
+        typer.Option("--trace", help="Absolute path to one IdeaTrace/1.0 JSON artifact."),
+    ],
+    case_set_path: Annotated[
+        Path,
+        typer.Option(
+            "--case-set",
+            help="Absolute path to its exact ClaimEvidenceCaseSet JSON artifact.",
+        ),
+    ],
+    entailment_path: Annotated[
+        Path,
+        typer.Option(
+            "--entailment",
+            help="Absolute path to the deterministic claim-evidence result JSON.",
+        ),
+    ],
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Emit the complete canonical closure receipt."),
+    ] = False,
+) -> None:
+    """Verify one public reasoning trace without a provider or model call."""
+
+    for label, path in (
+        ("trace", trace_path),
+        ("case-set", case_set_path),
+        ("entailment", entailment_path),
+    ):
+        if not path.is_absolute():
+            raise typer.BadParameter(f"{label} path must be absolute")
+    trace = IdeaTrace.model_validate_json(trace_path.read_bytes())
+    case_set = ClaimEvidenceCaseSet.model_validate_json(case_set_path.read_bytes())
+    entailment = ClaimEvidenceEntailmentResult.model_validate_json(entailment_path.read_bytes())
+    result = ReasoningClosureGate().evaluate(
+        trace,
+        case_set=case_set,
+        entailment=entailment,
+    )
+    _emit(
+        result.model_dump(mode="json"),
+        json_output=json_output,
+        human_lines=(
+            f"decision: {result.decision.value}",
+            f"trace_id: {result.trace_id}",
+            f"closed_steps: {sum(item.closed for item in result.steps)}/{len(result.steps)}",
+            f"review_eligible: {str(result.review_eligible).lower()}",
+            "note: closure is structural; human acceptance remains separate",
+        ),
+    )
+    if result.decision is not ReasoningClosureDecision.PASSED:
+        raise typer.Exit(code=2)
 
 
 @app.command("doctor")

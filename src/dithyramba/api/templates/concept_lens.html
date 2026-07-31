@@ -1,0 +1,163 @@
+<!--
+THESIS: A scoped concept ontology should read like a scientific observatory, not a magical mind map.
+OWN-WORLD: Warm printed paper, ruled measurements, exact source slips, and restrained research notation.
+STORY: A decision map first; one area opens its concepts, relations, and exact evidence.
+FIRST VIEWPORT: The researcher sees seven understandable ways into the subject, not internal indices.
+FORM: Concept seed 7f4380f6, candidate 6; warm research map with a central question and bounded paths.
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
+-->
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Dithyramba Lens · {{ manifest.scope_label }}</title>
+    <link rel="icon" href="/favicon.ico">
+    <link rel="stylesheet" href="/concept-lens.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#decision-map">До карти рішень</a>
+    <header class="lens-header">
+      <a class="wordmark" href="/">
+        <span aria-hidden="true">D</span>
+        <strong>Dithyramba Lens</strong>
+      </a>
+      <dl class="run-facts">
+        <div><dt>Тема</dt><dd>{{ presentation.title }}</dd></div>
+        <div><dt>Основа</dt><dd>Книжок: {{ source_count }} · уривків: {{ manifest.metrics.selected_fragment_count }}</dd></div>
+        <div><dt>Статус</dt><dd><i aria-hidden="true"></i> карта-кандидат</dd></div>
+      </dl>
+    </header>
+
+    <main>
+      <section class="scope-note" aria-labelledby="scope-title">
+        <div>
+          <p class="eyebrow">Дослідницька карта</p>
+          <h1 id="scope-title">{{ presentation.question }}</h1>
+          <p>{{ presentation.lead }}</p>
+        </div>
+        <p class="boundary-note">
+          Це навігація по корпусу, а не готова теорія. Кожне поняття можна
+          відкрити до конкретного уривка й перевірити у джерелі.
+        </p>
+      </section>
+
+      <section class="map-board" id="decision-map" aria-labelledby="map-title">
+        <header class="map-heading">
+          <div>
+            <p class="eyebrow">Сім способів увійти в тему</p>
+            <h2 id="map-title">Оберіть дослідницьку перспективу</h2>
+          </div>
+          <p>Кожна картка відкриває поняття, звʼязки між ними та точні сторінки книжок.</p>
+        </header>
+
+        <div class="decision-map">
+          <div class="map-core" aria-hidden="true">
+            <span>Центр карти</span>
+            <strong>{{ presentation.title }}</strong>
+            <p>від задуму сцени до погляду, дії та монтажу</p>
+          </div>
+          {% for item in cluster_views %}
+            <a
+              class="cluster-card card-{{ loop.index }} cluster-tone-{{ loop.index }}{% if item.selected %} is-selected{% endif %}"
+              href="{{ concept_url(item.entry_concept) }}"
+            >
+              <span>{{ item.presentation.question }}</span>
+              <strong>{{ item.presentation.title }}</strong>
+              <p>{{ item.presentation.summary }}</p>
+              <small>Понять: {{ item.concepts|length }} · книжок: {{ item.cluster.source_count }}</small>
+            </a>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="area-workbench" aria-labelledby="area-title">
+        <header class="area-heading">
+          <div>
+            <p class="eyebrow">Обрана перспектива</p>
+            <h2 id="area-title">{{ cluster_views|selectattr("selected")|map(attribute="presentation.title")|first }}</h2>
+            <p class="area-question">{{ cluster_views|selectattr("selected")|map(attribute="presentation.question")|first }}</p>
+          </div>
+          <p class="area-summary">{{ cluster_views|selectattr("selected")|map(attribute="presentation.summary")|first }}</p>
+        </header>
+
+        <div class="concept-selector">
+          <div>
+            <p class="eyebrow">Що помітила памʼять</p>
+            <h3>Поняття цієї області</h3>
+          </div>
+          <div class="concept-list">
+            {% for item in cluster_views %}
+              {% if item.selected %}
+                {% for concept in item.concepts %}
+                  <a
+                    href="{{ concept_url(concept) }}"
+                    {% if concept.concept_id == selected_concept.concept_id %}aria-current="true"{% endif %}
+                  >
+                    <strong>{{ concept.label }}</strong>
+                    <span>{% if concept.origin == "scope_anchor" %}запит дослідника{% else %}знайдено в корпусі{% endif %} · книжок: {{ concept.source_count }}</span>
+                  </a>
+                {% endfor %}
+              {% endif %}
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="proof-workbench">
+          <section class="relation-ledger" aria-labelledby="relation-title">
+            <header>
+              <div>
+                <p class="eyebrow">Як поняття повʼязане з іншими</p>
+                <h2 id="relation-title">{{ selected_concept.label }}</h2>
+              </div>
+              <span>кандидат</span>
+            </header>
+            {% if relation_views %}
+              <ol>
+                {% for item in relation_views %}
+                  <li>
+                    <span class="relation-mark" aria-hidden="true"></span>
+                    <div>
+                      <p>зустрічається поруч із</p>
+                      <a href="{{ concept_url(item.counterpart) }}">{{ item.counterpart.label }}</a>
+                    </div>
+                    <strong>у {{ item.relation.source_count }} книжках</strong>
+                  </li>
+                {% endfor %}
+              </ol>
+            {% else %}
+              <p class="empty-relation">
+                У корпусі немає повторюваного звʼязку цього поняття з іншим
+                щонайменше у двох книжках. Це корисна прогалина, а не помилка.
+              </p>
+            {% endif %}
+          </section>
+
+          <aside class="evidence-inspector" aria-labelledby="evidence-title">
+            <p class="inspector-status">Точний уривок</p>
+            <h2 id="evidence-title">{{ selected_evidence.source_title }}</h2>
+            <p class="source-credit">{{ selected_evidence.source_creator }}</p>
+            <dl>
+              <div><dt>Де</dt><dd>{{ selected_evidence.locator }}</dd></div>
+              <div><dt>Показує</dt><dd>{{ selected_concept.label }}</dd></div>
+            </dl>
+            <blockquote>{{ selected_evidence.excerpt }}</blockquote>
+
+            <h3>Ще уривки для перевірки</h3>
+            <ol class="evidence-list">
+              {% for evidence in concept_evidence %}
+                <li{% if evidence.evidence_id == selected_evidence.evidence_id %} class="is-selected"{% endif %}>
+                  <a href="{{ evidence_url(selected_concept, evidence) }}">
+                    <strong>{{ evidence.source_title }}</strong>
+                    <span>{{ evidence.source_creator }} · {{ evidence.locator }}</span>
+                  </a>
+                </li>
+              {% endfor %}
+            </ol>
+            <p class="hash-note">Відбиток проєкції · {{ manifest_hash[:12] }}</p>
+          </aside>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

@@ -390,6 +390,7 @@ def provision_model(
             tempfile.mkdtemp(
                 prefix=f".{profile.profile_id}.",
                 suffix=".partial",
+                dir=app_root,
             )
         ).resolve(strict=True)
         runner = _run_hf if command is None else command
@@ -485,6 +486,7 @@ def provision_reranker_model(
             tempfile.mkdtemp(
                 prefix=f".{profile.profile_id}.",
                 suffix=".partial",
+                dir=app_root,
             )
         ).resolve(strict=True)
         runner = _run_hf if command is None else command

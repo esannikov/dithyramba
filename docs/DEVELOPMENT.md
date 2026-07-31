@@ -1,6 +1,6 @@
 # Development
 
-Dithyramba `0.1.0rc0` is a pre-alpha source preview. This guide covers work from
+Dithyramba `0.1.0rc1` is a pre-alpha source preview. This guide covers work from
 a repository checkout; it does not define a public compatibility promise.
 
 ## Supported development target
@@ -23,6 +23,11 @@ uv run dithyramba about
 uv run python -m dithyramba.store.migrations verify
 uv run python scripts/demo.py
 ```
+
+The development group intentionally includes the optional Candidate Ontology
+runtime because the canonical test aggregate exercises that surface. The base
+package remains lightweight; ordinary users install the ontology dependencies
+only with `dithyramba[ontology]`.
 
 The demo creates a temporary Library, verifies its local runtime, ingests the
 public example corpus, freezes a snapshot, recalls one packet, and replays it.

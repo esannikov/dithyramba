@@ -1,7 +1,7 @@
 # How to use Dithyramba
 
 This guide builds one local, replayable evidence memory from source files with
-the persisted FTS-only CLI route in the `0.1.0rc0` pre-alpha source preview.
+the persisted FTS-only CLI route in the `0.1.0rc1` pre-alpha source preview.
 Replace the example identifiers with the values printed by each command.
 
 To verify a fresh checkout, follow the separate

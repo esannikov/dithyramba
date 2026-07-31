@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dithyramba"
-version = "0.1.0rc0"
+version = "0.1.0rc1"
 description = "A local, source-grounded interpretive memory engine."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -41,6 +41,10 @@ Issues = "https://github.com/esannikov/dithyramba/issues"
 semantic = [
   "sentence-transformers==5.6.0",
 ]
+ontology = [
+  "numpy>=2.0,<3",
+  "scikit-learn>=1.8,<2",
+]
 
 [project.scripts]
 dithyramba = "dithyramba.cli:app"
@@ -52,11 +56,13 @@ dev = [
   "hypothesis>=6.125,<7",
   "httpx>=0.28,<1",
   "mypy>=1.14,<2",
+  "numpy>=2.0,<3",
   "pip-audit>=2.8,<3",
   "playwright==1.61.0",
   "pytest>=9.0.3,<10",
   "pytest-cov>=6,<7",
   "ruff>=0.9,<1",
+  "scikit-learn>=1.8,<2",
 ]
 
 [tool.uv]

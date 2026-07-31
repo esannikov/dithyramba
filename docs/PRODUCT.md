@@ -84,6 +84,26 @@ progressive method disclosure. They may explain how a candidate was found, but
 must not substitute for the answer, the hypothesis state, or its evidence
 closure.
 
+## Candidate Concept Lens
+
+Concept Lens is the orientation surface for one deliberately narrow research
+scope. It shows automatic candidate areas, concepts, and exact source excerpts
+before the operator knows which final question to ask. It does not display a
+global ontology of the Library and it does not promote concepts into accepted
+memory.
+
+The view distinguishes QueryCloud anchors from phrases that emerged inside the
+bounded corpus neighbourhood. Its only automatic relation is
+`co_occurs_with`, backed by exact fragments from the named sources. The human
+may use a concept to start ordinary recall; only that later evidence route and
+review can support a conclusion.
+
+Primary navigation uses a small ontology-bound presentation: readable
+perspectives and questions around one central scope. Raw cluster labels and
+concept terms appear only after a perspective is chosen. The presentation may
+improve explanation, but it cannot change the automatic projection or its
+evidence.
+
 ### Full-memory projection
 
 The accepted Atlas manifest remains the compact evidence release. An optional,

@@ -32,6 +32,19 @@ LockedMigrationGuard: TypeAlias = Callable[[sqlite3.Connection, "Migration"], No
 
 _MIGRATION_NAME = re.compile(r"^(?P<version>[0-9]{4})_[a-z0-9][a-z0-9_]*\.sql$")
 
+# The first public source preview normalized two blank lines in migration 0003.
+# Its published checksum stays canonical. Earlier private pre-release Libraries
+# recorded the semantically identical checksum below. Accept only that audited
+# predecessor; the schema fingerprint still has to match, so arbitrary migration
+# drift remains rejected.
+_CHECKSUM_COMPATIBILITY_ALLOWLIST: dict[tuple[int, str, str], frozenset[str]] = {
+    (
+        3,
+        "0003_recall_run_artifacts.sql",
+        "d9162150f3aeb1c1a8650f77e23f57d4529235f701fc3f65306cdd1b53ee1998",
+    ): frozenset({"840e47d732e849990b6c02bda71bf63ea103bd06a45c8db34427766d5d4226bb"})
+}
+
 
 @dataclass(frozen=True, slots=True)
 class Migration:
@@ -182,7 +195,10 @@ class MigrationRunner:
                     f"migration {raw_version} name changed: database={raw_name!r}, "
                     f"code={expected.name!r}"
                 )
-            if raw_sha256 != expected.sha256:
+            compatible_checksums = _CHECKSUM_COMPATIBILITY_ALLOWLIST.get(
+                (expected.version, expected.name, expected.sha256), frozenset()
+            )
+            if raw_sha256 != expected.sha256 and raw_sha256 not in compatible_checksums:
                 raise MigrationChecksumError(
                     f"migration {expected.name} checksum differs from applied history"
                 )
