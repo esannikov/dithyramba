@@ -459,7 +459,7 @@ def test_store_can_verify_existing_schema_without_applying_migrations(tmp_path: 
         pass
 
     with Store.open(database, apply_migrations=False) as store:
-        assert store.schema_version == 11
+        assert store.schema_version == 12
 
 
 def test_store_close_is_idempotent_and_closed_access_fails(tmp_path: Path) -> None:

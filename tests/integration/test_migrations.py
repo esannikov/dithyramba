@@ -42,6 +42,8 @@ EXPECTED_TABLES = {
     "access_policy_collection_rules",
     "access_policy_source_rules",
     "access_receipts",
+    "answer_projection_receipts",
+    "answer_projections",
     "blobs",
     "collection_memberships",
     "collection_root_identity_manifests",
@@ -157,6 +159,11 @@ P10_APPEND_ONLY_TABLES = {
 P11_APPEND_ONLY_TABLES = {
     "idea_traces",
     "reasoning_closure_results",
+}
+
+P12_APPEND_ONLY_TABLES = {
+    "answer_projection_receipts",
+    "answer_projections",
 }
 
 APPEND_ONLY_TABLES = {
@@ -275,9 +282,9 @@ def test_initial_migration_is_exact_and_second_apply_is_noop(tmp_path: Path) -> 
         }
 
         assert tables == EXPECTED_TABLES
-        assert runner.current_version() == 11
+        assert runner.current_version() == 12
         assert runner.apply_all() == ()
-        assert store.schema_version == 11
+        assert store.schema_version == 12
 
 
 def test_store_applies_required_sqlite_profile(tmp_path: Path) -> None:
@@ -305,6 +312,7 @@ def test_root_and_packaged_migration_are_identical() -> None:
         "0009_source_identity_manifest.sql",
         "0010_corpus_read_sets.sql",
         "0011_reasoning_closure.sql",
+        "0012_answer_projection.sql",
     ):
         root_sql = (repository_root / "migrations" / name).read_bytes()
         packaged_sql = (
@@ -396,8 +404,9 @@ def test_migration_two_backfills_latest_source_head(tmp_path: Path) -> None:
             9,
             10,
             11,
+            12,
         ]
-        assert backed_up == [2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+        assert backed_up == [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
         row = connection.execute("SELECT source_id, source_version_id FROM source_heads").fetchone()
         assert tuple(row) == ("source_one", "source_version_2")
     finally:
@@ -494,9 +503,20 @@ def test_v2_to_head_requires_and_accepts_verified_backups(tmp_path: Path) -> Non
 
         applied = runner.apply_all(backup_hook=verified_backup)
 
-        assert [migration.version for migration in applied] == [3, 4, 5, 6, 7, 8, 9, 10, 11]
-        assert backed_up == [3, 4, 5, 6, 7, 8, 9, 10, 11]
-        assert runner.current_version() == 11
+        assert [migration.version for migration in applied] == [
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+        ]
+        assert backed_up == [3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        assert runner.current_version() == 12
         assert (tmp_path / "verified-v2.sqlite3").is_file()
         assert (tmp_path / "verified-v3.sqlite3").is_file()
         assert (tmp_path / "verified-v4.sqlite3").is_file()
@@ -506,6 +526,7 @@ def test_v2_to_head_requires_and_accepts_verified_backups(tmp_path: Path) -> Non
         assert (tmp_path / "verified-v8.sqlite3").is_file()
         assert (tmp_path / "verified-v9.sqlite3").is_file()
         assert (tmp_path / "verified-v10.sqlite3").is_file()
+        assert (tmp_path / "verified-v11.sqlite3").is_file()
         assert (
             connection.execute(
                 "SELECT COUNT(*) FROM sqlite_schema "
@@ -522,7 +543,7 @@ def test_newer_database_schema_fails_closed(tmp_path: Path) -> None:
         store.connection.execute(
             """
             INSERT INTO schema_migrations(version, name, sha256, applied_at)
-            VALUES (12, '0012_future.sql', ?, ?)
+            VALUES (13, '0013_future.sql', ?, ?)
             """,
             (HASH_A, NOW),
         )
@@ -601,6 +622,7 @@ def test_append_only_triggers_cover_every_frozen_immutable_table(tmp_path: Path)
             | P9_APPEND_ONLY_TABLES
             | P10_APPEND_ONLY_TABLES
             | P11_APPEND_ONLY_TABLES
+            | P12_APPEND_ONLY_TABLES
         ):
             assert f"{table}_no_update" in trigger_names
             assert f"{table}_no_delete" in trigger_names
@@ -796,9 +818,9 @@ def test_v6_to_v7_is_backup_first_and_leaves_existing_rows_untouched(tmp_path: P
             backup_hook=lambda _connection, migration: backed_up.append(migration.version)
         )
 
-        assert [migration.version for migration in applied] == [7, 8, 9, 10, 11]
-        assert backed_up == [7, 8, 9, 10, 11]
-        assert head_runner.current_version() == 11
+        assert [migration.version for migration in applied] == [7, 8, 9, 10, 11, 12]
+        assert backed_up == [7, 8, 9, 10, 11, 12]
+        assert head_runner.current_version() == 12
         assert {
             table: connection.execute(f'SELECT * FROM "{table}" ORDER BY rowid').fetchall()
             for table in protected_tables

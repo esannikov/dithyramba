@@ -135,6 +135,20 @@ The deterministic gate makes no provider call. A semantic author or reviewer
 may be used on the final short answer only; it does not reread or embed the
 corpus.
 
+Schema v12 stores the canonical `AnswerProjection` and its semantic judgment
+receipt in two append-only tables. Persistence preserves what was judged; it
+does not generate the projection, accept its content, or replace the separate
+human review path. `PropositionCoverageResult` remains a deterministic,
+rebuildable result.
+
+Research Atlas may expose a sparse exact subset of the displayed answer or
+hypothesis as `AtlasTraceSpan` records. Each record binds one half-open
+character range to one or more evidence IDs and labels it as fact, synthesis,
+hypothesis, or question. Lens colours only these bound characters. Selecting a
+span activates its source chip and the exact-passage inspector; ordinary
+framing remains uncoloured so the interface does not imply that every sentence
+is verified.
+
 ## Experimental scoped candidate ontology
 
 Question-led recall works when the operator already knows what to ask. A scoped
@@ -183,7 +197,7 @@ ontology claim.
 | Material | Storage | Authority |
 |---|---|---|
 | source versions, fragments, identities, policies, snapshots, shared read sets, packets, reviews | SQLite plus content-addressed blobs | durable record |
-| IdeaTrace candidates and structural closure receipts | append-only canonical JSON in SQLite | durable candidate/audit record; not accepted truth |
+| IdeaTrace candidates, answer projections, and their closure/judgment receipts | append-only canonical JSON in SQLite | durable candidate/audit record; not accepted truth |
 | FTS index | SQLite FTS5 | rebuildable discovery index |
 | semantic vectors and reranker caches | optional local model data | rebuildable discovery aid |
 | graph and Atlas projections | versioned derived artifacts | navigational view |

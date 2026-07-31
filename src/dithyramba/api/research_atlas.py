@@ -19,6 +19,7 @@ from dithyramba.atlas import (
     AtlasSource,
     AtlasSourceAddress,
     AtlasTimelineEvent,
+    AtlasTraceSpan,
     LoadedResearchAtlas,
     LoadedResearchProjection,
     ProjectionMaterial,
@@ -102,6 +103,12 @@ _EVIDENCE_ROLE_LABELS = {
     "refutes": "спростовує",
     "context": "дає контекст",
 }
+_TRACE_KIND_LABELS = {
+    "fact": "перевірюване твердження",
+    "synthesis": "синтез джерел",
+    "hypothesis": "робоча гіпотеза",
+    "question": "дослідницьке питання",
+}
 _RELATION_LABELS = {
     "supports": "підсилює",
     "qualifies": "уточнює",
@@ -148,6 +155,16 @@ class _SourceBindingView:
     full_url: str
     back_url: str
     label: str
+
+
+@dataclass(frozen=True, slots=True)
+class _TraceTextPart:
+    text: str
+    span_id: str | None = None
+    kind: str | None = None
+    evidence_ids: tuple[str, ...] = ()
+    first_evidence_id: str | None = None
+    is_selected: bool = False
 
 
 def create_research_atlas_app(
@@ -305,6 +322,10 @@ def create_research_atlas_app(
             str | None,
             Query(pattern=_ID_PATTERN, max_length=96),
         ] = None,
+        span: Annotated[
+            str | None,
+            Query(pattern=_ID_PATTERN, max_length=96),
+        ] = None,
         material: Annotated[
             str | None,
             Query(pattern=_ID_PATTERN, max_length=96),
@@ -330,6 +351,7 @@ def create_research_atlas_app(
                     view=view,
                     selected=selected,
                     selected_evidence=evidence,
+                    selected_span=span,
                     selected_material=material,
                     theme=theme,
                     period=period,
@@ -349,6 +371,7 @@ def _template_context(
     view: str,
     selected: str | None,
     selected_evidence: str | None,
+    selected_span: str | None,
     selected_material: str | None,
     theme: str | None,
     period: str | None,
@@ -358,19 +381,52 @@ def _template_context(
     manifest = loaded.manifest
     evidence_views = _evidence_views(manifest)
     selected_object = _selected_object(manifest, view=view, selected=selected)
+    selected_trace_span = _selected_trace_span(
+        selected_object,
+        requested_span_id=selected_span,
+    )
     explicit_evidence = evidence_views.get(selected_evidence or "")
     material_views = _material_views(projection, manifest=manifest)
     selected_material_view = material_views.get(selected_material or "")
     selected_evidence_view = None
     if selected_material_view is None:
-        selected_evidence_view = explicit_evidence or _first_evidence(
-            selected_object,
-            evidence_views=evidence_views,
+        selected_evidence_view = (
+            explicit_evidence
+            or _first_span_evidence(
+                selected_trace_span,
+                evidence_views=evidence_views,
+            )
+            or _first_evidence(
+                selected_object,
+                evidence_views=evidence_views,
+            )
         )
     evidence_by_id = {
         item.evidence_id: evidence_views[item.evidence_id] for item in manifest.evidence
     }
     hypothesis_by_id = {item.hypothesis_id: item for item in manifest.hypotheses}
+    trace_parts_by_object = {
+        **{
+            item.question_id: _trace_text_parts(
+                item.short_answer,
+                item.trace_spans,
+                selected_span_id=None
+                if selected_trace_span is None
+                else selected_trace_span.span_id,
+            )
+            for item in manifest.questions
+        },
+        **{
+            item.hypothesis_id: _trace_text_parts(
+                item.synthesis,
+                item.trace_spans,
+                selected_span_id=None
+                if selected_trace_span is None
+                else selected_trace_span.span_id,
+            )
+            for item in manifest.hypotheses
+        },
+    }
     projection_manifest = None if projection is None else projection.manifest
     projection_materials = tuple(material_views.values())
     active_theme = None
@@ -440,11 +496,17 @@ def _template_context(
         "source_kind_labels": _SOURCE_KIND_LABELS,
         "voice_labels": _VOICE_LABELS,
         "evidence_role_labels": _EVIDENCE_ROLE_LABELS,
+        "trace_kind_labels": _TRACE_KIND_LABELS,
         "relation_labels": _RELATION_LABELS,
         "evidence_by_id": evidence_by_id,
         "hypothesis_by_id": hypothesis_by_id,
         "selected": selected_object,
         "selected_evidence": selected_evidence_view,
+        "selected_span": selected_trace_span,
+        "active_span_evidence_ids": (
+            () if selected_trace_span is None else selected_trace_span.evidence_ids
+        ),
+        "trace_parts_by_object": trace_parts_by_object,
         "selected_material": selected_material_view,
         "metrics": metrics,
         "projection": projection_manifest,
@@ -609,6 +671,59 @@ def _first_evidence(
             None,
         )
     return None
+
+
+def _selected_trace_span(
+    selected: AtlasQuestion | AtlasHypothesis | AtlasTimelineEvent | AtlasSource | None,
+    *,
+    requested_span_id: str | None,
+) -> AtlasTraceSpan | None:
+    if requested_span_id is None:
+        return None
+    spans = selected.trace_spans if isinstance(selected, (AtlasQuestion, AtlasHypothesis)) else ()
+    for span in spans:
+        if span.span_id == requested_span_id:
+            return span
+    raise HTTPException(status_code=404, detail="not found")
+
+
+def _first_span_evidence(
+    span: AtlasTraceSpan | None,
+    *,
+    evidence_views: dict[str, _EvidenceView],
+) -> _EvidenceView | None:
+    if span is None:
+        return None
+    return evidence_views.get(span.evidence_ids[0])
+
+
+def _trace_text_parts(
+    text: str,
+    spans: tuple[AtlasTraceSpan, ...],
+    *,
+    selected_span_id: str | None,
+) -> tuple[_TraceTextPart, ...]:
+    if not spans:
+        return (_TraceTextPart(text=text),)
+    parts: list[_TraceTextPart] = []
+    cursor = 0
+    for span in spans:
+        if cursor < span.start:
+            parts.append(_TraceTextPart(text=text[cursor : span.start]))
+        parts.append(
+            _TraceTextPart(
+                text=span.text,
+                span_id=span.span_id,
+                kind=span.kind.value,
+                evidence_ids=span.evidence_ids,
+                first_evidence_id=span.evidence_ids[0],
+                is_selected=span.span_id == selected_span_id,
+            )
+        )
+        cursor = span.end
+    if cursor < len(text):
+        parts.append(_TraceTextPart(text=text[cursor:]))
+    return tuple(parts)
 
 
 def _authorized_artifact(

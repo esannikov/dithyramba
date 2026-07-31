@@ -79,6 +79,13 @@ The inspector always names the exact source and asserting voice, states the
 evidence role, shows the independence group and limitation, and then opens the
 exact local excerpt and original source.
 
+Answers and hypothesis syntheses may contain sparse source-traceable phrases.
+Only exact phrases with stored evidence bindings receive an epistemic
+underline. Selecting one phrase highlights the corresponding SourceChip and
+opens its exact passage in the inspector. Prose without that binding remains
+plain, so visual emphasis never implies support that the manifest does not
+contain.
+
 Search scores, query IDs, model names, and evaluation labels belong in
 progressive method disclosure. They may explain how a candidate was found, but
 must not substitute for the answer, the hypothesis state, or its evidence

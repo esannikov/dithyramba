@@ -38,6 +38,7 @@ All committed fixture text is repository-authored and released as `CC0-1.0`.
 | `synthetic_1000` | 1,000 generated fragments; 20 deterministic lexical probes | expected fragment selected; packet hashes `1/1`; provider calls `0` | Ingest, scope compilation, FTS recall, receipts, persistence, and deterministic packet replay. |
 | Isolation fixtures | 2 Libraries; 4 public/private/holdout/excluded canaries | all fixture invariants passed | Scope is compiled before reading and excluded data does not silently enter recall. |
 | IdeaTrace closure fixtures | 2-step public chain plus stale, tampered, orphaned, failed-claim, persistence, corruption, and CLI cases | deterministic replay matched; unsafe paths failed or required review; provider calls `0` | Contract closure and fail-closed persistence, not the usefulness or truth of a generated idea. |
+| Answer projection and Lens trace fixtures | exact proposition spans, semantic receipts, append-only schema-v12 reopen, corruption, Library isolation, sparse source-linked Atlas spans | exact replay matched; invalid, overlapping, out-of-scope, or stale spans failed closed; provider calls `0` | Durable display governance and exact phrase-to-evidence routing, not semantic truth or automatic acceptance. |
 
 The 1,000-fragment run is an engineering workload, not a semantic research
 benchmark. Its text and queries are deliberately easy and synthetic.
@@ -67,6 +68,29 @@ benchmark.
 
 The reports record units and characters, but not a trustworthy aggregate page
 or original-document count. No page estimate is inferred here.
+
+### Mars IdeaTrace-24
+
+This test held retrieval constant and compared ordinary cited answers with
+inspectable reasoning over 24 frozen evidence packets:
+
+- 6 direct facts;
+- 6 multi-source syntheses;
+- 6 contested claims;
+- 6 unsupported traps.
+
+The first ordinary and IdeaTrace passes both produced 21/24 complete answers.
+The IdeaTrace structure became useful when the gates returned exact failure
+reasons. After one repair of the 12 complex answers, complete answers improved
+to 23/24, correct answer status to 24/24, and full evidence closure to 16/18.
+All six unsupported traps remained safe abstentions. One semantic-scope
+overclaim and one punctuation-level exact-quote mismatch remained blocked.
+
+The run used approximately 188,106 input and 37,992 output model tokens across
+five development passes. Deterministic span, coverage, persistence, and closure
+checks themselves used no model tokens. This is model-judged internal
+diagnostic evidence, not an independent benchmark. See the
+[full protocol, all questions, answers, and limits](MARS_IDEATRACE_24.md).
 
 ### Parisian Ten structured records
 
@@ -291,16 +315,18 @@ the exact proof was already present deeper in a bounded union.
 
 ## Engineering verification
 
-The current public update collects 2,668 engineering cases. In its canonical
+The current public update collects 2,701 engineering cases. In its canonical
 local gate:
 
-- 2,666 passed and two declared browser cases were skipped;
-- exact combined line/branch coverage was `95.0573%` at a strict `95.00%` gate;
-- statement coverage was `96.2412%`; branch coverage was `91.3447%`;
-- terminology, format, lint, and strict typing across 256 files passed;
+- 2,699 passed and two declared browser cases were skipped until Chromium was
+  provisioned;
+- a separate real-Chromium run passed both browser cases with zero skips;
+- exact combined line/branch coverage was `95.0172%` at a strict `95.00%` gate;
+- statement coverage was `96.2082%`; branch coverage was `91.2933%`;
+- terminology, format, lint, and strict typing across 260 files passed;
 - the dependency audit found no known vulnerabilities;
 - a separate sdist-to-wheel closure installed non-editably in isolated Python
-  3.11.12, imported from temporary `site-packages`, and included the schema-v11
+  3.11.12, imported from temporary `site-packages`, and included the schema-v12
   migration;
 - the deterministic 1,000-fragment replay remains the rights-safe public
   research-path fixture.

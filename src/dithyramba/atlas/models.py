@@ -83,6 +83,42 @@ class RelationKind(StrEnum):
     PARALLELS = "parallels"
 
 
+class TraceSpanKind(StrEnum):
+    """Visible epistemic role of one source-traceable text fragment."""
+
+    FACT = "fact"
+    SYNTHESIS = "synthesis"
+    HYPOTHESIS = "hypothesis"
+    QUESTION = "question"
+
+
+class AtlasTraceSpan(BaseModel):
+    """One exact, half-open fragment linked to the evidence it depends on."""
+
+    model_config = ConfigDict(
+        extra="forbid",
+        frozen=True,
+        str_strip_whitespace=False,
+    )
+
+    span_id: str = Field(pattern=r"^trace_[a-z0-9_]+$")
+    start: int = Field(ge=0, le=8_000)
+    end: int = Field(ge=1, le=8_000)
+    text: str = Field(min_length=1, max_length=8_000)
+    kind: TraceSpanKind
+    evidence_ids: tuple[str, ...] = Field(min_length=1, max_length=32)
+
+    @model_validator(mode="after")
+    def exact_span(self) -> Self:
+        if self.end <= self.start:
+            raise ValueError("Atlas trace span must have start < end")
+        if self.end - self.start != len(self.text):
+            raise ValueError("Atlas trace span offsets must match its exact text length")
+        if len(self.evidence_ids) != len(set(self.evidence_ids)):
+            raise ValueError("Atlas trace span evidence_ids must be unique")
+        return self
+
+
 class AtlasSource(_AtlasModel):
     source_id: str = Field(pattern=_ID_PATTERN)
     title: str = Field(min_length=1, max_length=500)
@@ -171,6 +207,11 @@ class AtlasQuestion(_AtlasModel):
     short_answer: str = Field(min_length=1, max_length=8_000)
     state: FindingState
     evidence_ids: tuple[str, ...] = Field(default=(), max_length=32)
+    trace_spans: tuple[AtlasTraceSpan, ...] = Field(
+        default=(),
+        max_length=128,
+        exclude_if=lambda value: not value,
+    )
     gap: str | None = Field(default=None, max_length=2_000)
     tags: tuple[str, ...] = Field(default=(), max_length=16)
 
@@ -178,6 +219,12 @@ class AtlasQuestion(_AtlasModel):
     def evidence_boundary(self) -> Self:
         if self.state is not FindingState.OPEN and not self.evidence_ids:
             raise ValueError("non-open question requires evidence")
+        _validate_trace_spans(
+            self.short_answer,
+            self.trace_spans,
+            allowed_evidence_ids=self.evidence_ids,
+            label="question",
+        )
         return self
 
 
@@ -188,6 +235,11 @@ class AtlasHypothesis(_AtlasModel):
     state: HypothesisState
     evidence_ids: tuple[str, ...] = Field(default=(), max_length=48)
     counterevidence_ids: tuple[str, ...] = Field(default=(), max_length=24)
+    trace_spans: tuple[AtlasTraceSpan, ...] = Field(
+        default=(),
+        max_length=128,
+        exclude_if=lambda value: not value,
+    )
     gap: str | None = Field(default=None, max_length=2_000)
     question_ids: tuple[str, ...] = Field(default=(), max_length=24)
 
@@ -197,6 +249,12 @@ class AtlasHypothesis(_AtlasModel):
             raise ValueError("established hypothesis requires evidence")
         if set(self.evidence_ids).intersection(self.counterevidence_ids):
             raise ValueError("one evidence item cannot support and counter the same hypothesis")
+        _validate_trace_spans(
+            self.synthesis,
+            self.trace_spans,
+            allowed_evidence_ids=self.evidence_ids + self.counterevidence_ids,
+            label="hypothesis",
+        )
         return self
 
 
@@ -292,6 +350,8 @@ class ResearchAtlasManifest(_AtlasModel):
             _require_subset((evidence.source_id,), source_ids, "evidence source")
         for question in self.questions:
             _require_subset(question.evidence_ids, evidence_ids, "question evidence")
+            for span in question.trace_spans:
+                _require_subset(span.evidence_ids, evidence_ids, "question trace evidence")
         for hypothesis in self.hypotheses:
             _require_subset(hypothesis.evidence_ids, evidence_ids, "hypothesis evidence")
             _require_subset(
@@ -299,6 +359,8 @@ class ResearchAtlasManifest(_AtlasModel):
                 evidence_ids,
                 "hypothesis counterevidence",
             )
+            for span in hypothesis.trace_spans:
+                _require_subset(span.evidence_ids, evidence_ids, "hypothesis trace evidence")
             _require_subset(hypothesis.question_ids, question_ids, "hypothesis question")
         for relation in self.relations:
             _require_subset(
@@ -336,3 +398,25 @@ def _require_subset(values: tuple[str, ...], valid: frozenset[str], label: str) 
     missing = sorted(set(values).difference(valid))
     if missing:
         raise ValueError(f"{label} references missing IDs: {', '.join(missing)}")
+
+
+def _validate_trace_spans(
+    text: str,
+    spans: tuple[AtlasTraceSpan, ...],
+    *,
+    allowed_evidence_ids: tuple[str, ...],
+    label: str,
+) -> None:
+    seen_ids: set[str] = set()
+    previous_end = 0
+    allowed = frozenset(allowed_evidence_ids)
+    for span in spans:
+        if span.span_id in seen_ids:
+            raise ValueError(f"{label} trace span IDs must be unique")
+        if span.start < previous_end:
+            raise ValueError(f"{label} trace spans must be ordered and non-overlapping")
+        if span.end > len(text) or text[span.start : span.end] != span.text:
+            raise ValueError(f"{label} trace span must match the exact displayed text")
+        _require_subset(span.evidence_ids, allowed, f"{label} trace evidence")
+        seen_ids.add(span.span_id)
+        previous_end = span.end

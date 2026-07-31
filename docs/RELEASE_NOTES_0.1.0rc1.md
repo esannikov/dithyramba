@@ -28,6 +28,18 @@ claim-evidence case and semantic judgment receipt that supports it.
 does not generate prose, call a model, or decide historical truth. Its strongest
 result is `review_eligible`, leaving acceptance to a separate human decision.
 
+### Proposition-level prose remains inspectable
+
+`AnswerProjection/1.0` labels exact final-answer spans as fact, synthesis,
+hypothesis, question, or framing. The deterministic
+`PropositionCoverageGate` applies a role-specific closure rule instead of
+forcing the whole paragraph to equal one verified claim.
+
+Schema v12 stores the projection and its semantic judgment receipt as
+append-only canonical JSON. Research Atlas may expose a sparse subset of those
+source-traceable phrases: clicking one in Lens activates its named evidence and
+opens the exact bound passage. Unbound framing stays visually plain.
+
 ### Storage stays small
 
 Schema v11 adds two append-only tables containing canonical JSON:
@@ -35,8 +47,13 @@ Schema v11 adds two append-only tables containing canonical JSON:
 - `idea_traces`;
 - `reasoning_closure_results`.
 
-No graph server or vector database is required. A graph view can be rebuilt
-from the bounded step list.
+Schema v12 adds:
+
+- `answer_projections`;
+- `answer_projection_receipts`.
+
+No graph server or vector database is required. Graph and Lens views can be
+rebuilt from these bounded public artifacts.
 
 ## New command
 
@@ -53,21 +70,31 @@ uncertain, or rejected evidence exits non-zero with an explicit decision.
 
 ## Compatibility notes
 
-- Existing Libraries require the checksummed v11 migration before normal open.
+- Existing Libraries require the checksummed migrations through v12 before
+  normal open.
 - The optional dependency name changes from `cartography` to `ontology`.
 - Stable FTS recall, `EvidencePacket/1.0`, and existing review decisions remain
   unchanged.
 - IdeaTrace is an experimental `0.1.x` contract. Trace generation and human
   acceptance UI are intentionally not part of this release candidate.
+- Answer projections are durable but remain opt-in candidate records. Their
+  persistence does not grant acceptance or generate a projection automatically.
 
 ## Validation boundary
 
-The canonical local gate completed with 2,666 passing tests, two declared
-browser skips, strict typing across 256 files, 95.0573% exact combined
-line/branch coverage, and no known vulnerable third-party dependency.
+The canonical local gate collected 2,701 tests: 2,699 passed and two declared
+browser cases were skipped until Chromium was provisioned. A separate
+real-Chromium run passed both browser cases with zero skips. Strict typing
+across 260 files, 95.0172% exact combined line/branch coverage, and the
+dependency audit passed.
 
 The committed tests cover canonical identities, topology, stale and tampered
 artifacts, failed semantic claims, append-only persistence, corruption,
 cold-process-equivalent replay, migration, and CLI invocation. These checks
 establish engineering closure. They do not yet establish that generated traces
 are insightful, complete, or superior to expert human synthesis.
+
+Empty Lens trace metadata is omitted from canonical serialization, so existing
+`CompactMemoryPacket/1.0` and `/1.1` identities remain byte-compatible.
+Non-empty view-only trace spans fail closed when a legacy compact connector
+cannot preserve their meaning.

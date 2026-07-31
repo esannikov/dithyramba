@@ -174,6 +174,12 @@ chain readable:
 - timeline and connections;
 - technical details only on demand.
 
+When a question answer or hypothesis contains exact trace bindings, Lens
+underlines only those source-traceable phrases. Clicking one selects the named
+evidence chip and opens the bound passage. The rest of the prose is deliberately
+uncoloured: it may be useful framing, but the view does not pretend that it has
+the same proof route.
+
 The interface does not make evidence stronger. It makes the stored relation
 between conclusion and proof inspectable.
 

@@ -14,9 +14,10 @@
             {% set item = evidence_by_id[evidence_id] %}
             <li>
               <a
-                class="source-chip role-{{ item.evidence.role.value }}"
-                href="/?view={{ view }}&selected={{ selected_id }}&evidence={{ evidence_id }}#inspector"
+                class="source-chip role-{{ item.evidence.role.value }}{% if evidence_id in active_span_evidence_ids %} is-active{% endif %}"
+                href="/?view={{ view }}&selected={{ selected_id }}&evidence={{ evidence_id }}{% if selected_span %}&span={{ selected_span.span_id }}{% endif %}#inspector"
                 aria-label="Відкрити доказ із джерела «{{ item.source.title }}»"
+                {% if evidence_id in active_span_evidence_ids %}aria-current="true"{% endif %}
               >
                 <span class="source-chip-role">{{ evidence_role_labels[item.evidence.role.value] }}</span>
                 <span class="source-chip-copy">
@@ -30,6 +31,21 @@
       {% endif %}
     {%- endmacro %}
 
+    {% macro traceable_text(parts, selected_id) -%}
+      <span class="traceable-text">
+        {% for part in parts -%}
+          {% if part.span_id %}
+            <a
+              class="traceable-span trace-{{ part.kind }}{% if part.is_selected %} is-selected{% endif %}"
+              href="/?view={{ view }}&selected={{ selected_id }}&span={{ part.span_id }}&evidence={{ part.first_evidence_id }}#inspector"
+              aria-label="{{ trace_kind_labels[part.kind] }}; відкрити {{ part.evidence_ids|length }} пов’язаних джерел"
+              {% if part.is_selected %}aria-current="true"{% endif %}
+            >{{ part.text }}</a>
+          {% else %}{{ part.text }}{% endif %}
+        {%- endfor %}
+      </span>
+    {%- endmacro %}
+
     {% macro question_card(question) -%}
       <article class="question-card state-{{ question.state.value }}" id="{{ question.question_id }}">
         <div class="card-topline">
@@ -39,7 +55,10 @@
         <h3><a href="/?view={{ view }}&selected={{ question.question_id }}">{{ question.prompt }}</a></h3>
         <div class="short-answer">
           <p class="eyebrow">Коротка відповідь</p>
-          <p>{{ question.short_answer }}</p>
+          <p>{{ traceable_text(trace_parts_by_object[question.question_id], question.question_id) }}</p>
+          {% if question.trace_spans %}
+            <small class="trace-hint">Кольоровий текст має точний маршрут до джерела.</small>
+          {% endif %}
         </div>
         {{ source_chips(question.evidence_ids, question.question_id) }}
         {% if question.gap %}<p class="gap-note"><strong>Ще не з’ясовано:</strong> {{ question.gap }}</p>{% endif %}
@@ -195,7 +214,12 @@
                     <span>{{ hypothesis.evidence_ids|length }} опор</span>
                   </div>
                   <h3><a href="/?view=hypotheses&selected={{ hypothesis.hypothesis_id }}">{{ hypothesis.title }}</a></h3>
-                  <p>{{ hypothesis.synthesis }}</p>
+                  <p class="hypothesis-synthesis">
+                    {{ traceable_text(trace_parts_by_object[hypothesis.hypothesis_id], hypothesis.hypothesis_id) }}
+                  </p>
+                  {% if hypothesis.trace_spans %}
+                    <small class="trace-hint">Оберіть фрагмент, щоб побачити його доказову опору.</small>
+                  {% endif %}
                   {% if hypothesis.hypothesis_id in hypothesis_projection_metrics %}
                     {% set projection_metric = hypothesis_projection_metrics[hypothesis.hypothesis_id] %}
                     <p class="related-memory">
@@ -395,7 +419,14 @@
             <a class="original-link" href="/artifacts/{{ selected_material.source.source_id }}?material={{ selected_material.material.material_id }}">Відкрити точний фрагмент</a>
           {% endif %}
         {% elif selected_evidence %}
-          <p class="eyebrow">Доказ до висновку</p>
+          {% if selected_span %}
+            <section class="selected-passage">
+              <p>{{ trace_kind_labels[selected_span.kind.value] }}</p>
+              <blockquote>{{ selected_span.text }}</blockquote>
+              <small>{{ selected_span.evidence_ids|length }} пов’язаних джерел; нижче відкрито перше.</small>
+            </section>
+          {% endif %}
+          <p class="eyebrow">Доказ до вибраного фрагмента</p>
           <div class="inspector-badges">
             <span>{{ evidence_role_labels[selected_evidence.evidence.role.value] }}</span>
             <span>{{ source_kind_labels[selected_evidence.source.source_kind.value] }}</span>

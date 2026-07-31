@@ -18,9 +18,12 @@ replayed, challenged, and reused without asking a model to reread everything.
 
 > **Current status:** `0.1.0rc1` is a substantial pre-alpha source preview. The
 > local FTS evidence route is persisted and replayable. Adaptive retrieval,
-> candidate ontology, and evidence-grounded synthesis remain experimental. A
-> clean-checkout distribution and installation remain mandatory release gates;
-> commit-bound results are reported by continuous integration.
+> candidate ontology, and evidence-grounded synthesis remain experimental.
+> Schema v12 now persists public reasoning traces, proposition-level answer
+> projections, and their deterministic or semantic receipts without promoting
+> them into accepted memory. Clean-checkout distribution and installation
+> remain mandatory release gates; commit-bound results are reported by
+> continuous integration.
 
 ## Why it exists
 
@@ -85,7 +88,10 @@ claim restatement. It marks each exact span as fact, bounded synthesis,
 disclosed hypothesis, research question, or framing. Facts stay strict;
 hypotheses must expose their premises, falsifier, test question, and next
 evidence. `PropositionCoverageGate` checks the roles without promoting
-exploratory text into accepted memory.
+exploratory text into accepted memory. Schema v12 stores the projection and its
+judgment receipt as append-only canonical JSON. Lens can render a sparse subset
+of these source-traceable spans: clicking a coloured phrase selects the exact
+evidence chip and opens the bound passage, while unbound framing remains plain.
 
 Several questions over one exact scope may use `RecallService.recall_batch`.
 Schema v10 stores the shared protected fragment manifest once as a
@@ -104,6 +110,7 @@ read work, not the meaning of the public packet contracts.
 | shared, content-addressed corpus read sets | model and candidate caches |
 | append-only review decisions | Reading Room and Lens pages |
 | append-only IdeaTrace candidates and closure receipts | rebuilt trace graph views |
+| append-only answer projections and judgment receipts | sparse clickable Lens spans |
 
 This boundary lets Dithyramba replace a search model or rebuild a visual view
 without losing citations or human decisions.
@@ -156,7 +163,7 @@ or worker-memory guards.
 | Compact connectors | small source-closed packets for downstream agents | implemented library contracts |
 | Candidate Ontology / Lens | scoped concepts and exact co-occurrence links over one bounded question neighbourhood | experimental, GET-only projection |
 | Evidence-grounded reasoning | short public IdeaTrace steps closed over exact semantic receipts | experimental contracts, persistence, and CLI verifier |
-| Rich answer projection | proposition-level fact, synthesis, hypothesis, question, and framing governance | experimental in-memory contract and deterministic gate |
+| Rich answer projection | persisted proposition-level fact, synthesis, hypothesis, question, and framing governance; exact Lens span-to-source routes | experimental durable contract and deterministic gate |
 
 ## Experimental boundary
 
@@ -182,7 +189,9 @@ Evidence-grounded reasoning is a separate post-answer path. It stores only
 public statements, named operations, premise links, concise warrants, gaps, and
 exact receipt bindings. It does not store private chain-of-thought text. Schema
 v11 persists the candidate trace and deterministic closure receipt in two
-append-only tables; a passed closure is only `review_eligible`.
+append-only tables. Schema v12 adds append-only answer projections and their
+judgment receipts; a passed closure or proposition projection is only
+`review_eligible`.
 
 Candidate Ontology is the smaller replacement for the rejected global-map
 experiment. It starts from one named scope and a compact expansion of its
@@ -223,6 +232,7 @@ because their source rights and project boundaries differ.
 |---|---:|---|
 | Public synthetic | 12 multilingual fragments and queries; 1,000 generated fragments with 20 probes | Current staging replay returned 12/12 expected multilingual sources at top 10; the 1,000-fragment pipeline selected the exact expected fragment with one stable packet hash and zero provider calls. |
 | Mars working corpus | 53,747 retrieval units; about 103.8M characters; 72 bilingual cases | On 51 positive development cases, FTS top-50 followed by Harrier and structural admission placed the exact fragment in the top 10 for 43/51 and the correct source for 48/51. |
+| Mars IdeaTrace-24 | 24 frozen evidence packets: 6 direct, 6 multi-source, 6 contested, 6 unsupported traps | With retrieval held constant, one gate-directed repair improved complete evidence closure from 6/18 to 16/18, complete answers from 21/24 to 23/24, and answer-status correctness from 22/24 to 24/24. Safe abstention remained 6/6; one semantic overclaim and one exact-quote mismatch remained blocked. |
 | Parisian Ten structured records | 28,006 records from 40 files and 7 source families; 56 bilingual queries | Prepared memory packets delivered the complete evidence set in 56/56 queries. At the same per-query evidence budget, raw FTS delivered all required records in 43/56, hybrid search in 42/56, and E5 in 37/56. |
 | Van Gogh equal-source A/B | 18 Markdown files; 4 tasks | Compact packets returned 16/16 exact quotations and 13/13 required facets versus 3/7 and 2/13 for direct search. A later claim-level audit still marked only 5/14 claims directly supported and only 1/4 answers ready for promotion without revision. |
 | Tesla historical evaluation | 50 sources; 6,183 fragments; 40 questions | An earlier model-heavy route recovered the correct source in the top 10 for 86.7% of required evidence roles, but the exact required fragment for only 58.1%; deliberate-gap recognition was 40.0%. These numbers do not describe the current default route. |
@@ -291,6 +301,7 @@ responsibility of each directory and package group.
 - [CLI and contract reference](docs/REFERENCE.md)
 - [Evidence coverage explained](docs/EVIDENCE_COVERAGE_GATE.md)
 - [Evidence-grounded reasoning and IdeaTrace](docs/REASONING.md)
+- [Mars IdeaTrace-24 evaluation card](docs/MARS_IDEATRACE_24.md)
 - [0.1.0rc1 release notes](docs/RELEASE_NOTES_0.1.0rc1.md)
 - [Development and verification](docs/DEVELOPMENT.md)
 - [Repository and module guide](docs/REPOSITORY_GUIDE.md)
@@ -317,11 +328,14 @@ uv build
 ./scripts/acceptance.sh --quick
 ```
 
-For this update, the canonical gate completed with 2,666 passing tests, two
-declared browser skips, strict typing across 256 files, zero terminology
-findings, 95.0573% exact combined line/branch coverage, and no known dependency
-vulnerabilities. Distribution closure then verifies that the wheel is built
-from the sdist and imports from an isolated non-editable environment.
+For this update, the canonical gate collected 2,701 tests: 2,699 passed and
+two declared browser cases were skipped until Chromium was provisioned. A
+separate real-Chromium run then passed both browser cases with zero skips.
+Strict typing across 260 files, zero terminology findings, 95.0172% exact
+combined line/branch coverage, and the dependency audit also passed.
+Distribution closure verifies every schema migration through v12, the Lens
+assets, and that the wheel is built from the sdist and imports from an isolated
+non-editable environment.
 
 Passing these checks shows that the implementation behaves as specified by its
 tests. It does not establish historical or scientific truth, nor superiority

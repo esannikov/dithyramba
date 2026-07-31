@@ -19,7 +19,7 @@ uv run dithyramba <command> --help
 | Base runtime | no model, GPU, external service, or Docker required |
 | Optional semantic extra | `sentence-transformers==5.6.0` |
 | Optional ontology extra | `numpy>=2,<3`; `scikit-learn>=1.8,<2` |
-| Current database schema | v11 |
+| Current database schema | v12 |
 | Package version | `0.1.0rc1` |
 
 ## Command inventory
@@ -184,6 +184,12 @@ Schema v11 adds append-only `idea_traces` and
 not private chain-of-thought text. A passed closure does not create a human
 `ReviewDecision` and does not promote a claim into accepted memory.
 
+Schema v12 adds append-only `answer_projections` and
+`answer_projection_receipts`. The first stores exact role-labelled public
+prose; the second stores the semantic judgment bound to that projection.
+`PropositionCoverageResult` is deterministic and rebuildable, so it is not a
+separate durable table.
+
 Changing the meaning or required fields of one of these schemas requires a
 new version. Applied migrations remain immutable.
 
@@ -198,8 +204,8 @@ new version. Applied migrations remain immutable.
 | `HarrierScoreBatch` | `dithyramba.harrier_score_batch/1.0` | in-memory |
 | `AdaptiveStageReceipt` | `dithyramba.adaptive_stage_receipt/2.0` | in-memory |
 | `AdaptiveRecallResult` | `dithyramba.adaptive_recall_result/2.2` | in-memory |
-| `AnswerProjection` | `dithyramba.answer_projection/1.0` | in-memory display-governance overlay |
-| `AnswerProjectionJudgmentReceipt` | `dithyramba.answer_projection_receipt/1.0` | in-memory semantic role receipt |
+| `AnswerProjection` | `dithyramba.answer_projection/1.0` | append-only canonical JSON in schema v12 |
+| `AnswerProjectionJudgmentReceipt` | `dithyramba.answer_projection_receipt/1.0` | append-only canonical JSON in schema v12 |
 | `PropositionCoverageResult` | typed result | in-memory; display eligibility only |
 | `RouteCandidateReceipt` | `dithyramba.route_candidate_receipt/1.0` | library artifact |
 | `CompactMemoryPacket` | `dithyramba.compact_memory_packet/1.1` | library artifact |
@@ -214,6 +220,13 @@ synthesis, hypothesis, question, or framing. Hypotheses require a falsifiable
 probe. `PropositionCoverageGate` is deterministic and provider-free; a separate
 semantic receipt is required to verify that the prose actually matches its
 declared roles.
+
+Research Atlas may additionally carry sparse `AtlasTraceSpan` view records for
+question answers and hypothesis syntheses. A span stores exact character
+offsets, an epistemic display kind, and one or more Atlas evidence IDs. Lens
+uses those bindings to highlight only traceable phrases and to select the
+corresponding source evidence. Trace spans are part of the Atlas projection,
+not a new evidence or acceptance contract.
 
 ## Experimental scoped-ontology types
 

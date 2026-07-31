@@ -18,8 +18,11 @@ from dithyramba.provenance import (
     TerminalInputOutcome,
 )
 
+from .answer_projection import SQLiteAnswerProjectionRepository
 from .errors import (
     AccessPolicyNotFoundError,
+    AnswerProjectionNotFoundError,
+    AnswerProjectionPersistenceError,
     AuthorizationError,
     BackupError,
     CollectionNotFoundError,
@@ -65,6 +68,8 @@ from .structure import SQLiteStructureRepository
 __all__ = [
     "AccessPolicyNotFoundError",
     "AccessPolicyRecord",
+    "AnswerProjectionNotFoundError",
+    "AnswerProjectionPersistenceError",
     "AuthorizationError",
     "AuthorizedRead",
     "BackupError",
@@ -96,6 +101,7 @@ __all__ = [
     "ProcessingRunStatus",
     "QueryRequestNotFoundError",
     "RecallArtifactNotFoundError",
+    "SQLiteAnswerProjectionRepository",
     "SQLiteHybridStore",
     "SQLiteMeaningRepository",
     "SQLiteReasoningRepository",

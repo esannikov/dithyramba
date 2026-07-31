@@ -7,9 +7,15 @@ history belong in dated evaluation reports, not in the product changelog.
 
 ### Added
 
-- `AnswerProjection/1.0` and `PropositionCoverageGate`: an optional in-memory
+- `AnswerProjection/1.0` and `PropositionCoverageGate`: an optional
   display-governance layer that partitions the exact final answer into facts,
   bounded syntheses, disclosed hypotheses, research questions, and framing.
+- Schema v12 append-only `answer_projections` and
+  `answer_projection_receipts`, with canonical reopen, corruption checks,
+  Library isolation, and audit events.
+- Sparse `AtlasTraceSpan` bindings for Research Atlas answers and hypotheses.
+  Lens colours only exact source-traceable phrases; clicking one activates its
+  evidence chip and exact-passage inspector.
 - Falsifiable hypothesis probes with an explicit test question, falsifier, and
   next evidence, while retaining exact premise claim routes.
 - Deterministic fail-closed checks for complete span coverage, stale answer and
@@ -23,6 +29,11 @@ history belong in dated evaluation reports, not in the product changelog.
 - Documented the default profile as lexical-first, evidence-first, and
   embedding-optional. No claim is made that lexical retrieval wins every
   semantic-recall case.
+- Added a public Mars IdeaTrace-24 evaluation card that separates the frozen
+  reasoning test from the earlier 53,747-unit retrieval calibration.
+- Preserved byte-compatible `CompactMemoryPacket/1.0` and `/1.1` identities by
+  omitting empty trace metadata and rejecting non-empty Lens spans when a
+  legacy connector cannot preserve them.
 
 ## 0.1.0rc1 — 2026-07-31
 

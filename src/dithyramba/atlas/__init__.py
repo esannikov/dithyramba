@@ -24,7 +24,9 @@ from .models import (
     AtlasSource,
     AtlasSourceAddress,
     AtlasTimelineEvent,
+    AtlasTraceSpan,
     ResearchAtlasManifest,
+    TraceSpanKind,
 )
 from .projection import (
     LoadedResearchProjection,
@@ -56,6 +58,7 @@ __all__ = [
     "AtlasSource",
     "AtlasSourceAddress",
     "AtlasTimelineEvent",
+    "AtlasTraceSpan",
     "CompactMemoryPacket",
     "CompactMemoryPacketV1_1",
     "LexicalQuestionCandidate",
@@ -83,6 +86,7 @@ __all__ = [
     "RouteTraceStage",
     "SemanticQuestionCandidate",
     "TaskRouter",
+    "TraceSpanKind",
     "build_route_candidate_receipt",
     "load_research_atlas",
     "load_research_projection",

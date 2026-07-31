@@ -204,8 +204,8 @@ def test_schema_v8_fresh_apply_and_migration_copies_are_identical() -> None:
     connection = sqlite3.connect(":memory:", isolation_level=None)
     try:
         runner = MigrationRunner(connection, _ROOT / "migrations")
-        assert [migration.version for migration in runner.apply_all()] == list(range(1, 12))
-        assert runner.current_version() == 11
+        assert [migration.version for migration in runner.apply_all()] == list(range(1, 13))
+        assert runner.current_version() == 12
         tables = {
             str(row[0])
             for row in connection.execute(
@@ -225,9 +225,9 @@ def test_v7_to_v8_zero_relation_rows_is_backup_first(tmp_path: Path) -> None:
         applied = runner.apply_all(
             backup_hook=lambda _connection, migration: backed_up.append(migration.version)
         )
-        assert [migration.version for migration in applied] == [8, 9, 10, 11]
-        assert backed_up == [8, 9, 10, 11]
-        assert runner.current_version() == 11
+        assert [migration.version for migration in applied] == [8, 9, 10, 11, 12]
+        assert backed_up == [8, 9, 10, 11, 12]
+        assert runner.current_version() == 12
         assert (
             connection.execute("SELECT COUNT(*) FROM relation_import_run_items").fetchone()[0] == 0
         )

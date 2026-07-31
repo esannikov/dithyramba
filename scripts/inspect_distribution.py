@@ -15,7 +15,7 @@ from email.parser import BytesParser
 from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parents[1]
-MIGRATIONS = tuple(f"{index:04d}_" for index in range(1, 10))
+MIGRATIONS = tuple(f"{index:04d}_" for index in range(1, 13))
 FORBIDDEN_PARTS = {
     ".agent",
     ".git",
@@ -259,7 +259,10 @@ def _assert_runtime_closure(package: dict[str, bytes]) -> None:
         "dithyramba/py.typed",
         "dithyramba/api/templates/reading_room.html",
         "dithyramba/api/static/reading_room.css",
+        "dithyramba/api/templates/research_atlas.html",
+        "dithyramba/api/static/research_atlas.css",
         "dithyramba/store/sql/__init__.py",
+        "dithyramba/persistence/answer_projection.py",
         "dithyramba/recall/adaptive.py",
         "dithyramba/recall/compatibility.py",
         "dithyramba/connectors/books.py",

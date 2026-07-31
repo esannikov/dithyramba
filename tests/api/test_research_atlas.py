@@ -109,6 +109,16 @@ def _payload() -> dict[str, object]:
                 "short_answer": "Він пов’язував його з уявним випробуванням машин.",
                 "state": "qualified",
                 "evidence_ids": ["evidence_letter", "evidence_study"],
+                "trace_spans": [
+                    {
+                        "span_id": "trace_question_method",
+                        "start": 4,
+                        "end": 48,
+                        "text": "пов’язував його з уявним випробуванням машин",
+                        "kind": "fact",
+                        "evidence_ids": ["evidence_letter"],
+                    }
+                ],
                 "gap": "Потрібна рання незалежна фіксація.",
                 "tags": ["method"],
             },
@@ -132,6 +142,24 @@ def _payload() -> dict[str, object]:
                 "state": "working",
                 "evidence_ids": ["evidence_letter"],
                 "counterevidence_ids": ["evidence_study"],
+                "trace_spans": [
+                    {
+                        "span_id": "trace_hypothesis_first_person",
+                        "start": 0,
+                        "end": 14,
+                        "text": "Особистий опис",
+                        "kind": "fact",
+                        "evidence_ids": ["evidence_letter"],
+                    },
+                    {
+                        "span_id": "trace_hypothesis_synthesis",
+                        "start": 17,
+                        "end": 42,
+                        "text": "пізніший аналіз сходяться",
+                        "kind": "synthesis",
+                        "evidence_ids": ["evidence_study"],
+                    },
+                ],
                 "gap": "Знайти сучасне Теслі свідчення.",
                 "question_ids": ["question_origin"],
             },
@@ -290,8 +318,14 @@ def test_research_atlas_is_traceable_script_free_and_get_only(tmp_path: Path) ->
     )
     with TestClient(app) as client:
         overview = client.get("/")
-        question = client.get("/?view=questions&selected=question_origin&evidence=evidence_letter")
-        hypothesis = client.get("/?view=hypotheses&selected=hypothesis_visual")
+        question = client.get(
+            "/?view=questions&selected=question_origin"
+            "&span=trace_question_method&evidence=evidence_letter"
+        )
+        hypothesis = client.get(
+            "/?view=hypotheses&selected=hypothesis_visual"
+            "&span=trace_hypothesis_synthesis&evidence=evidence_study"
+        )
         timeline = client.get("/?view=timeline&selected=event_publication")
         gaps = client.get("/?view=gaps")
         sources = client.get("/?view=sources&selected=source_study")
@@ -304,14 +338,21 @@ def test_research_atlas_is_traceable_script_free_and_get_only(tmp_path: Path) ->
     assert "<script" not in overview.text.casefold()
     assert "<form" not in overview.text.casefold()
     assert "Ключові питання" in overview.text
-    assert "Він пов’язував його з уявним випробуванням машин." in question.text
+    assert "пов’язував його з уявним випробуванням машин" in question.text
     assert '<strong class="source-chip-title">My Inventions</strong>' in question.text
     assert '<small class="source-chip-attribution">Nikola Tesla · 1919</small>' in question.text
+    assert 'class="traceable-span trace-fact is-selected"' in question.text
+    assert "Кольоровий текст має точний маршрут до джерела." in question.text
+    assert "перевірюване твердження" in question.text
+    assert 'class="source-chip role-supports is-active"' in question.text
     assert "Nikola Tesla · My Inventions · 1919 · chapter 1, paragraph 3" not in question.text
     assert "The first-person passage." in question.text
     assert "Ретроспективна" not in question.text
     assert "Retrospective memory is not an independent chronology." in question.text
     assert "Як пов’язані інтерпретації" in hypothesis.text
+    assert 'class="traceable-span trace-synthesis is-selected"' in hypothesis.text
+    assert "синтез джерел" in hypothesis.text
+    assert 'class="source-chip role-qualifies is-active"' in hypothesis.text
     assert "Пізній жанр обмежує буквальне читання." in hypothesis.text
     assert "Хронологія як маршрут до доказів" in timeline.text
     timeline_source_chip = timeline.text.split('class="source-chip ', maxsplit=1)[1].split(
@@ -474,6 +515,7 @@ def test_atlas_selection_falls_back_without_disclosing_files(tmp_path: Path) -> 
     with TestClient(app) as client:
         page = client.get("/?view=sources&selected=source_missing&evidence=evidence_missing")
         invalid = client.get("/?view=technical")
+        invalid_span = client.get("/?view=questions&selected=question_origin&span=trace_missing")
         wrong_host = client.get("/", headers={"host": "example.org"})
 
     assert page.status_code == 200
@@ -481,6 +523,7 @@ def test_atlas_selection_falls_back_without_disclosing_files(tmp_path: Path) -> 
     assert "artifacts/tesla.md" in page.text
     assert "file://" not in page.text
     assert invalid.status_code == 422
+    assert invalid_span.status_code == 404
     assert wrong_host.status_code == 400
 
 
@@ -636,7 +679,7 @@ def test_atlas_artifact_viewer_handles_binary_type_size_and_encoding(
         ),
         (
             lambda payload: payload["questions"][0].update(evidence_ids=["evidence_missing"]),
-            "question evidence",
+            "question.*evidence",
         ),
         (
             lambda payload: payload["relations"][0].update(
@@ -656,6 +699,31 @@ def test_manifest_rejects_broken_contracts(
     path = _manifest(tmp_path, payload)
     with pytest.raises(ValidationError, match=message):
         load_research_atlas(path)
+
+
+def test_manifest_rejects_invalid_trace_spans(tmp_path: Path) -> None:
+    payload = deepcopy(_payload())
+    payload["questions"][0]["trace_spans"][0]["text"] = "wrong displayed text"  # type: ignore[index]
+    payload["questions"][0]["trace_spans"][0]["end"] = 24  # type: ignore[index]
+    with pytest.raises(ValidationError, match="exact displayed text"):
+        load_research_atlas(_manifest(tmp_path, payload))
+
+    payload = deepcopy(_payload())
+    first_span = payload["hypotheses"][0]["trace_spans"][0]  # type: ignore[index]
+    second_span = payload["hypotheses"][0]["trace_spans"][1]  # type: ignore[index]
+    second_span["start"] = first_span["start"]
+    second_span["end"] = first_span["end"]
+    second_span["text"] = first_span["text"]
+    with pytest.raises(ValidationError, match="ordered and non-overlapping"):
+        load_research_atlas(_manifest(tmp_path, payload))
+
+    payload = deepcopy(_payload())
+    payload["questions"][0]["trace_spans"][0]["evidence_ids"] = [  # type: ignore[index]
+        "evidence_study"
+    ]
+    payload["questions"][0]["evidence_ids"] = ["evidence_letter"]  # type: ignore[index]
+    with pytest.raises(ValidationError, match="references missing IDs"):
+        load_research_atlas(_manifest(tmp_path, payload))
 
 
 def test_manifest_rejects_unsafe_source_addresses_and_self_relations(tmp_path: Path) -> None:

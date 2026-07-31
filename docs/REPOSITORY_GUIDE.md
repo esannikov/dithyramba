@@ -46,7 +46,7 @@ all-knowing service.
 | `ingest`, `provenance`, `contracts` | Read-only source intake, exact addresses, hashes, receipts, and canonical serialization |
 | `store`, `persistence`, `backup` | SQLite schema, repositories, immutable records, backup, restore, and migration |
 | `recall`, `evidence`, `answers` | Candidate discovery, replayable packets, explicit evidence coverage, and answer validation |
-| `reasoning` | Experimental public IdeaTrace contracts and deterministic evidence closure; no trace generation or automatic promotion |
+| `reasoning`, `answers` | Public IdeaTrace and proposition-level answer contracts, deterministic closure/coverage, and no automatic promotion |
 | `ontology` | Experimental scoped candidate concepts, exact evidence closure, and co-occurrence links |
 | `meaning`, `relations`, `structure`, `research` | Typed interpretive objects and source-bound research structures |
 | `review` | Append-only human acceptance, revision, rejection, and deferral |
@@ -99,6 +99,7 @@ contracts and design decisions inspectable:
 | [AnswerCoverageGate](ANSWER_COVERAGE_GATE.md) | Did a proposed answer use every required accepted facet? |
 | [Compact research memory](COMPACT_RESEARCH_MEMORY.md) | How are small source-closed packets routed and validated? |
 | [Research View](RESEARCH_PROJECTION.md) | How can wider candidate material remain visible without becoming accepted evidence? |
+| [Mars IdeaTrace-24](MARS_IDEATRACE_24.md) | What did the first frozen multi-source reasoning diagnostic test, improve, and leave unresolved? |
 
 ## Maintenance rule
 

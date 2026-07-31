@@ -80,9 +80,14 @@ Schema v11 adds two append-only SQLite tables:
 - `reasoning_closure_results` stores its canonical deterministic closure
   receipt.
 
-No graph database, vector database, or hidden transcript is added. A graph view
-can be rebuilt from the at-most-32 explicit steps. The original source chain
-remains in the existing packet, case-set, and judgment artifacts.
+Schema v12 adds two more append-only tables:
+
+- `answer_projections` stores the exact role-labelled final prose;
+- `answer_projection_receipts` stores the bound semantic-role judgment.
+
+No graph database, vector database, or hidden transcript is added. Graph and
+Lens views can be rebuilt from the bounded public artifacts. The original
+source chain remains in the existing packet, case-set, and judgment artifacts.
 
 ## Verify an artifact
 
@@ -98,11 +103,28 @@ The command is provider-free and returns a canonical
 `dithyramba.reasoning_closure/1.0` receipt. It exits non-zero when closure fails
 or needs review.
 
+## Lens trace spans
+
+Research Atlas can attach sparse `AtlasTraceSpan` records to the exact text of
+a question answer or hypothesis synthesis. Only the bound characters receive
+an epistemic underline. Clicking a traceable phrase activates its evidence
+chips and opens the exact source passage. Unbound connective prose stays plain,
+making the difference between source-traceable language and framing visible.
+
+These view spans reuse Atlas evidence IDs; they do not create new evidence and
+cannot point outside the parent answer or hypothesis evidence set.
+
 ## Current limit
 
-The release implements contracts, validation, replay, persistence, corruption
-checks, and a CLI verifier for IdeaTrace. `AnswerProjection` and
-`PropositionCoverageGate` are currently typed, tested in-memory contracts. They
-are not yet persisted, exposed through CLI/HTTP, automatically generated, or
-connected to a human acceptance workflow. Those surfaces remain separate so a
-convenient synthesis cannot grant itself authority.
+The release implements contracts, validation, replay, append-only persistence,
+corruption checks, and a CLI verifier for IdeaTrace. `AnswerProjection` and its
+semantic receipt are now durable schema-v12 records, while
+`PropositionCoverageGate` remains a deterministic rebuildable result. Automatic
+generation, public CLI/HTTP authoring, and human acceptance are not included.
+Those surfaces remain separate so a convenient synthesis cannot grant itself
+authority.
+
+The [Mars IdeaTrace-24 evaluation](MARS_IDEATRACE_24.md) is the first
+corpus-scale diagnostic of this layer. It used frozen evidence packets and a
+model judge, so it demonstrates repair behaviour and failure modes rather than
+independent scientific validity.

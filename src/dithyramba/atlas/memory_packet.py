@@ -236,6 +236,10 @@ class CompactMemoryPacket(_PacketModel):
     def validate_packet(self) -> Self:
         if self.schema_id != self.SCHEMA:
             raise ValueError(f"schema_id must be {self.SCHEMA}")
+        if any(item.trace_spans for item in self.questions) or any(
+            item.trace_spans for item in self.hypotheses
+        ):
+            raise ValueError("compact packet schemas 1.0 and 1.1 cannot carry Atlas trace spans")
         payload = self.semantic_payload()
         if self.packet_id != canonical_content_id("memory_packet", payload):
             raise ValueError("packet_id does not match the canonical packet content")
@@ -304,8 +308,12 @@ class CompactMemoryPacket(_PacketModel):
             "route_matches": [item.model_dump(mode="json") for item in self.route_matches],
             "sources": [item.model_dump(mode="json") for item in self.sources],
             "evidence": [item.model_dump(mode="json") for item in self.evidence],
-            "questions": [item.model_dump(mode="json") for item in self.questions],
-            "hypotheses": [item.model_dump(mode="json") for item in self.hypotheses],
+            "questions": [
+                item.model_dump(mode="json", exclude={"trace_spans"}) for item in self.questions
+            ],
+            "hypotheses": [
+                item.model_dump(mode="json", exclude={"trace_spans"}) for item in self.hypotheses
+            ],
             "relations": [item.model_dump(mode="json") for item in self.relations],
             "timeline": [item.model_dump(mode="json") for item in self.timeline],
             "gaps": [item.model_dump(mode="json") for item in self.gaps],
@@ -695,6 +703,8 @@ class TaskRouter:
         gaps: tuple[AtlasGap, ...] = (),
         relations: tuple[AtlasRelation, ...] = (),
     ) -> CompactMemoryPacket:
+        questions = tuple(item.model_copy(update={"trace_spans": ()}) for item in questions)
+        hypotheses = tuple(item.model_copy(update={"trace_spans": ()}) for item in hypotheses)
         evidence_ids: set[str] = set()
         for question in questions:
             evidence_ids.update(question.evidence_ids)
@@ -723,8 +733,12 @@ class TaskRouter:
             "route_matches": [item.model_dump(mode="json") for item in route_matches],
             "sources": [item.model_dump(mode="json") for item in sources],
             "evidence": [item.model_dump(mode="json") for item in evidence],
-            "questions": [item.model_dump(mode="json") for item in questions],
-            "hypotheses": [item.model_dump(mode="json") for item in hypotheses],
+            "questions": [
+                item.model_dump(mode="json", exclude={"trace_spans"}) for item in questions
+            ],
+            "hypotheses": [
+                item.model_dump(mode="json", exclude={"trace_spans"}) for item in hypotheses
+            ],
             "relations": [item.model_dump(mode="json") for item in relations],
             "timeline": [item.model_dump(mode="json") for item in timeline],
             "gaps": [item.model_dump(mode="json") for item in gaps],
@@ -763,6 +777,8 @@ class TaskRouter:
         hypotheses = tuple(
             selection.hypothesis_by_id[item_id] for item_id in selection.hypothesis_order
         )
+        questions = tuple(item.model_copy(update={"trace_spans": ()}) for item in questions)
+        hypotheses = tuple(item.model_copy(update={"trace_spans": ()}) for item in hypotheses)
         relations = tuple(selection.relation_by_id[item_id] for item_id in selection.relation_order)
         timeline = tuple(selection.event_by_id[item_id] for item_id in selection.event_order)
         gaps = tuple(selection.gap_by_id[item_id] for item_id in selection.gap_order)
@@ -784,8 +800,12 @@ class TaskRouter:
             "route_matches": [],
             "sources": [item.model_dump(mode="json") for item in sources],
             "evidence": [item.model_dump(mode="json") for item in evidence],
-            "questions": [item.model_dump(mode="json") for item in questions],
-            "hypotheses": [item.model_dump(mode="json") for item in hypotheses],
+            "questions": [
+                item.model_dump(mode="json", exclude={"trace_spans"}) for item in questions
+            ],
+            "hypotheses": [
+                item.model_dump(mode="json", exclude={"trace_spans"}) for item in hypotheses
+            ],
             "relations": [item.model_dump(mode="json") for item in relations],
             "timeline": [item.model_dump(mode="json") for item in timeline],
             "gaps": [item.model_dump(mode="json") for item in gaps],

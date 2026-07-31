@@ -73,10 +73,10 @@ def test_v10_migration_copies_are_identical_and_fresh_schema_is_head(tmp_path: P
     root = _ROOT / "migrations/0010_corpus_read_sets.sql"
     packaged = _ROOT / "src/dithyramba/store/sql/0010_corpus_read_sets.sql"
     assert root.read_bytes() == packaged.read_bytes()
-    assert discover_migrations(_ROOT / "migrations")[-1].version == 11
+    assert discover_migrations(_ROOT / "migrations")[-1].version == 12
 
     with Store.open(tmp_path / "fresh.sqlite3") as store:
-        assert store.schema_version == 11
+        assert store.schema_version == 12
         tables = {
             str(row[0])
             for row in store.connection.execute(
@@ -441,11 +441,17 @@ def test_v9_legacy_packet_migrates_and_replays_without_backfill(tmp_path: Path) 
         connection.execute("DROP TRIGGER idea_traces_no_delete")
         connection.execute("DROP TRIGGER idea_traces_no_update")
         connection.execute("DROP TABLE idea_traces")
+        connection.execute("DROP TRIGGER answer_projection_receipts_no_delete")
+        connection.execute("DROP TRIGGER answer_projection_receipts_no_update")
+        connection.execute("DROP TABLE answer_projection_receipts")
+        connection.execute("DROP TRIGGER answer_projections_no_delete")
+        connection.execute("DROP TRIGGER answer_projections_no_update")
+        connection.execute("DROP TABLE answer_projections")
         connection.execute("DROP TABLE read_receipt_corpus_sets")
         connection.execute("DROP TABLE corpus_read_set_items")
         connection.execute("DROP TABLE corpus_read_sets")
         connection.execute("DROP TRIGGER schema_migrations_no_delete")
-        connection.execute("DELETE FROM schema_migrations WHERE version IN (10, 11)")
+        connection.execute("DELETE FROM schema_migrations WHERE version IN (10, 11, 12)")
         connection.execute(
             "CREATE TRIGGER schema_migrations_no_delete BEFORE DELETE ON "
             "schema_migrations BEGIN SELECT RAISE(ABORT, "
@@ -461,8 +467,8 @@ def test_v9_legacy_packet_migrates_and_replays_without_backfill(tmp_path: Path) 
         applied = MigrationRunner(connection, _ROOT / "migrations").apply_all(
             backup_hook=lambda _connection, migration: backed_up.append(migration.version)
         )
-        assert [item.version for item in applied] == [10, 11]
-        assert backed_up == [10, 11]
+        assert [item.version for item in applied] == [10, 11, 12]
+        assert backed_up == [10, 11, 12]
         assert _table_count(connection, "corpus_read_sets") == 0
 
         loaded = context.backend.load_evidence_packet(packet.evidence_packet_id)

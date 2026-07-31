@@ -251,8 +251,8 @@ code {
 .projection-status {
   max-width: 84ch;
   margin-top: var(--space-4);
-  padding-left: var(--space-4);
-  border-left: 3px solid var(--teal);
+  padding-top: var(--space-3);
+  border-top: 0.0625rem solid var(--line);
   color: var(--ink-soft);
 }
 .atlas-metrics {
@@ -335,6 +335,56 @@ code {
   font-size: 1.08rem;
   line-height: 1.55;
 }
+.traceable-text { white-space: pre-wrap; }
+.traceable-span {
+  padding: 0.04em 0.08em 0.08em;
+  border-radius: 0.18em;
+  color: var(--ink);
+  font: inherit;
+  text-decoration-line: underline;
+  text-decoration-color: color-mix(in srgb, var(--teal) 58%, transparent);
+  text-decoration-thickness: 0.14em;
+  text-underline-offset: 0.13em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.traceable-span:hover {
+  color: var(--ink);
+  background: var(--surface-teal);
+  text-decoration-color: var(--teal);
+}
+.traceable-span.trace-synthesis {
+  text-decoration-color: color-mix(in srgb, var(--violet) 66%, transparent);
+}
+.traceable-span.trace-synthesis:hover { background: var(--surface-violet); }
+.traceable-span.trace-hypothesis {
+  text-decoration-color: color-mix(in srgb, var(--amber) 72%, transparent);
+}
+.traceable-span.trace-hypothesis:hover { background: #fbf0d9; }
+.traceable-span.trace-question {
+  text-decoration-color: color-mix(in srgb, var(--blue) 64%, transparent);
+}
+.traceable-span.trace-question:hover { background: var(--surface-blue); }
+.traceable-span.is-selected {
+  background: #ffe7a8;
+  color: var(--ink);
+  outline: 0.12rem solid var(--amber);
+  outline-offset: 0.08rem;
+  text-decoration-color: transparent;
+}
+.trace-hint {
+  display: block;
+  margin-block-start: var(--space-3);
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+  font-weight: 650;
+}
+.hypothesis-synthesis {
+  max-width: 70ch;
+  font-family: Charter, "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  font-size: 1.05rem;
+  line-height: 1.55;
+}
 .gap-note,
 .next-evidence,
 .counter-evidence {
@@ -415,6 +465,12 @@ code {
 .source-chip.role-qualifies .source-chip-role { background: var(--surface-violet); color: #5a3a88; }
 .source-chip.role-context { border-color: color-mix(in srgb, var(--amber) 45%, var(--line)); background: #fdf9f0; }
 .source-chip.role-context .source-chip-role { background: #fbf0d9; color: #714708; }
+.source-chip.is-active {
+  border-color: var(--amber);
+  background: #fff1cd;
+  box-shadow: 0 0.18rem 0.55rem color-mix(in srgb, var(--amber) 18%, transparent);
+}
+.source-chip.is-active .source-chip-title { color: #6c4208; }
 
 .hypothesis-graph {
   display: grid;
@@ -751,6 +807,29 @@ code {
 .inspector-badges span:nth-child(2) { border-color: var(--blue); background: var(--surface-blue); color: #244b75; }
 .inspector-badges span:nth-child(3) { border-color: var(--violet); background: var(--surface-violet); color: #5a3a88; }
 .source-attribution { color: var(--ink-soft); }
+.selected-passage {
+  margin-block-end: var(--space-6);
+  padding: var(--space-4);
+  border: 0.0625rem solid color-mix(in srgb, var(--amber) 55%, var(--line));
+  border-radius: var(--radius-md);
+  background: #fff3d7;
+}
+.selected-passage > p {
+  margin-block-end: var(--space-2);
+  color: #714708;
+  font-size: 0.75rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.selected-passage blockquote {
+  margin: 0 0 var(--space-2);
+  color: var(--ink);
+  font-family: Charter, "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  font-size: 1.05rem;
+  line-height: 1.5;
+}
+.selected-passage small { color: var(--ink-soft); font-size: 0.8125rem; }
 .locator-block,
 .excerpt-block,
 .assertion-block,

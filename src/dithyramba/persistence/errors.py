@@ -55,6 +55,14 @@ class RecallArtifactNotFoundError(PersistenceError):
     """A required immutable recall artifact is absent from the database."""
 
 
+class AnswerProjectionNotFoundError(PersistenceError):
+    """A proposition projection or its judgment receipt does not exist."""
+
+
+class AnswerProjectionPersistenceError(PersistenceError):
+    """A proposition projection cannot be stored or reopened exactly."""
+
+
 class PersistenceConflictError(PersistenceError):
     """An insert-only repository write conflicts with existing state."""
 

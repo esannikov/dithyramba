@@ -135,6 +135,19 @@ Research Atlas navigation uses these stable human routes:
 - What else does the memory contain, and what deserves review next?
 - What is the evidence passport and how should this source be read?
 
+Within an answer or hypothesis, use role colour only for exact stored trace
+spans:
+
+- fact — teal underline;
+- synthesis — violet underline;
+- hypothesis — amber underline;
+- research question — blue underline;
+- currently selected span — warm gold field plus the active source chip.
+
+The trace decoration must remain sparse. Unbound connective prose keeps normal
+ink, and colour never substitutes for the visible source title, asserting
+voice, evidence role, limitation, and exact passage.
+
 Ukrainian UI translations should remain plain and consistent. Schema identifiers
 appear as supporting metadata, not as the primary label. Never show a generic
 `Error 403`; explain that the selected scope does not permit the requested view.
