@@ -1,13 +1,15 @@
 # Interactive research memory 0.2
 
-Status: Session Spine, durable store, and least-context agent transport implemented locally
+Status: Session Spine, durable store, scoped cache, least-context agent
+transport, stdio MCP, and GET-only Session Lens implemented locally
 
 Base: `0.1.0rc1` plus the proposition-level answer work in PR #5
 
 Implemented slices: session contracts, deterministic replay, SQLite persistence,
-idempotent recall commands, and compact evidence projection
+idempotent recall commands, compact evidence projection, reusable process-local
+scope cache, stdio MCP lifecycle/tools, and human journal projection
 
-Verification: 2,614 tests passed, 2 host/browser tests skipped, branch-aware
+Verification: 2,627 tests passed, 2 host/browser tests skipped, branch-aware
 coverage 95.03%, Ruff and strict MyPy passed, with no new runtime dependency
 
 ## Product objective
@@ -107,9 +109,9 @@ It may not:
 - create a human review decision;
 - rewrite or delete a session event.
 
-Human promotion continues through the existing review contracts. The future MCP
-adapter will be a thin transport over the same Python services and will not own
-business logic.
+Human promotion continues through the existing review contracts. The MCP
+adapter is a thin transport over the same Python services and owns no business
+logic.
 
 The implemented `AgentResearchFacade` exposes only bounded research actions. A
 turn returns two different objects: a compact `AgentSessionContext` containing
@@ -129,6 +131,24 @@ without a second FTS run or journal event. A retry after interruption resumes
 from the one durable question, while reuse of the command ID for different input
 fails closed. These receipts reuse the existing append-only outbox, so no third
 editable session store or schema migration is introduced.
+
+The first question in a live process opens an exact `RecallScopeSession`. It
+reuses the already-authorized fragment set and one in-memory SQLite FTS index
+for later questions in the same session scope. The cache is bounded, LRU-evicted,
+explicitly closable, and never serialized. Every recall still writes its normal
+durable request, run, receipt, packet, and journal events. A restart rebuilds the
+cache rather than trusting stale ranking state.
+
+The stdio MCP server implements the standard initialization lifecycle and six
+bounded tools over `AgentResearchFacade`: open, recall, context, draft, gap, and
+rejected path. Standard output is reserved for newline-delimited JSON-RPC;
+diagnostics go to standard error. Human acceptance, decisions, promotion, and
+session closure remain absent.
+
+Session Lens is a GET-only projection of one durable session. It displays the
+operator brief, chronological journal, exact source titles and passages, drafts,
+gaps, and rejected routes. Internal artifact IDs are available only in expanded
+technical details. Selecting evidence is inspectable but never marks it accepted.
 
 ## Failure semantics
 
@@ -173,13 +193,13 @@ is caught before or during the transaction rather than trusted to one boundary.
 
 ## Explicitly outside the implemented contour
 
-- MCP and HTTP routes;
 - automatic capture of arbitrary chat transcripts;
 - automatic candidate promotion;
 - global ontology generation;
 - background web research;
 - embeddings, a vector database, or a graph database;
-- a redesigned Lens interface.
+- session-aware human acceptance or closure inside Lens;
+- remote HTTP MCP or multi-user synchronization.
 
-These are staged only after the Session Spine is stable. This prevents transport,
-UI, and orchestration concerns from becoming part of the memory core.
+These are staged only after the implemented local contour is stable. This keeps
+transport, UI, and orchestration concerns outside the memory core.

@@ -214,15 +214,53 @@ closed. Conversation events can explain why a path was tried, rejected, or left
 open, but they cannot support a claim unless they link to an existing exact
 evidence artifact.
 
-The Session Spine, durable SQLite store, and least-context Python facade are
-implemented locally. Migration
+The Session Spine, durable SQLite store, least-context Python facade, thin stdio
+MCP transport, and GET-only Session Lens are implemented locally. Migration
 0013 persists the immutable session receipt and typed hash-chained events,
 validates exact artifact closure, and rebuilds compact state after a cold reopen.
-The facade returns compact journal state separately from the current exact
-EvidencePacket and does not expose acceptance, operator decisions, or closure.
-MCP transport and Lens controls are later 0.2 stages. See
+The facade and MCP return compact journal state separately from the current
+exact evidence projection and do not expose acceptance, operator decisions, or
+closure. Session Lens renders the brief, chronological journal, gaps, drafts,
+rejected paths, and exact packet-backed passages without becoming another truth
+store. See
 [the 0.2 specification](INTERACTIVE_RESEARCH_MEMORY_SPEC.md) and
 [roadmap](ROADMAP_0.2.md).
+
+### Ephemeral session recall cache
+
+The first recall in one process builds a `RecallScopeSession` from the exact
+Library, snapshot, policy, purpose, Collections, and exclusions. It owns the
+already-authorized read-set and one in-memory SQLite FTS5 index. Later questions
+in that same scope query the existing index instead of reading and indexing the
+corpus again.
+
+The cache is an expendable capability, not durable memory:
+
+- it is process-local, bounded by an LRU capacity, and explicitly closable;
+- scope drift, snapshot drift, service substitution, or reuse after close fails
+  before a new run is written;
+- it stores no new source authority or ranking truth;
+- every question still receives an independent `QueryRequest`, ProcessingRun,
+  `ReadReceipt`, `EvidencePacket`, and session event;
+- a restart simply rebuilds it from the immutable source and policy record.
+
+The Mars multi-session screen measured a 23.85% mean warm-turn reduction on
+53,747 normalized fragments. The remaining time is dominated by assembling and
+transactionally storing the full audit packet, so the cache is not described as
+instant query response.
+
+### Agent and human adapters
+
+```text
+Python AgentResearchFacade
+  ├─ stdio MCP: agent tools; JSON-RPC protocol on stdout, logs on stderr
+  └─ Session Lens: GET-only human projection; no mutation or acceptance route
+```
+
+The MCP server implements protocol lifecycle, `tools/list`, and `tools/call`
+without duplicating research logic. It exposes `open_session`, `recall`,
+`session_context`, `record_draft`, `record_gap`, and `reject_path`. It does not
+expose candidate acceptance, human decisions, promotion, or closure.
 
 ## Storage model
 
@@ -231,7 +269,8 @@ MCP transport and Lens controls are later 0.2 stages. See
 | source versions, fragments, identities, policies, snapshots, shared read sets, packets, reviews | SQLite plus content-addressed blobs | durable record |
 | IdeaTrace candidates, answer projections, and their closure/judgment receipts | append-only canonical JSON in SQLite | durable candidate/audit record; not accepted truth |
 | research sessions and hash-chained events | append-only canonical JSON plus relational bindings in SQLite | durable research journal; chat and drafts remain non-evidence |
-| FTS index | SQLite FTS5 | rebuildable discovery index |
+| session authorized read-set and FTS index | process-local memory plus SQLite FTS5 | rebuildable scoped discovery capability; destroyed on close or eviction |
+| one-shot FTS index | SQLite FTS5 | rebuildable discovery index |
 | semantic vectors and reranker caches | optional local model data | rebuildable discovery aid |
 | graph and Atlas projections | versioned derived artifacts | navigational view |
 | original corpus | operator-owned files | read-only input |

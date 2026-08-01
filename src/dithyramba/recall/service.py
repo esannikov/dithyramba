@@ -23,7 +23,7 @@ from dithyramba.access import (
     PublicAccessResult,
     RequestScope,
 )
-from dithyramba.contracts import canonical_json_bytes, canonical_sha256_hex, new_id
+from dithyramba.contracts import canonical_json_bytes, canonical_sha256_hex, new_id, sha256_hex
 from dithyramba.persistence.errors import ProcessingRunNotFoundError
 from dithyramba.persistence.models import AuthorizedRead, SourceFragmentText
 from dithyramba.provenance import ProcessingRunRecord, ProcessingRunStatus
@@ -121,6 +121,85 @@ class RecallResult:
     @property
     def succeeded(self) -> bool:
         return self.run.status is ProcessingRunStatus.SUCCEEDED
+
+
+@dataclass(frozen=True, slots=True)
+class RecallScopeSessionStats:
+    """Non-canonical runtime observations for one ephemeral recall session."""
+
+    permitted_fragment_count: int
+    index_build_count: int
+    search_count: int
+
+
+class RecallScopeSession:
+    """Ephemeral authorized read-set and FTS index bound to one exact scope.
+
+    The capability is deliberately process-local and rebuildable.  It does not
+    persist source text or ranking state, and every recall performed through it
+    still writes the ordinary QueryRequest, ProcessingRun, receipts and
+    EvidencePacket.  Closing the capability destroys its in-memory SQLite
+    connection.
+    """
+
+    def __init__(
+        self,
+        *,
+        owner: RecallService,
+        scope_bytes: bytes,
+        snapshot: CorpusSnapshot,
+        prepared: _PreparedRecallCorpus,
+        fts_session: PermittedFtsSession,
+    ) -> None:
+        self._owner = owner
+        self._scope_bytes = scope_bytes
+        self._snapshot = snapshot
+        self._prepared = prepared
+        self._fts_session = fts_session
+        self._search_count = 0
+
+    @property
+    def closed(self) -> bool:
+        return self._fts_session.closed
+
+    @property
+    def scope_hash(self) -> str:
+        return sha256_hex(self._scope_bytes)
+
+    @property
+    def stats(self) -> RecallScopeSessionStats:
+        return RecallScopeSessionStats(
+            permitted_fragment_count=len(self._prepared.fts_fragments),
+            index_build_count=1,
+            search_count=self._search_count,
+        )
+
+    def __enter__(self) -> RecallScopeSession:
+        if self.closed:
+            raise RecallRequestError("closed RecallScopeSession cannot be reopened")
+        return self
+
+    def __exit__(self, *_exc_info: object) -> None:
+        self.close()
+
+    def close(self) -> None:
+        self._fts_session.close()
+
+    def _require_request(self, owner: RecallService, request: QueryRequest) -> None:
+        if owner is not self._owner:
+            raise RecallRequestError("RecallScopeSession belongs to a different RecallService")
+        if self.closed:
+            raise RecallRequestError("RecallScopeSession is closed")
+        if _session_scope_bytes(request) != self._scope_bytes:
+            raise RecallRequestError("QueryRequest differs from the RecallScopeSession scope")
+
+    def _search(self, request: QueryRequest) -> FtsSearchResult:
+        result = self._fts_session.search(
+            question=request.question,
+            max_candidates=request.retrieval.max_candidates,
+        )
+        self._search_count += 1
+        return result
 
 
 @dataclass(slots=True)
@@ -267,6 +346,70 @@ class RecallService:
             request=canonical_request,
             snapshot=snapshot,
             expected_packet=None,
+        )
+
+    def open_scope_session(self, request: QueryRequest) -> RecallScopeSession:
+        """Build one reusable, process-local index for an exact authorized scope."""
+
+        if self._fts_search is not search_ephemeral_fts:
+            raise RecallDependencyMismatchError(
+                "scope sessions require the canonical reusable FTS dependency"
+            )
+        canonical_request = _validated_request(request)
+        snapshot = self._load_and_validate_snapshot(canonical_request)
+        try:
+            prepared = self._prepare_recall_corpus(
+                request=canonical_request,
+                snapshot=snapshot,
+            )
+            fts_session = PermittedFtsSession(fragments=prepared.fts_fragments)
+        except RecallError:
+            raise
+        except Exception as error:
+            raise RecallExecutionError("RecallScopeSession could not be built") from error
+        if fts_session.profile.profile_version != self._profile_version:
+            fts_session.close()
+            raise RecallDependencyMismatchError(
+                "scope-session FTS runtime differs from the service profile"
+            )
+        return RecallScopeSession(
+            owner=self,
+            scope_bytes=_session_scope_bytes(canonical_request),
+            snapshot=snapshot,
+            prepared=prepared,
+            fts_session=fts_session,
+        )
+
+    def recall_in_session(
+        self,
+        request: QueryRequest,
+        scope_session: RecallScopeSession,
+    ) -> RecallResult:
+        """Run one ordinary durable recall through a reusable scope session."""
+
+        canonical_request = _validated_request(request)
+        if type(scope_session) is not RecallScopeSession:
+            raise RecallRequestError("recall_in_session requires an exact RecallScopeSession")
+        scope_session._require_request(self, canonical_request)
+        snapshot = self._load_and_validate_snapshot(canonical_request)
+        if snapshot != scope_session._snapshot:
+            raise RecallSnapshotError("RecallScopeSession snapshot differs from QueryRequest")
+        try:
+            self._backend.persist_query_request(canonical_request)
+            persisted = self._backend.load_query_request(canonical_request.query_request_id)
+            _require_same_request(persisted, canonical_request)
+        except RecallPersistenceError:
+            raise
+        except Exception as error:
+            raise RecallPersistenceError(
+                "QueryRequest could not be persisted and reloaded"
+            ) from error
+        return self._execute(
+            kind="recall",
+            request=canonical_request,
+            snapshot=snapshot,
+            expected_packet=None,
+            scope_session=scope_session,
         )
 
     def recall_batch(self, requests: tuple[QueryRequest, ...]) -> tuple[RecallResult, ...]:
@@ -505,6 +648,7 @@ class RecallService:
         request: QueryRequest,
         snapshot: CorpusSnapshot,
         expected_packet: EvidencePacket | None,
+        scope_session: RecallScopeSession | None = None,
     ) -> RecallResult:
         lifecycle = _RecallLifecycle(
             processing_run_id=new_id("run"),
@@ -518,7 +662,11 @@ class RecallService:
                     request=request,
                 )
                 lifecycle.started = started
-                lifecycle.packet = self._build_packet(request=request, snapshot=snapshot)
+                lifecycle.packet = self._build_packet(
+                    request=request,
+                    snapshot=snapshot,
+                    scope_session=scope_session,
+                )
                 packet = lifecycle.packet
                 if expected_packet is not None and (
                     packet.packet_hash != expected_packet.packet_hash
@@ -600,13 +748,21 @@ class RecallService:
         *,
         request: QueryRequest,
         snapshot: CorpusSnapshot,
+        scope_session: RecallScopeSession | None = None,
     ) -> EvidencePacket:
-        prepared = self._prepare_recall_corpus(request=request, snapshot=snapshot)
-        result = self._fts_search(
-            question=request.question,
-            fragments=prepared.fts_fragments,
-            max_candidates=request.retrieval.max_candidates,
-        )
+        if scope_session is None:
+            prepared = self._prepare_recall_corpus(request=request, snapshot=snapshot)
+            result = self._fts_search(
+                question=request.question,
+                fragments=prepared.fts_fragments,
+                max_candidates=request.retrieval.max_candidates,
+            )
+        else:
+            scope_session._require_request(self, request)
+            if snapshot != scope_session._snapshot:
+                raise RecallSnapshotError("RecallScopeSession snapshot differs from QueryRequest")
+            prepared = scope_session._prepared
+            result = scope_session._search(request)
         result = _validated_fts_result(
             result,
             fragments=prepared.fts_fragments,
@@ -1025,6 +1181,23 @@ def _batch_scope_bytes(request: QueryRequest) -> bytes:
             "purpose": request.purpose,
             "exclusions": request.exclusions.payload(),
             "retrieval": request.retrieval.payload(),
+            "result_contract": request.result_contract.payload(),
+        }
+    )
+
+
+def _session_scope_bytes(request: QueryRequest) -> bytes:
+    """Hash domain for reusable authorized text; retrieval budgets stay per query."""
+
+    return canonical_json_bytes(
+        {
+            "schema": "dithyramba.recall_scope_session/1.0",
+            "library_id": request.library_id,
+            "collection_ids": list(request.collection_ids),
+            "corpus_snapshot_id": request.corpus_snapshot_id,
+            "access_policy_id": request.access_policy_id,
+            "purpose": request.purpose,
+            "exclusions": request.exclusions.payload(),
             "result_contract": request.result_contract.payload(),
         }
     )

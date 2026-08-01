@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import OrderedDict
 from collections.abc import Callable
 from datetime import UTC, datetime
 
@@ -13,7 +14,13 @@ from dithyramba.persistence import (
 )
 from dithyramba.persistence.recall import SQLiteRecallBackend
 from dithyramba.persistence.sessions import RecallCommandCompletion
-from dithyramba.recall import QueryRequest, RecallService, RetrievalBudget
+from dithyramba.recall import (
+    QueryRequest,
+    RecallScopeSession,
+    RecallScopeSessionStats,
+    RecallService,
+    RetrievalBudget,
+)
 from dithyramba.sessions import (
     ResearchSession,
     ResearchSessionBrief,
@@ -47,11 +54,14 @@ class AgentResearchFacade:
         profile_version: str,
         clock: _Clock | None = None,
         context_budget: SessionContextBudget | None = None,
+        scope_session_capacity: int = 4,
     ) -> None:
         if not isinstance(repository, LibraryRepository):
             raise TypeError("AgentResearchFacade requires a LibraryRepository")
         if not agent_id:
             raise AgentResearchError("agent_id must be nonblank")
+        if type(scope_session_capacity) is not int or not 1 <= scope_session_capacity <= 32:
+            raise AgentResearchError("scope_session_capacity must be an integer from 1 to 32")
         self._repository = repository
         self._agent_id = agent_id
         self._clock = clock or (lambda: datetime.now(UTC))
@@ -63,6 +73,27 @@ class AgentResearchFacade:
             self._recall_backend,
             profile_version=profile_version,
         )
+        self._scope_session_capacity = scope_session_capacity
+        self._scope_sessions: OrderedDict[str, RecallScopeSession] = OrderedDict()
+
+    def __enter__(self) -> AgentResearchFacade:
+        return self
+
+    def __exit__(self, *_exc_info: object) -> None:
+        self.close_scope_sessions()
+
+    def close_scope_sessions(self) -> None:
+        """Destroy every process-local authorized FTS capability."""
+
+        while self._scope_sessions:
+            _session_id, scope_session = self._scope_sessions.popitem(last=False)
+            scope_session.close()
+
+    def cache_stats(self, session_id: str) -> RecallScopeSessionStats | None:
+        """Return non-canonical runtime stats without opening or rebuilding a cache."""
+
+        scope_session = self._scope_sessions.get(session_id)
+        return None if scope_session is None else scope_session.stats
 
     def open(
         self,
@@ -131,7 +162,8 @@ class AgentResearchFacade:
                 raise AgentResearchError("completed recall command disagrees with its start")
             return self._turn_from_completion(completed)
 
-        result = self._recall.recall(request)
+        scope_session = self._scope_session(session.session_id, request)
+        result = self._recall.recall_in_session(request, scope_session)
         packet = result.packet
         references = (
             SessionArtifactReference(
@@ -249,6 +281,22 @@ class AgentResearchFacade:
         session = self._sessions.get_session(session_id)
         self._append(session, kind=kind, summary=text)
         return self.context(session_id)
+
+    def _scope_session(
+        self,
+        session_id: str,
+        request: QueryRequest,
+    ) -> RecallScopeSession:
+        existing = self._scope_sessions.pop(session_id, None)
+        if existing is not None:
+            self._scope_sessions[session_id] = existing
+            return existing
+        created = self._recall.open_scope_session(request)
+        self._scope_sessions[session_id] = created
+        while len(self._scope_sessions) > self._scope_session_capacity:
+            _evicted_id, evicted = self._scope_sessions.popitem(last=False)
+            evicted.close()
+        return created
 
     def _append(
         self,

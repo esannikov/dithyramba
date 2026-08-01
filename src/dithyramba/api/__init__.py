@@ -18,6 +18,7 @@ from .reading_room import (
     create_reading_room_app,
 )
 from .research_atlas import ResearchAtlasWebConfig, create_research_atlas_app
+from .session_lens import SessionLensWebConfig, create_session_lens_app
 
 __all__ = [
     "ConceptLensWebConfig",
@@ -31,6 +32,7 @@ __all__ = [
     "ReviewDecisionCreateRequest",
     "ReviewDecisionListResponse",
     "ReviewDecisionResponse",
+    "SessionLensWebConfig",
     "SourceChipResponse",
     "bearer_token_for",
     "create_app",
@@ -38,4 +40,5 @@ __all__ = [
     "create_flow_view_app",
     "create_reading_room_app",
     "create_research_atlas_app",
+    "create_session_lens_app",
 ]

@@ -31,7 +31,7 @@ tests pass.
 
 ## 0.2c — Research tools for agents
 
-Status: in progress
+Status: complete
 
 - [x] expose a small Python facade: `open`, `recall`, `attach_evidence`,
   `record_draft`, `link_candidates`, `record_gap`, `reject_path`, `context`;
@@ -43,17 +43,26 @@ Status: in progress
   outside the agent facade;
 - [x] add command idempotency and partial-turn reconciliation through atomic
   question/completion receipts in the existing append-only outbox;
-- [x] pass the full repository gate after the compact-transport repair: 2,614
+- [x] pass the full repository gate after the session-cache, MCP, and Lens slice: 2,627
   passed, 2 host/browser skips, branch-aware coverage 95.03%, Ruff and strict
   MyPy green;
-- add a thin local stdio MCP adapter over the Python facade.
+- [x] reuse one process-local authorized read-set and FTS index for questions
+  inside the same exact session scope;
+- [x] add a thin local stdio MCP adapter over the Python facade.
 
 Exit condition: one agent can continue a session after restart without receiving
 the entire transcript or corpus.
 
 ## 0.2d — Human review loop
 
-- project pending candidates, gaps, and decisions into Lens;
+Status: projection slice complete; mutation and review remain on existing human surfaces
+
+- [x] project the brief, questions, exact evidence, drafts, gaps, and rejected
+  paths into GET-only Session Lens;
+- [x] keep source names and exact text primary while hiding internal IDs under
+  progressive technical disclosure;
+- project pending candidate and human decision status into Lens after the
+  existing review route is bound to a session;
 - reuse the existing meaning review sessions and append-only decisions;
 - show exact source text for every promotable claim;
 - let a human accept, reject, revise, defer, or supersede without granting the
@@ -77,7 +86,12 @@ laundering or silent corpus mutation.
 - [x] run a 20-turn Mars session over 2,047 sources / 53,747 retrieval units
   with zero model calls, cold reopen after every turn, and repeated command IDs;
 - [x] measure and repair the accidental full-`ReadReceipt` agent transport;
-- run 5–10 real investigations across mixed and focused corpora;
+- [x] run six realistic three-turn Mars investigations plus one isolated
+  relation-repair challenger over 2,047 sources / 53,747 units;
+- [x] verify one FTS build per three-turn session, 6/6 exact retries, 6/6 cold
+  reopens, and 17/17 unchanged comparable top-10 result lists;
+- [x] measure warm-turn latency: 38.76 s versus 50.90 s first-turn mean, a
+  23.85% reduction with zero model tokens;
 - measure supported-answer rate, exact-source recovery, review burden, repeated
   search reduction, context size, and continuation after restart;
 - compare session memory against raw-file agent search under the same task set;
@@ -95,3 +109,6 @@ not only passing implementation tests.
 - background self-learning;
 - model-specific fine-tuning;
 - multi-user synchronization.
+- relation-aware automatic query repair; one known Mars miss improved for only
+  one of two variants, which is insufficient independent evidence for a new
+  production layer.

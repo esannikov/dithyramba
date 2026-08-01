@@ -21,7 +21,9 @@ replayed, challenged, and reused without asking a model to reread everything.
 > candidate ontology, and evidence-grounded synthesis remain experimental.
 > Schema v12 now persists public reasoning traces, proposition-level answer
 > projections, and their deterministic or semantic receipts without promoting
-> them into accepted memory. Clean-checkout distribution and installation
+> them into accepted memory. The 0.2 development branch also implements durable
+> multi-turn research sessions, one process-local authorized FTS cache per exact
+> session scope, a thin stdio MCP server, and a GET-only Session Lens. Clean-checkout distribution and installation
 > remain mandatory release gates; commit-bound results are reported by
 > continuous integration.
 
@@ -99,6 +101,15 @@ content-addressed `CorpusReadSet`, while every question still receives its own
 request, packet, receipt, and review identity. This changes storage and repeated
 read work, not the meaning of the public packet contracts.
 
+For continuing agent work, `AgentResearchFacade` binds a `ResearchSessionBrief`
+to one frozen snapshot and records questions, exact packet references, drafts,
+gaps, and rejected paths as a typed append-only journal. Its authorized read-set
+and in-memory FTS index are reused inside the process for later questions in the
+same exact scope; closing or eviction destroys that cache. Every question still
+persists an ordinary request, run, receipt, and packet. The same narrow facade is
+available through local stdio MCP, while Session Lens exposes a read-only human
+journal with exact source inspection.
+
 ### Durable record and rebuildable aids
 
 | Durable, authoritative record | Rebuildable aid or view |
@@ -158,7 +169,9 @@ or worker-memory guards.
 | CLI | Library setup, ingest, snapshot, FTS recall, packet inspection and replay, review, backup and restore | default public path |
 | `EvidencePacket/1.0` | persisted, source-closed retrieval result | versioned preview contract |
 | Loopback HTTP service | local programmatic access to one pinned Library | implemented; not remotely exposed |
+| stdio MCP | bounded `open_session`, `recall`, context, draft, gap, and rejected-path tools over the Python facade | implemented on the 0.2 development branch; no acceptance or promotion tools |
 | Reading Room | read-only inspection of one Library, snapshot, policy, and scope | implemented preview |
+| Session Lens | brief, chronological research journal, exact packet-backed passages, drafts, gaps, and rejected paths | implemented GET-only 0.2 projection |
 | Research Atlas / Lens | case-specific questions, hypotheses, timeline, and exact sources | implemented projection surface |
 | Compact connectors | small source-closed packets for downstream agents | implemented library contracts |
 | Candidate Ontology / Lens | scoped concepts and exact co-occurrence links over one bounded question neighbourhood | experimental, GET-only projection |
@@ -232,6 +245,7 @@ because their source rights and project boundaries differ.
 |---|---:|---|
 | Public synthetic | 12 multilingual fragments and queries; 1,000 generated fragments with 20 probes | Current staging replay returned 12/12 expected multilingual sources at top 10; the 1,000-fragment pipeline selected the exact expected fragment with one stable packet hash and zero provider calls. |
 | Mars working corpus | 2,051 sources; 53,747 retrieval units; about 103.8M characters; 72 bilingual cases | The current model-free route with bounded flat expansion and exact proof admission placed the exact fragment in the top 10 for 42/51 positive cases (82.4%) and the correct source for 49/51 (96.1%). The complete replay was byte-identical and used zero generative calls or tokens. |
+| Mars multi-session cache | 2,047 Library sources; 53,747 normalized units; 6 three-turn research sessions plus 1 isolated repair session | One authorized read and one FTS build served all three questions in each session. Warm turns averaged 38.76 s versus 50.90 s for first turns (23.85% lower); 17/17 comparable top-10 lists were unchanged, retries and cold reopen were 6/6 exact, and model tokens were zero. A one-case relation repair was rejected from production because only 1/2 variants recovered the miss. |
 | Mars IdeaTrace-24 | 24 frozen evidence packets: 6 direct, 6 multi-source, 6 contested, 6 unsupported traps | With retrieval held constant, one gate-directed repair improved complete evidence closure from 6/18 to 16/18, complete answers from 21/24 to 23/24, and answer-status correctness from 22/24 to 24/24. Safe abstention remained 6/6; one semantic overclaim and one exact-quote mismatch remained blocked. |
 | Parisian Ten structured records | 28,006 records from 40 files and 7 source families; 56 bilingual queries | Prepared memory packets delivered the complete evidence set in 56/56 queries. At the same per-query evidence budget, raw FTS delivered all required records in 43/56, hybrid search in 42/56, and E5 in 37/56. |
 | Van Gogh equal-source A/B | 18 Markdown files; 4 tasks | Compact packets returned 16/16 exact quotations and 13/13 required facets versus 3/7 and 2/13 for direct search. A later claim-level audit still marked only 5/14 claims directly supported and only 1/4 answers ready for promotion without revision. |
@@ -332,7 +346,7 @@ For this update, the canonical gate passed all 2,591 collected tests, including
 the two real-Chromium browser cases, with zero skips. Strict typing across 260
 files, zero terminology findings, 95.0053% exact combined line/branch coverage,
 and the dependency audit also passed.
-Distribution closure verifies every schema migration through v12, the Lens
+Distribution closure verifies every schema migration through v13, the Lens
 assets, and that the wheel is built from the sdist and imports from an isolated
 non-editable environment.
 

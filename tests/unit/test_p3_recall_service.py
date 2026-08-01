@@ -1540,6 +1540,77 @@ def test_recall_batch_matches_sequential_packets_with_one_read_and_session(
         assert replayed.run.kind == "replay"
 
 
+def test_recall_scope_session_matches_one_shot_and_reuses_one_authorized_index(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    specs = (
+        SourceSpec("alpha", "alpha evidence and common craft"),
+        SourceSpec("beta", "beta evidence and common craft"),
+    )
+    sequential_scenario = _scenario(specs)
+    cached_scenario = _scenario(specs)
+    sequential_service = _canonical_fts_service(sequential_scenario)
+    cached_service = _canonical_fts_service(cached_scenario)
+    sequential_requests = tuple(
+        _request_with_question(sequential_scenario.request, question)
+        for question in ("alpha craft", "beta evidence")
+    )
+    cached_requests = tuple(
+        _request_with_question(cached_scenario.request, question)
+        for question in ("alpha craft", "beta evidence")
+    )
+    expected = tuple(sequential_service.recall(request) for request in sequential_requests)
+
+    class CountingSession(PermittedFtsSession):
+        constructions = 0
+
+        def __init__(self, *, fragments: tuple[FtsFragment, ...]) -> None:
+            type(self).constructions += 1
+            super().__init__(fragments=fragments)
+
+    monkeypatch.setattr(recall_service_module, "PermittedFtsSession", CountingSession)
+    with cached_service.open_scope_session(cached_requests[0]) as scope_session:
+        actual = tuple(
+            cached_service.recall_in_session(request, scope_session) for request in cached_requests
+        )
+        assert scope_session.stats.index_build_count == 1
+        assert scope_session.stats.search_count == 2
+        assert scope_session.stats.permitted_fragment_count == len(specs)
+
+    assert scope_session.closed
+    assert CountingSession.constructions == 1
+    assert len(cached_scenario.backend.authorization_scopes) == 1
+    assert len(cached_scenario.backend.read_ids) == 1
+    assert len(cached_scenario.backend.started_runs) == 2
+    assert tuple(result.packet.canonical_bytes for result in actual) == tuple(
+        result.packet.canonical_bytes for result in expected
+    )
+    with pytest.raises(RecallRequestError, match="closed"):
+        cached_service.recall_in_session(cached_requests[0], scope_session)
+
+
+def test_recall_scope_session_rejects_scope_or_service_drift_before_write() -> None:
+    first_scenario = _scenario((SourceSpec("alpha", "alpha public"),))
+    second_scenario = _scenario((SourceSpec("alpha", "alpha public"),))
+    first_service = _canonical_fts_service(first_scenario)
+    second_service = _canonical_fts_service(second_scenario)
+    scope_session = first_service.open_scope_session(first_scenario.request)
+    wrong_scope = _request_with_question(
+        first_scenario.request,
+        "alpha",
+        purpose="analysis",
+    )
+
+    with pytest.raises(RecallRequestError, match="differs"):
+        first_service.recall_in_session(wrong_scope, scope_session)
+    with pytest.raises(RecallRequestError, match="different RecallService"):
+        second_service.recall_in_session(second_scenario.request, scope_session)
+
+    assert first_scenario.backend.queries == {}
+    assert second_scenario.backend.queries == {}
+    scope_session.close()
+
+
 def test_recall_batch_rejects_mixed_scope_before_any_write() -> None:
     scenario = _scenario((SourceSpec("allowed", "alpha public"),))
     service = _canonical_fts_service(scenario)

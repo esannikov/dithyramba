@@ -7,6 +7,16 @@ history belong in dated evaluation reports, not in the product changelog.
 
 ### Added
 
+- Durable 0.2 `ResearchSession` journals with compact least-context agent turns,
+  exact command retry receipts, and cold-reopen state reconstruction.
+- Process-local `RecallScopeSession` reuse: one authorized fragment read-set and
+  in-memory FTS index can serve later questions in the same exact session scope
+  while every question retains its own durable packet and audit trail.
+- Thin newline-delimited JSON-RPC stdio MCP over the existing Python facade,
+  with six bounded research tools and no human acceptance or promotion tool.
+- GET-only Session Lens for briefs, chronological questions, packet-backed
+  evidence, drafts, gaps, rejected paths, and exact source inspection.
+
 - `AnswerProjection/1.0` and `PropositionCoverageGate`: an optional
   display-governance layer that partitions the exact final answer into facts,
   bounded syntheses, disclosed hypotheses, research questions, and framing.
@@ -22,6 +32,12 @@ history belong in dated evaluation reports, not in the product changelog.
   receipt bindings, unsupported overclaim, uncertain roles, and policy drift.
 
 ### Changed
+
+- A six-session Mars screen measured a 23.85% mean warm-turn reduction while
+  preserving 17/17 comparable top-10 result lists, 6/6 exact retries, and 6/6
+  cold reopens with zero model tokens. Automatic relation-aware repair remains
+  out of production after a one-case challenger repaired only one of two query
+  variants.
 
 - Simplified the research route to local FTS, bounded lexical expansion,
   conditional QueryCloud, exact proof admission, and deterministic evidence

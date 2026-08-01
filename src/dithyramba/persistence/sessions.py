@@ -12,7 +12,7 @@ from pydantic import ValidationError
 from dithyramba.access import AccessContractError
 from dithyramba.contracts import canonical_json_bytes, canonical_sha256_hex
 from dithyramba.meaning import MeaningError, MeaningReviewTargetType
-from dithyramba.recall import QueryRequest
+from dithyramba.recall.models import QueryRequest
 from dithyramba.sessions import (
     ResearchSession,
     ResearchSessionCoordinator,

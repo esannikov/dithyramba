@@ -69,6 +69,45 @@ than a held-out benchmark.
 The reports record units and characters, but not a trustworthy aggregate page
 or original-document count. No page estimate is inferred here.
 
+### Mars interactive memory v0.3
+
+The 0.3 session-cache screen reused the same frozen normalized Library: 2,047
+admitted Library sources and 53,747 retrieval units. It ran six realistic
+three-turn investigations—environment, transport, habitat, human factors,
+society, and unsupported controls—plus one isolated three-query relation-repair
+session. It used no model, embedding, network inference, or generative token.
+
+| Measure | Result |
+|---|---:|
+| Sessions with exactly one authorized read / FTS build | 6/6 |
+| Sessions with three ordinary searches | 6/6 |
+| Mean first turn | 50.90 s |
+| Mean second/third turn | 38.76 s |
+| Mean warm-turn reduction | 23.85% |
+| Comparable v0.2 top-10 lists unchanged | 17/17 |
+| Positive correct-source @1 / @5 / @10 | 12/15 · 13/15 · 14/15 |
+| Exact idempotent retry | 6/6 |
+| Exact context after cold Library reopen | 6/6 |
+
+This result supports one narrow claim: reusing a process-local authorized
+read-set and in-memory FTS index avoids rebuilding it for later questions
+without changing ranking. It does not make large-corpus turns instantaneous.
+Most remaining time is spent assembling, hashing, and transactionally storing
+the full local audit packet and its corpus-wide receipt.
+
+The one known EDL relation-paraphrase miss was preregistered as an isolated
+challenger. The original query missed at top 10; a neutral relation formulation
+recovered the expected source at rank 2; an explicit keyword formulation missed
+again. Because only one of two repairs worked on one known failure, automatic
+relation-aware repair was not added to production. The gate requires at least
+two independent recurring failures and a frozen holdout gain without control
+degradation.
+
+Full internal result hash:
+`a3dba797739f04a5d34c3e63fb9d10ef369455a01073e329d32ddd52368149e3`.
+The redistributable evaluation runner and report live outside the package tree;
+the private heavy result and corpus remain on the operator's STORAGE volume.
+
 ### Mars IdeaTrace-24
 
 This test held retrieval constant and compared ordinary cited answers with

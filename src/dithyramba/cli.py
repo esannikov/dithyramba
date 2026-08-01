@@ -34,6 +34,7 @@ from dithyramba.api import (
     create_flow_view_app,
     create_reading_room_app,
     create_research_atlas_app,
+    create_session_lens_app,
 )
 from dithyramba.atlas import migrate_legacy_research_atlas
 from dithyramba.backup import (
@@ -49,6 +50,7 @@ from dithyramba.ingest.errors import IngestError
 from dithyramba.ingest.models import parser_profile
 from dithyramba.ingest.service import IngestService
 from dithyramba.library import LibraryConfig
+from dithyramba.mcp_stdio import run_stdio_mcp
 from dithyramba.persistence import (
     AccessPolicyRecord,
     CollectionRecord,
@@ -56,6 +58,7 @@ from dithyramba.persistence import (
     LibraryRepository,
     PersistenceError,
     SQLiteRecallBackend,
+    SQLiteResearchSessionRepository,
     initialize_library,
     list_libraries,
     open_library,
@@ -1370,6 +1373,30 @@ def serve(
     )
 
 
+@app.command("mcp")
+@_guard
+def mcp_stdio(
+    library: Annotated[str, typer.Option("--library", help="Explicit Library ID.")],
+    data_home: Annotated[
+        Path,
+        typer.Option("--data-home", help="Absolute Dithyramba application-data root."),
+    ],
+    agent_id: Annotated[
+        str,
+        typer.Option("--agent-id", help="Stable model actor ID for the session journal."),
+    ] = "agent:mcp",
+) -> None:
+    """Expose the bounded research-session facade as a local MCP stdio server."""
+
+    with open_library(library, data_root=data_home) as repository:
+        repository.verify()
+        run_stdio_mcp(
+            repository,
+            agent_id=agent_id,
+            profile_version=current_fts_runtime_profile().profile_version,
+        )
+
+
 @app.command("reading-room")
 @_guard
 def reading_room(
@@ -1676,6 +1703,49 @@ def concept_lens(
     typer.echo(f"ontology_id: {config.ontology.manifest.ontology_id}")
     typer.echo(f"manifest_hash: {config.ontology.manifest_hash}")
     typer.echo("mode: candidate-only read-only projection")
+    uvicorn.run(
+        application,
+        host="127.0.0.1",
+        port=port,
+        log_level="info",
+        access_log=False,
+        server_header=False,
+        date_header=False,
+    )
+
+
+@app.command("session-lens")
+@_guard
+def session_lens(
+    library: Annotated[str, typer.Option("--library", help="Explicit Library ID.")],
+    session: Annotated[
+        str,
+        typer.Option("--session", help="Durable ResearchSession ID."),
+    ],
+    data_home: Annotated[
+        Path,
+        typer.Option("--data-home", help="Absolute Dithyramba application-data root."),
+    ],
+    port: Annotated[
+        int,
+        typer.Option("--port", min=1_024, max=65_535, help="Loopback TCP port."),
+    ] = 8353,
+) -> None:
+    """Open a GET-only working journal for one interactive research session."""
+
+    with open_library(library, data_root=data_home) as repository:
+        repository.verify()
+        SQLiteResearchSessionRepository(repository).get_session(session)
+    origin = f"http://127.0.0.1:{port}"
+    application = create_session_lens_app(
+        library_id=library,
+        data_home=data_home,
+        session_id=session,
+        allowed_origin=origin,
+    )
+    typer.echo(f"session_lens: {origin}")
+    typer.echo(f"projection_json: {origin}/projection.json")
+    typer.echo("mode: read-only session projection")
     uvicorn.run(
         application,
         host="127.0.0.1",

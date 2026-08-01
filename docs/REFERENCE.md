@@ -19,7 +19,7 @@ uv run dithyramba <command> --help
 | Base runtime | no model, GPU, external service, or Docker required |
 | Optional semantic extra | `sentence-transformers==5.6.0` |
 | Optional ontology extra | `numpy>=2,<3`; `scikit-learn>=1.8,<2` |
-| Current database schema | v12 |
+| Current database schema | v13 |
 | Package version | `0.1.0rc1` |
 
 ## Command inventory
@@ -87,15 +87,25 @@ dithyramba reading-room
 dithyramba atlas
 dithyramba flow-view
 dithyramba concept-lens
+dithyramba session-lens
+dithyramba mcp
 dithyramba reasoning-check
 ```
 
 `Lens` is the umbrella name for researcher-facing views, not a separate CLI
-command. Today it is assembled from ReadingRoom, Research Atlas, and Flow View.
+command. Today it is assembled from ReadingRoom, Research Atlas, Concept Lens,
+Flow View, and Session Lens.
 
 `reading-room` requires `--library`, `--snapshot`, `--access-policy`, at least
 one `--collection`, `--purpose`, and `--data-home`. It starts a separate GET-only
-loopback server. `atlas` and `flow-view` also start read-only loopback views.
+loopback server. `atlas`, `flow-view`, `concept-lens`, and `session-lens` also
+start read-only loopback views. Session Lens requires one existing
+`ResearchSession` ID and exposes `/projection.json` beside its human journal.
+
+`mcp` runs a stdio server over one existing Library. It reserves stdout for
+newline-delimited JSON-RPC and exposes `open_session`, `recall`,
+`session_context`, `record_draft`, `record_gap`, and `reject_path`. It has no
+human acceptance, decision, promotion, deletion, or session-closure tool.
 
 `reasoning-check` consumes one absolute-path `IdeaTrace`, exact claim-evidence
 case set, and semantic entailment result. It makes no provider call and emits a
@@ -172,6 +182,9 @@ not create a compatibility promise beyond the declared `0.1.x` preview.
 | `BackupBundle` | `dithyramba.backup_bundle/1.0` | portable hash-closed Library backup |
 | `IdeaTrace` | `dithyramba.idea_trace/1.0` | short public reasoning candidate over exact claim-evidence cases |
 | `ReasoningClosureResult` | `dithyramba.reasoning_closure/1.0` | deterministic structural closure; review eligibility only |
+| `ResearchSessionBrief` | `dithyramba.research_session_brief/1.0` | bounded purpose, success criteria, and limits |
+| `ResearchSession` | `dithyramba.research_session/1.0` | immutable Library/snapshot/policy scope |
+| `SessionEvent` | `dithyramba.session_event/1.0` | typed append-only research-journal step |
 
 Schema v10 added an internal append-only `CorpusReadSet`: one exact protected
 fragment manifest can be shared by several recall requests over the same
@@ -268,6 +281,13 @@ one exact scope, performs one protected corpus read and one reusable FTS
 session, then persists a separate ordinary request, run, packet, and receipt
 identity for each question. Mixed scopes fail before execution. A batch does
 not merge questions, evidence, or review history.
+
+`AgentResearchFacade` opens a process-local `RecallScopeSession` on the first
+recall for one session. The cache is bound to exact Library, snapshot, policy,
+purpose, Collections, and exclusions; retrieval budget remains per question.
+The default LRU capacity is four live scope sessions. `close_scope_sessions()`
+destroys every in-memory SQLite index. `cache_stats(session_id)` reports only
+non-canonical runtime counts: permitted fragments, builds, and searches.
 
 ### Expanded discovery route
 

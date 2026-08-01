@@ -1,0 +1,171 @@
+<!--
+THESIS: A continuing research memory should read as a source-bound working journal, not a chat log.
+OWN-WORLD: Warm archival paper, editorial margins, quiet rules, and exact source slips.
+STORY: Brief and boundaries orient the researcher; the journal shows questions, evidence, drafts, and gaps; one exact source stays open beside the work.
+FIRST VIEWPORT: The operator sees the research question, current state, and the first verifiable evidence path without internal IDs.
+FORM: Established Dithyramba Lens extension; GET-only session projection over canonical journal and EvidencePackets.
+FINISH: Responsive, keyboard-readable, progressive technical disclosure, and explicit non-acceptance boundary.
+-->
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="color-scheme" content="light">
+    <title>Dithyramba Lens · {{ session.brief.question }}</title>
+    <link rel="icon" href="/favicon.ico">
+    <link rel="stylesheet" href="/session-lens.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#session-journal">До журналу дослідження</a>
+
+    <header class="context-bar">
+      <a class="wordmark" href="/" aria-label="Dithyramba Lens, поточна сесія">
+        <span aria-hidden="true">D</span>
+        <strong>Dithyramba Lens</strong>
+      </a>
+      <dl class="context-facts">
+        <div><dt>Бібліотека</dt><dd>{{ library.config.name }}</dd></div>
+        <div><dt>Стан</dt><dd>{{ 'відкрита сесія' if state.status.value == 'open' else 'завершена сесія' }}</dd></div>
+        <div><dt>Матеріал</dt><dd>{{ state.evidence_refs | length }} доказових посилань</dd></div>
+        <div><dt>Режим</dt><dd><i aria-hidden="true"></i> лише читання</dd></div>
+      </dl>
+    </header>
+
+    <div class="session-layout">
+      <aside class="brief-rail" aria-labelledby="brief-title">
+        <h1 id="brief-title">{{ session.brief.question }}</h1>
+        <p class="intended-use">{{ session.brief.intended_use }}</p>
+
+        <section aria-labelledby="success-title">
+          <h2 id="success-title">Що означає успіх</h2>
+          <ul>
+            {% for item in session.brief.success_criteria %}<li>{{ item }}</li>{% endfor %}
+          </ul>
+        </section>
+
+        {% if session.brief.boundaries %}
+          <section class="boundaries" aria-labelledby="boundaries-title">
+            <h2 id="boundaries-title">Межі дослідження</h2>
+            <ul>
+              {% for item in session.brief.boundaries %}<li>{{ item }}</li>{% endfor %}
+            </ul>
+          </section>
+        {% endif %}
+
+        <dl class="session-counts" aria-label="Стан журналу">
+          <div><dt>Питань</dt><dd>{{ state.questions | length }}</dd></div>
+          <div><dt>Чернеток</dt><dd>{{ state.answer_drafts | length }}</dd></div>
+          <div><dt>Прогалин</dt><dd>{{ state.gaps | length }}</dd></div>
+          <div><dt>Відхилених шляхів</dt><dd>{{ state.rejected_paths | length }}</dd></div>
+        </dl>
+
+        <p class="scope-boundary">
+          Прикріплений уривок — це перевірювана опора, але не автоматично
+          прийнятий висновок. Рішення залишається за дослідником.
+        </p>
+      </aside>
+
+      <main class="session-journal" id="session-journal" tabindex="-1">
+        <header class="journal-heading">
+          <h2>Хід дослідження</h2>
+          <p>Питання, знайдені опори, робочі висновки й прогалини у тій послідовності, в якій вони виникли.</p>
+        </header>
+
+        {% if event_views %}
+          <ol class="event-stream">
+            {% for item in event_views %}
+              <li class="event-row tone-{{ item.tone }}">
+                <div class="event-marker" aria-hidden="true"><span>{{ loop.index }}</span></div>
+                <article>
+                  <header>
+                    <div>
+                      <h3>{{ item.label }}</h3>
+                      <p>{{ item.explanation }}</p>
+                    </div>
+                    <time datetime="{{ item.event.occurred_at }}">{{ item.event.occurred_at[:10] }}</time>
+                  </header>
+
+                  {% if item.event.kind.value != 'evidence_attached' %}
+                    <p class="event-text">{{ item.event.summary }}</p>
+                  {% endif %}
+
+                  {% if item.evidence %}
+                    <div class="evidence-set" aria-label="Точні опори цього кроку">
+                      {% for evidence in item.evidence %}
+                        <a
+                          class="source-slip{% if selected and selected.packet_id == evidence.packet_id and selected.fragment.source_fragment_id == evidence.fragment.source_fragment_id %} is-selected{% endif %}"
+                          href="{{ evidence.selection_url }}"
+                          {% if selected and selected.packet_id == evidence.packet_id and selected.fragment.source_fragment_id == evidence.fragment.source_fragment_id %}aria-current="true"{% endif %}
+                        >
+                          <span>{{ evidence.source_role }} · ранг {{ evidence.fragment.rank }}</span>
+                          <strong>{{ evidence.source_title }}</strong>
+                          <small>{{ evidence.address_label }}</small>
+                        </a>
+                      {% endfor %}
+                    </div>
+                  {% endif %}
+
+                  <details class="technical-details">
+                    <summary>Технічний запис цього кроку</summary>
+                    <dl>
+                      <div><dt>Подія</dt><dd><code>{{ item.event.event_id }}</code></dd></div>
+                      <div><dt>Автор</dt><dd>{{ item.event.actor_kind.value }} · <code>{{ item.event.actor_id }}</code></dd></div>
+                      <div><dt>Хеш</dt><dd><code>{{ item.event.event_hash }}</code></dd></div>
+                    </dl>
+                  </details>
+                </article>
+              </li>
+            {% endfor %}
+          </ol>
+        {% else %}
+          <section class="empty-state">
+            <h3>Журнал ще порожній</h3>
+            <p>Після першого питання тут зʼявиться послідовність дослідження.</p>
+          </section>
+        {% endif %}
+      </main>
+
+      <aside class="source-inspector" aria-labelledby="source-title">
+        {% if selected %}
+          <p class="inspector-status">Точна опора · не прийнята автоматично</p>
+          <h2 id="source-title">{{ selected.source_title }}</h2>
+          <p class="source-role">Хто це стверджує: <strong>{{ selected.source_title }}</strong></p>
+          <dl class="source-facts">
+            <div><dt>Роль</dt><dd>{{ selected.source_role }}</dd></div>
+            <div><dt>Адреса</dt><dd>{{ selected.address_label }}</dd></div>
+          </dl>
+          <blockquote>{{ selected.fragment.text }}</blockquote>
+          <p class="source-limitation">
+            Цей уривок показує, що саме збережено у джерелі. Він не доводить
+            ширшого причинного або інтерпретаційного висновку без окремої перевірки.
+          </p>
+          <details class="technical-details inspector-details">
+            <summary>Походження уривка</summary>
+            <dl>
+              <div><dt>Packet</dt><dd><code>{{ selected.packet_id }}</code></dd></div>
+              <div><dt>Source</dt><dd><code>{{ selected.chip.source_id }}</code></dd></div>
+              <div><dt>Version</dt><dd><code>{{ selected.chip.source_version_id }}</code></dd></div>
+              <div><dt>Fragment</dt><dd><code>{{ selected.fragment.source_fragment_id }}</code></dd></div>
+              <div><dt>Text SHA-256</dt><dd><code>{{ selected.fragment.text_sha256 }}</code></dd></div>
+            </dl>
+          </details>
+        {% else %}
+          <div class="empty-state inspector-empty">
+            <h2 id="source-title">Точних опор ще немає</h2>
+            <p>Коли сесія прикріпить EvidencePacket, тут відкриється точний текст джерела.</p>
+          </div>
+        {% endif %}
+      </aside>
+    </div>
+
+    <footer>
+      <span>Dithyramba Lens · журнал сесії</span>
+      <a href="/projection.json">Структурована проєкція</a>
+      <details class="technical-details footer-details">
+        <summary>Ідентичність проєкції</summary>
+        <code>{{ projection_hash }}</code>
+      </details>
+    </footer>
+  </body>
+</html>

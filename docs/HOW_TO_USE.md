@@ -148,6 +148,49 @@ For a two-scope workflow, ask the same question again with the research
 Collection and its own snapshot. You now have two independently replayable
 packets: what the root sources show and what later researchers infer.
 
+### Continue the investigation through an agent
+
+Start the local stdio MCP server from an MCP-capable client:
+
+```bash
+uv run dithyramba mcp \
+  --library <library-id> \
+  --data-home /absolute/private/dithyramba \
+  --agent-id agent:research-assistant
+```
+
+The client launches that command and speaks newline-delimited JSON-RPC over
+standard input/output. Dithyramba exposes six bounded tools:
+
+```text
+open_session → recall → session_context
+             → record_draft / record_gap / reject_path
+```
+
+`open_session` requires the research question, intended use, success criteria,
+snapshot, policy, purpose, and Collection IDs. Save its `session_id`. Every
+`recall` also requires a stable `command_id`; retrying the same command with the
+same input returns the stored turn, while changing the input fails closed.
+
+The first recall builds one process-local authorized read-set and FTS index for
+that exact session scope. Later questions reuse it. The cache is destroyed when
+the process exits or closes its scope sessions, and it is rebuilt after restart.
+This optimization does not merge packets or review history.
+
+Open the human journal for that session in a separate terminal:
+
+```bash
+uv run dithyramba session-lens \
+  --library <library-id> \
+  --session <research-session-id> \
+  --data-home /absolute/private/dithyramba \
+  --port 8353
+```
+
+Visit `http://127.0.0.1:8353`. Session Lens is GET-only. Select a source slip to
+read the exact packet-backed passage. Drafts, gaps, and rejected routes remain
+journal entries; visible evidence is not automatically accepted.
+
 ## 8. Inspect and replay
 
 ```bash

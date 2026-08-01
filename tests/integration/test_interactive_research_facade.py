@@ -36,6 +36,7 @@ from dithyramba.persistence import (
     initialize_library,
     open_library,
 )
+from dithyramba.persistence.models import AuthorizedRead, SourceFragmentText
 from dithyramba.persistence.sessions import (
     RecallCommandCompletion,
     RecallCommandStart,
@@ -269,6 +270,77 @@ def test_agent_facade_preserves_pre_read_source_exclusions(tmp_path: Path) -> No
         assert len(turn.context.evidence_references) == 1
 
 
+def test_agent_facade_reuses_and_explicitly_destroys_scope_session(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "corpus"
+    root.mkdir()
+    (root / "craft.md").write_text(
+        "# Evidence\n\nBlocking changes power. Eyelines reveal attention.\n",
+        encoding="utf-8",
+    )
+    with initialize_library(
+        LibraryConfig(name="Cached interactive research"),
+        data_root=tmp_path / "data",
+    ) as repository:
+        collection_id, snapshot_id, policy_id, _source_id = _prepare_library(repository, root)
+        facade = AgentResearchFacade(
+            repository,
+            agent_id="agent:test",
+            profile_version=current_fts_runtime_profile().profile_version,
+            clock=_TickingClock(),
+        )
+        reads = 0
+        original_read = facade._recall_backend.read_permitted_fragments
+
+        def counting_read(authorization: AuthorizedRead) -> tuple[SourceFragmentText, ...]:
+            nonlocal reads
+            reads += 1
+            return original_read(authorization)
+
+        monkeypatch.setattr(
+            facade._recall_backend,
+            "read_permitted_fragments",
+            counting_read,
+        )
+        opened = facade.open(
+            brief=ResearchSessionBrief.create(
+                question="How do staging choices carry dramatic information?",
+                intended_use="session-cache verification",
+                success_criteria=("reuse one authorized read",),
+            ),
+            corpus_snapshot_id=snapshot_id,
+            access_policy_id=policy_id,
+            purpose="research",
+            collection_ids=(collection_id,),
+        )
+        facade.recall(
+            opened.session_id,
+            "blocking changes power",
+            command_id="command_cache_blocking_001",
+        )
+        facade.recall(
+            opened.session_id,
+            "eyelines reveal attention",
+            command_id="command_cache_eyelines_001",
+        )
+        stats = facade.cache_stats(opened.session_id)
+        assert stats is not None
+        assert reads == 1
+        assert stats.index_build_count == 1
+        assert stats.search_count == 2
+
+        facade.close_scope_sessions()
+        assert facade.cache_stats(opened.session_id) is None
+        facade.recall(
+            opened.session_id,
+            "power attention",
+            command_id="command_cache_rebuild_001",
+        )
+        assert reads == 2
+
+
 def test_recall_command_retry_is_exact_and_rejects_changed_input(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -379,12 +451,12 @@ def test_partial_recall_command_resumes_without_duplicate_question(
             purpose="research",
             collection_ids=(collection_id,),
         )
-        real_recall = facade._recall.recall
+        real_recall = facade._recall.recall_in_session
 
-        def _fail_once(_request: object) -> object:
+        def _fail_once(_request: object, _scope_session: object) -> object:
             raise RuntimeError("simulated transport interruption")
 
-        monkeypatch.setattr(facade._recall, "recall", _fail_once)
+        monkeypatch.setattr(facade._recall, "recall_in_session", _fail_once)
         with pytest.raises(RuntimeError, match="simulated transport interruption"):
             facade.recall(
                 opened.session_id,
@@ -393,7 +465,7 @@ def test_partial_recall_command_resumes_without_duplicate_question(
             )
         assert len(SQLiteResearchSessionRepository(repository).list_events(opened.session_id)) == 1
 
-        monkeypatch.setattr(facade._recall, "recall", real_recall)
+        monkeypatch.setattr(facade._recall, "recall_in_session", real_recall)
         resumed = facade.recall(
             opened.session_id,
             "partial command durable question receipt",
@@ -429,6 +501,13 @@ def test_interactive_contracts_and_facade_fail_closed(
             )
         with pytest.raises(AgentResearchError, match="agent_id"):
             AgentResearchFacade(repository, agent_id="", profile_version=profile)
+        with pytest.raises(AgentResearchError, match="scope_session_capacity"):
+            AgentResearchFacade(
+                repository,
+                agent_id="agent:test",
+                profile_version=profile,
+                scope_session_capacity=0,
+            )
 
         facade = AgentResearchFacade(
             repository,

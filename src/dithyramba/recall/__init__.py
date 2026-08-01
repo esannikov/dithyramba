@@ -189,6 +189,8 @@ from .service import (
     RecallRequestError,
     RecallResult,
     RecallRunKind,
+    RecallScopeSession,
+    RecallScopeSessionStats,
     RecallService,
     RecallSnapshotError,
 )
@@ -304,6 +306,8 @@ __all__ = [
     "RecallRequestError",
     "RecallResult",
     "RecallRunKind",
+    "RecallScopeSession",
+    "RecallScopeSessionStats",
     "RecallService",
     "RecallSnapshotError",
     "RelationPathReceiptRef",
