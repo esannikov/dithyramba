@@ -283,6 +283,22 @@ class SQLiteMeaningRepository:
                 break
         return tuple(items)
 
+    def get_review_target(
+        self,
+        target_type: MeaningReviewTargetType,
+        target_id: str,
+    ) -> MeaningReviewQueueItem:
+        """Return one exact candidate target with its Collection closure and hash."""
+
+        target = self._target_info(target_type, target_id)
+        return MeaningReviewQueueItem(
+            target.target_type,
+            target.target_id,
+            target.target_hash,
+            target.collection_ids,
+            target.created_at,
+        )
+
     def start_review_session(
         self, review_budget: ReviewBudget | None = None
     ) -> MeaningReviewSession:

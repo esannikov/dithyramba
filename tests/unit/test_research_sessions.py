@@ -5,6 +5,7 @@ import json
 import pytest
 from pydantic import ValidationError
 
+from dithyramba.access import QueryExclusions
 from dithyramba.sessions import (
     GENESIS_EVENT_HASH,
     ResearchSession,
@@ -57,14 +58,10 @@ def _reference(
     artifact_id = {
         SessionArtifactKind.SOURCE_FRAGMENT: "fragment_alpha",
         SessionArtifactKind.EVIDENCE_PACKET: "packet_alpha",
-        SessionArtifactKind.MEMORY_PACKET: "memory_packet_" + "1" * 32,
         SessionArtifactKind.EVIDENCE_LINK: "evidence_alpha",
         SessionArtifactKind.STATEMENT: "statement_alpha",
         SessionArtifactKind.CONCEPT: "concept_alpha",
         SessionArtifactKind.ENTITY: "entity_alpha",
-        SessionArtifactKind.IDEA_TRACE: "idea_trace_" + "2" * 32,
-        SessionArtifactKind.RESEARCH_ANSWER: "research_answer_" + "3" * 32,
-        SessionArtifactKind.ANSWER_PROJECTION: "answer_projection_" + "4" * 32,
     }[kind]
     return SessionArtifactReference(
         artifact_kind=kind,
@@ -82,6 +79,31 @@ def test_brief_and_session_are_content_addressed_and_canonical() -> None:
     assert session.session_id.startswith("research_session_")
     assert session.collection_ids == ("collection_primary", "collection_secondary")
     assert ResearchSessionBrief.model_validate_json(brief.model_dump_json()) == brief
+    assert ResearchSession.model_validate_json(session.model_dump_json()) == session
+
+
+def test_session_scope_preserves_exclusions_and_changes_identity() -> None:
+    excluded = QueryExclusions(
+        source_ids=("source_beta", "source_alpha"),
+        source_family_ids=("family_secondary",),
+        source_fragment_ids=("fragment_private",),
+    )
+    session = ResearchSession.create(
+        brief=_brief(),
+        library_id="library_main",
+        corpus_snapshot_id="snapshot_august",
+        snapshot_hash=HASH_A,
+        access_policy_id="policy_research",
+        purpose="research",
+        collection_ids=("collection_primary",),
+        exclusions=excluded,
+        created_by_kind=SessionActorKind.HUMAN,
+        created_by_id="operator:eugene",
+        created_at=NOW,
+    )
+
+    assert session.scope.exclusions.source_ids == ("source_alpha", "source_beta")
+    assert session.session_id != _session().session_id
     assert ResearchSession.model_validate_json(session.model_dump_json()) == session
 
 
@@ -134,16 +156,6 @@ def test_session_rejects_invalid_actor_collection_and_identity() -> None:
             created_by_id="system",
             created_at=NOW,
         )
-
-    payload = _session().model_dump(mode="json")
-    payload["collection_ids"] = ["wrong"]
-    with pytest.raises(ValidationError, match="collection_ prefix"):
-        ResearchSession.model_validate_json(json.dumps(payload))
-
-    payload = _session().model_dump(mode="json")
-    payload["collection_ids"] = ["collection_primary", "collection_primary"]
-    with pytest.raises(ValidationError, match="sorted and unique"):
-        ResearchSession.model_validate_json(json.dumps(payload))
 
     for field, value, message in (
         ("schema_id", "wrong", "schema_id must be"),

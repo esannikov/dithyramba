@@ -999,7 +999,7 @@ def test_store_open_library_requires_typed_validated_paths(tmp_path: Path) -> No
 
     paths = create_library_layout(LibraryConfig(name="Typed paths"), data_root=tmp_path / "data")
     with Store.open_library(paths) as store:
-        assert store.schema_version == 12
+        assert store.schema_version == 13
 
 
 def test_store_rejects_missing_or_symlinked_parent(tmp_path: Path) -> None:

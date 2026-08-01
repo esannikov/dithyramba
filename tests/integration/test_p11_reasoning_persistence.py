@@ -51,7 +51,7 @@ def test_trace_and_closure_are_append_only_and_reopen_exactly(tmp_path: Path) ->
             store.persist_trace(trace.model_copy(update={"trace_hash": "0" * 64}))
         with pytest.raises(ReasoningPersistenceError, match="content identity"):
             store.persist_closure(closure.model_copy(update={"case_set_hash": "0" * 64}))
-        assert repository.schema_version == 12
+        assert repository.schema_version == 13
         assert (
             repository._store.connection.execute("SELECT COUNT(*) FROM idea_traces").fetchone()[0]
             == 1

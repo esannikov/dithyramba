@@ -7,6 +7,7 @@ from typing import ClassVar, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from dithyramba.access import QueryExclusions, RequestScope
 from dithyramba.contracts import canonical_content_id, canonical_sha256_hex
 
 _HASH_PATTERN = r"^[0-9a-f]{64}$"
@@ -49,14 +50,10 @@ class SessionEventKind(StrEnum):
 class SessionArtifactKind(StrEnum):
     SOURCE_FRAGMENT = "source_fragment"
     EVIDENCE_PACKET = "evidence_packet"
-    MEMORY_PACKET = "memory_packet"
     EVIDENCE_LINK = "evidence_link"
     STATEMENT = "statement"
     CONCEPT = "concept"
     ENTITY = "entity"
-    IDEA_TRACE = "idea_trace"
-    RESEARCH_ANSWER = "research_answer"
-    ANSWER_PROJECTION = "answer_projection"
 
 
 class ResearchSessionBrief(_SessionModel):
@@ -132,12 +129,9 @@ class ResearchSession(_SessionModel):
     session_id: str = Field(pattern=_SESSION_ID_PATTERN)
     session_hash: str = Field(pattern=_HASH_PATTERN)
     brief: ResearchSessionBrief
-    library_id: str = Field(pattern=r"^library_[a-z0-9_]+$")
     corpus_snapshot_id: str = Field(pattern=r"^snapshot_[a-z0-9_]+$")
-    snapshot_hash: str = Field(pattern=_HASH_PATTERN)
     access_policy_id: str = Field(pattern=r"^policy_[a-z0-9_]+$")
-    purpose: str = Field(pattern=r"^[a-z][a-z0-9_-]{0,63}$")
-    collection_ids: tuple[str, ...] = Field(min_length=1, max_length=16)
+    scope: RequestScope
     created_by_kind: SessionActorKind
     created_by_id: str = Field(pattern=_ACTOR_ID_PATTERN)
     created_at: str = Field(pattern=_TIMESTAMP_PATTERN)
@@ -148,10 +142,6 @@ class ResearchSession(_SessionModel):
             raise ValueError(f"schema_id must be {self.SCHEMA}")
         if self.created_by_kind is SessionActorKind.DETERMINISTIC:
             raise ValueError("a research session must be opened by a human or model actor")
-        if tuple(sorted(set(self.collection_ids))) != self.collection_ids:
-            raise ValueError("collection_ids must be sorted and unique")
-        if any(not value.startswith("collection_") for value in self.collection_ids):
-            raise ValueError("collection_ids must use the collection_ prefix")
         payload = self.semantic_payload()
         if self.session_id != canonical_content_id("research_session", payload):
             raise ValueError("session_id does not match the canonical session content")
@@ -163,12 +153,9 @@ class ResearchSession(_SessionModel):
         return {
             "schema_id": self.schema_id,
             "brief": self.brief.model_dump(mode="json"),
-            "library_id": self.library_id,
             "corpus_snapshot_id": self.corpus_snapshot_id,
-            "snapshot_hash": self.snapshot_hash,
             "access_policy_id": self.access_policy_id,
-            "purpose": self.purpose,
-            "collection_ids": list(self.collection_ids),
+            "scope": _scope_payload(self.scope),
             "created_by_kind": self.created_by_kind.value,
             "created_by_id": self.created_by_id,
             "created_at": self.created_at,
@@ -185,20 +172,24 @@ class ResearchSession(_SessionModel):
         access_policy_id: str,
         purpose: str,
         collection_ids: tuple[str, ...],
+        exclusions: QueryExclusions | None = None,
         created_by_kind: SessionActorKind,
         created_by_id: str,
         created_at: str,
     ) -> ResearchSession:
-        canonical_collections = tuple(sorted(set(collection_ids)))
+        scope = RequestScope(
+            library_id=library_id,
+            snapshot_hash=snapshot_hash,
+            purpose=purpose,
+            collection_ids=collection_ids,
+            exclusions=exclusions or QueryExclusions(),
+        )
         semantic: dict[str, object] = {
             "schema_id": cls.SCHEMA,
             "brief": brief.model_dump(mode="json"),
-            "library_id": library_id,
             "corpus_snapshot_id": corpus_snapshot_id,
-            "snapshot_hash": snapshot_hash,
             "access_policy_id": access_policy_id,
-            "purpose": purpose,
-            "collection_ids": list(canonical_collections),
+            "scope": _scope_payload(scope),
             "created_by_kind": created_by_kind.value,
             "created_by_id": created_by_id,
             "created_at": created_at,
@@ -208,15 +199,37 @@ class ResearchSession(_SessionModel):
             session_id=canonical_content_id("research_session", semantic),
             session_hash=canonical_sha256_hex(semantic),
             brief=brief,
-            library_id=library_id,
             corpus_snapshot_id=corpus_snapshot_id,
-            snapshot_hash=snapshot_hash,
             access_policy_id=access_policy_id,
-            purpose=purpose,
-            collection_ids=canonical_collections,
+            scope=scope,
             created_by_kind=created_by_kind,
             created_by_id=created_by_id,
             created_at=created_at,
+        )
+
+    @property
+    def library_id(self) -> str:
+        return self.scope.library_id
+
+    @property
+    def snapshot_hash(self) -> str:
+        return self.scope.snapshot_hash
+
+    @property
+    def purpose(self) -> str:
+        return self.scope.purpose
+
+    @property
+    def collection_ids(self) -> tuple[str, ...]:
+        return self.scope.collection_ids
+
+    @property
+    def scope_hash(self) -> str:
+        return canonical_sha256_hex(
+            {
+                "schema": "dithyramba.research_session_scope/1.0",
+                **_scope_payload(self.scope),
+            }
         )
 
 
@@ -233,14 +246,10 @@ class SessionArtifactReference(_SessionModel):
         prefix = {
             SessionArtifactKind.SOURCE_FRAGMENT: "fragment_",
             SessionArtifactKind.EVIDENCE_PACKET: "packet_",
-            SessionArtifactKind.MEMORY_PACKET: "memory_packet_",
             SessionArtifactKind.EVIDENCE_LINK: "evidence_",
             SessionArtifactKind.STATEMENT: "statement_",
             SessionArtifactKind.CONCEPT: "concept_",
             SessionArtifactKind.ENTITY: "entity_",
-            SessionArtifactKind.IDEA_TRACE: "idea_trace_",
-            SessionArtifactKind.RESEARCH_ANSWER: "research_answer_",
-            SessionArtifactKind.ANSWER_PROJECTION: "answer_projection_",
         }[self.artifact_kind]
         if not self.artifact_id.startswith(prefix):
             raise ValueError(f"{self.artifact_kind.value} artifact_id must start with {prefix}")
@@ -299,7 +308,6 @@ class SessionEvent(_SessionModel):
                 {
                     SessionArtifactKind.SOURCE_FRAGMENT,
                     SessionArtifactKind.EVIDENCE_PACKET,
-                    SessionArtifactKind.MEMORY_PACKET,
                     SessionArtifactKind.EVIDENCE_LINK,
                 },
                 "evidence_attached",
@@ -311,9 +319,6 @@ class SessionEvent(_SessionModel):
                     SessionArtifactKind.STATEMENT,
                     SessionArtifactKind.CONCEPT,
                     SessionArtifactKind.ENTITY,
-                    SessionArtifactKind.IDEA_TRACE,
-                    SessionArtifactKind.RESEARCH_ANSWER,
-                    SessionArtifactKind.ANSWER_PROJECTION,
                 },
                 "candidate_linked",
             )
@@ -504,3 +509,13 @@ def _require_artifacts(
     if disallowed:
         names = ", ".join(sorted(item.value for item in disallowed))
         raise ValueError(f"{label} contains disallowed artifact kinds: {names}")
+
+
+def _scope_payload(scope: RequestScope) -> dict[str, object]:
+    return {
+        "library_id": scope.library_id,
+        "snapshot_hash": scope.snapshot_hash,
+        "purpose": scope.purpose,
+        "collection_ids": list(scope.collection_ids),
+        "exclusions": scope.exclusions.payload(),
+    }

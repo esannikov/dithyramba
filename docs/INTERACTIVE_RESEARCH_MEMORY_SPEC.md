@@ -1,8 +1,10 @@
 # Interactive research memory 0.2
 
-Status: approved for implementation  
-Base: `0.1.0rc1` plus the proposition-level answer work in PR #5  
-First implementation slice: session contracts and deterministic replay
+Status: Session Spine and durable session store implemented locally
+
+Base: `0.1.0rc1` plus the proposition-level answer work in PR #5
+
+Implemented slices: session contracts, deterministic replay, and SQLite persistence
 
 ## Product objective
 
@@ -114,6 +116,19 @@ business logic.
 - A missing semantic judgment remains `review_required`; no model verdict becomes
   historical truth without its bound receipt.
 
+## Durable boundary
+
+Migration `0013_research_sessions.sql` adds only two append-only tables:
+`research_sessions` and `research_session_events`. The store validates the exact
+Library, CorpusSnapshot hash, AccessPolicy scope, exclusions, and every attached
+artifact ID/hash before accepting an event. Reopening a Library reconstructs the
+same event stream and state; the state itself is not stored as editable truth.
+
+Both tables emit ordinary outbox events. SQL triggers independently reject event
+gaps, broken previous hashes, events after closure, model-authored decisions, and
+any update or deletion. The Python layer repeats the semantic checks so a failure
+is caught before or during the transaction rather than trusted to one boundary.
+
 ## Acceptance criteria for the Session Spine
 
 1. Contracts are strict, immutable, content-addressed, and reject unknown fields.
@@ -126,10 +141,9 @@ business logic.
 8. Unit tests cover happy paths, tampering, ordering, scope, role, and closure errors.
 9. The package remains offline-first and adds no runtime dependency.
 
-## Explicitly outside the first slice
+## Explicitly outside the implemented contour
 
 - MCP and HTTP routes;
-- SQLite persistence and migration 0013;
 - automatic capture of arbitrary chat transcripts;
 - automatic candidate promotion;
 - global ontology generation;
@@ -139,4 +153,3 @@ business logic.
 
 These are staged only after the Session Spine is stable. This prevents transport,
 UI, and orchestration concerns from becoming part of the memory core.
-

@@ -31,7 +31,7 @@ def test_packaged_migration_smoke_returns_schema_evidence() -> None:
     evidence = verify_migrations_smoke()
 
     assert evidence["status"] == "ok"
-    assert evidence["schema_version"] == 12
+    assert evidence["schema_version"] == 13
     assert len(str(evidence["schema_fingerprint"])) == 64
     checksums = evidence["migration_checksums"]
     assert isinstance(checksums, dict)
@@ -48,6 +48,7 @@ def test_packaged_migration_smoke_returns_schema_evidence() -> None:
         "10",
         "11",
         "12",
+        "13",
     }
 
 

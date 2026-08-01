@@ -37,7 +37,7 @@ def test_projection_and_receipt_are_append_only_and_reopen_exactly(
         assert store.persist_projection(projection) == projection
         assert store.persist_receipt(receipt) == receipt
         assert store.persist_receipt(receipt) == receipt
-        assert repository.schema_version == 12
+        assert repository.schema_version == 13
         assert (
             repository._store.connection.execute(
                 "SELECT COUNT(*) FROM answer_projections"

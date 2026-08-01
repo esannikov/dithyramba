@@ -6,7 +6,7 @@ tests and cold replay.
 
 ## 0.2a — Session Spine
 
-Status: in progress
+Status: complete
 
 - freeze the technical specification and terminology;
 - implement immutable session, brief, artifact-reference, event, and state models;
@@ -18,6 +18,8 @@ Exit condition: focused tests, Ruff, and strict MyPy pass without a new dependen
 
 ## 0.2b — Durable session store
 
+Status: complete
+
 - add migration 0013 to both SQL mirrors;
 - persist sessions and append-only events in SQLite;
 - validate referenced artifacts inside the same Library;
@@ -28,6 +30,8 @@ Exit condition: fresh install, 0012 -> 0013 migration, backup, reopen, and corru
 tests pass.
 
 ## 0.2c — Research tools for agents
+
+Status: next
 
 - expose a small Python facade: `open`, `recall`, `attach`, `draft`, `propose`,
   `record_gap`, `state`;
@@ -79,4 +83,3 @@ not only passing implementation tests.
 - background self-learning;
 - model-specific fine-tuning;
 - multi-user synchronization.
-

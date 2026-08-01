@@ -214,8 +214,10 @@ closed. Conversation events can explain why a path was tried, rejected, or left
 open, but they cannot support a claim unless they link to an existing exact
 evidence artifact.
 
-The current Session Spine is an implementation-stage Python contract. Durable
-SQLite persistence, MCP transport, and Lens controls are later 0.2 stages. See
+The Session Spine and durable SQLite store are implemented locally. Migration
+0013 persists the immutable session receipt and typed hash-chained events,
+validates exact artifact closure, and rebuilds compact state after a cold reopen.
+MCP transport, the least-context agent facade, and Lens controls are later 0.2 stages. See
 [the 0.2 specification](INTERACTIVE_RESEARCH_MEMORY_SPEC.md) and
 [roadmap](ROADMAP_0.2.md).
 
@@ -225,6 +227,7 @@ SQLite persistence, MCP transport, and Lens controls are later 0.2 stages. See
 |---|---|---|
 | source versions, fragments, identities, policies, snapshots, shared read sets, packets, reviews | SQLite plus content-addressed blobs | durable record |
 | IdeaTrace candidates, answer projections, and their closure/judgment receipts | append-only canonical JSON in SQLite | durable candidate/audit record; not accepted truth |
+| research sessions and hash-chained events | append-only canonical JSON plus relational bindings in SQLite | durable research journal; chat and drafts remain non-evidence |
 | FTS index | SQLite FTS5 | rebuildable discovery index |
 | semantic vectors and reranker caches | optional local model data | rebuildable discovery aid |
 | graph and Atlas projections | versioned derived artifacts | navigational view |

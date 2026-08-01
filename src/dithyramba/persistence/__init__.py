@@ -37,6 +37,9 @@ from .errors import (
     ProcessingRunNotFoundError,
     QueryRequestNotFoundError,
     RecallArtifactNotFoundError,
+    ResearchSessionNotFoundError,
+    ResearchSessionPersistenceError,
+    SessionArtifactNotFoundError,
     SourceNotFoundError,
     SourceVersionNotFoundError,
 )
@@ -63,6 +66,7 @@ from .repository import (
     open_library,
 )
 from .semantic import SemanticSpanVectorBundle, SQLiteSemanticSpanStore
+from .sessions import SQLiteResearchSessionRepository
 from .structure import SQLiteStructureRepository
 
 __all__ = [
@@ -101,15 +105,19 @@ __all__ = [
     "ProcessingRunStatus",
     "QueryRequestNotFoundError",
     "RecallArtifactNotFoundError",
+    "ResearchSessionNotFoundError",
+    "ResearchSessionPersistenceError",
     "SQLiteAnswerProjectionRepository",
     "SQLiteHybridStore",
     "SQLiteMeaningRepository",
     "SQLiteReasoningRepository",
     "SQLiteRecallBackend",
     "SQLiteRelationRepository",
+    "SQLiteResearchSessionRepository",
     "SQLiteSemanticSpanStore",
     "SQLiteStructureRepository",
     "SemanticSpanVectorBundle",
+    "SessionArtifactNotFoundError",
     "SourceFamilyRole",
     "SourceFragmentRecord",
     "SourceFragmentText",

@@ -290,7 +290,7 @@ def test_empty_library_online_backup_opens_and_verifies(tmp_path: Path) -> None:
         assert backup.path.parent == repository.paths.backups
         assert backup.path.is_file()
         assert len(backup.sha256) == 64
-        assert backup.schema_version == 12
+        assert backup.schema_version == 13
         assert not tuple(repository.paths.backups.glob("*.tmp"))
 
     with Store.open(backup.path, apply_migrations=False) as backup_store:

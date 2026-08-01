@@ -183,8 +183,8 @@ low-level migration/test/backup seam and must not become a corpus-facing API.
 - `docs/ANSWER_COVERAGE_GATE.md`: answer-facet validation;
 - `docs/COMPACT_RESEARCH_MEMORY.md`: compact connector and answer-validation contracts;
 - `docs/RESEARCH_PROJECTION.md`: wider-memory projection outside accepted evidence;
-- `docs/INTERACTIVE_RESEARCH_MEMORY_SPEC.md`: approved 0.2 session contracts,
-  role boundaries, and acceptance criteria;
+- `docs/INTERACTIVE_RESEARCH_MEMORY_SPEC.md`: implemented 0.2 session and
+  persistence contracts, role boundaries, and acceptance criteria;
 - `docs/ROADMAP_0.2.md`: dependency-ordered implementation and release gates for
   interactive research memory;
 - `docs/EVALUATION.md`: corpus scales, results, negative findings, and limits;
