@@ -31,12 +31,16 @@ tests pass.
 
 ## 0.2c — Research tools for agents
 
-Status: next
+Status: in progress
 
-- expose a small Python facade: `open`, `recall`, `attach`, `draft`, `propose`,
-  `record_gap`, `state`;
-- assemble least-context packets from the session state and current question;
-- keep semantic candidate acceptance human-only;
+- [x] expose a small Python facade: `open`, `recall`, `attach_evidence`,
+  `record_draft`, `link_candidates`, `record_gap`, `reject_path`, `context`;
+- [x] assemble a bounded context projection from the session state and return
+  exact evidence text separately in the current `EvidencePacket`;
+- [x] keep semantic candidate acceptance, operator decisions, and session closure
+  outside the agent facade;
+- add command idempotency and partial-turn reconciliation before exposing the
+  facade through a retrying transport;
 - add a thin local stdio MCP adapter over the Python facade.
 
 Exit condition: one agent can continue a session after restart without receiving

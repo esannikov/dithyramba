@@ -107,6 +107,15 @@ Human promotion continues through the existing review contracts. The future MCP
 adapter will be a thin transport over the same Python services and will not own
 business logic.
 
+The implemented `AgentResearchFacade` exposes only bounded research actions. A
+turn returns two different objects: a compact `AgentSessionContext` containing
+recent journal state and explicit omission counts, and the current exact
+`EvidencePacket` containing source text and addresses. This avoids replaying the
+whole transcript while ensuring that compact state is never mistaken for proof.
+Before MCP exposure, commands need an idempotency receipt: a transport retry
+must reconcile an already-recorded question or attached packet instead of
+silently creating a second research event.
+
 ## Failure semantics
 
 - Invalid or stale artifact hashes are rejected by the persistence adapter.

@@ -48,6 +48,7 @@ all-knowing service.
 | `recall`, `evidence`, `answers` | Candidate discovery, replayable packets, explicit evidence coverage, and answer validation |
 | `reasoning`, `answers` | Public IdeaTrace and proposition-level answer contracts, deterministic closure/coverage, and no automatic promotion |
 | `sessions` | 0.2 contracts for scoped research sessions, typed hash-chained events, and deterministic compact state; durable writes live in `persistence.sessions` |
+| `interactive` | agent-safe least-context Python facade over durable sessions and exact persisted recall; no human decision or promotion tools |
 | `ontology` | Experimental scoped candidate concepts, exact evidence closure, and co-occurrence links |
 | `meaning`, `relations`, `structure`, `research` | Typed interpretive objects and source-bound research structures |
 | `review` | Append-only human acceptance, revision, rejection, and deferral |

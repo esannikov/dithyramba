@@ -214,10 +214,13 @@ closed. Conversation events can explain why a path was tried, rejected, or left
 open, but they cannot support a claim unless they link to an existing exact
 evidence artifact.
 
-The Session Spine and durable SQLite store are implemented locally. Migration
+The Session Spine, durable SQLite store, and least-context Python facade are
+implemented locally. Migration
 0013 persists the immutable session receipt and typed hash-chained events,
 validates exact artifact closure, and rebuilds compact state after a cold reopen.
-MCP transport, the least-context agent facade, and Lens controls are later 0.2 stages. See
+The facade returns compact journal state separately from the current exact
+EvidencePacket and does not expose acceptance, operator decisions, or closure.
+MCP transport and Lens controls are later 0.2 stages. See
 [the 0.2 specification](INTERACTIVE_RESEARCH_MEMORY_SPEC.md) and
 [roadmap](ROADMAP_0.2.md).
 
