@@ -192,6 +192,33 @@ deterministic but not navigationally coherent. The replacement is smaller:
 local scope, FTS-first neighbourhood, no required embedding model, and no
 global ontology claim.
 
+## Interactive research sessions (0.2 development)
+
+The next release line adds a continuing investigation around the stable evidence
+route. It does not store a chat transcript as source truth and does not create a
+second semantic layer.
+
+```text
+ResearchSessionBrief
+  → ResearchSession bound to Library + snapshot + policy + Collections
+  → typed append-only SessionEvents
+  → exact references to existing packets, fragments, candidates, and answers
+  → deterministic compact ResearchSessionState
+  → existing evidence gates and human ReviewDecision
+```
+
+The event stream is authoritative; its state is a disposable projection. Every
+event is content-addressed and names the previous event hash. Reordering,
+omission, foreign-session binding, mutation, and appending after closure fail
+closed. Conversation events can explain why a path was tried, rejected, or left
+open, but they cannot support a claim unless they link to an existing exact
+evidence artifact.
+
+The current Session Spine is an implementation-stage Python contract. Durable
+SQLite persistence, MCP transport, and Lens controls are later 0.2 stages. See
+[the 0.2 specification](INTERACTIVE_RESEARCH_MEMORY_SPEC.md) and
+[roadmap](ROADMAP_0.2.md).
+
 ## Storage model
 
 | Material | Storage | Authority |

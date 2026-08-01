@@ -11,6 +11,11 @@ The current release line is pre-alpha. Product surfaces must describe what the
 running system proves; they must not imply public validation, autonomous learning,
 or semantic confidence that has not been measured.
 
+The `0.2` development line adds bounded research sessions so an agent can
+continue an investigation from compact state and exact artifact references.
+Session notes, drafts, and rejected paths remain journal material. They do not
+become evidence or accepted memory merely because an agent recorded them.
+
 ## Primary operator
 
 The primary operator is a researcher in the broad sense: scientist, historian,

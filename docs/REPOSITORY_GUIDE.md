@@ -47,6 +47,7 @@ all-knowing service.
 | `store`, `persistence`, `backup` | SQLite schema, repositories, immutable records, backup, restore, and migration |
 | `recall`, `evidence`, `answers` | Candidate discovery, replayable packets, explicit evidence coverage, and answer validation |
 | `reasoning`, `answers` | Public IdeaTrace and proposition-level answer contracts, deterministic closure/coverage, and no automatic promotion |
+| `sessions` | 0.2 development contracts for scoped research sessions, typed hash-chained events, and deterministic compact state |
 | `ontology` | Experimental scoped candidate concepts, exact evidence closure, and co-occurrence links |
 | `meaning`, `relations`, `structure`, `research` | Typed interpretive objects and source-bound research structures |
 | `review` | Append-only human acceptance, revision, rejection, and deferral |
@@ -80,6 +81,8 @@ natural-language quality or research truth.
 - **Agent or systems specialist:** [Architecture](ARCHITECTURE.md) and
   [reference](REFERENCE.md)
 - **Reasoning integrator:** [Evidence-grounded reasoning](REASONING.md)
+- **Interactive-memory integrator:** [0.2 specification](INTERACTIVE_RESEARCH_MEMORY_SPEC.md)
+  and [roadmap](ROADMAP_0.2.md)
 - **Research-method reader:** [Explanation](EXPLANATION.md) and
   [evaluation limits](EVALUATION.md)
 - **Contributor:** [Development](DEVELOPMENT.md),
@@ -100,6 +103,8 @@ contracts and design decisions inspectable:
 | [Compact research memory](COMPACT_RESEARCH_MEMORY.md) | How are small source-closed packets routed and validated? |
 | [Research View](RESEARCH_PROJECTION.md) | How can wider candidate material remain visible without becoming accepted evidence? |
 | [Mars IdeaTrace-24](MARS_IDEATRACE_24.md) | What did the first frozen multi-source reasoning diagnostic test, improve, and leave unresolved? |
+| [Interactive research memory 0.2](INTERACTIVE_RESEARCH_MEMORY_SPEC.md) | How can an agent continue research without turning chat into evidence or duplicating the truth layer? |
+| [Roadmap 0.2](ROADMAP_0.2.md) | In what dependency order will sessions, persistence, agent tools, review, and evaluation be built? |
 
 ## Maintenance rule
 
