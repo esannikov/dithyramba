@@ -36,11 +36,16 @@ Status: in progress
 - [x] expose a small Python facade: `open`, `recall`, `attach_evidence`,
   `record_draft`, `link_candidates`, `record_gap`, `reject_path`, `context`;
 - [x] assemble a bounded context projection from the session state and return
-  exact evidence text separately in the current `EvidencePacket`;
+  exact evidence text separately in a compact `AgentEvidencePacket`;
+- [x] keep the full `EvidencePacket` and `ReadReceipt` local while exposing their
+  immutable IDs and hashes to the agent;
 - [x] keep semantic candidate acceptance, operator decisions, and session closure
   outside the agent facade;
-- add command idempotency and partial-turn reconciliation before exposing the
-  facade through a retrying transport;
+- [x] add command idempotency and partial-turn reconciliation through atomic
+  question/completion receipts in the existing append-only outbox;
+- [x] pass the full repository gate after the compact-transport repair: 2,614
+  passed, 2 host/browser skips, branch-aware coverage 95.03%, Ruff and strict
+  MyPy green;
 - add a thin local stdio MCP adapter over the Python facade.
 
 Exit condition: one agent can continue a session after restart without receiving
@@ -69,6 +74,9 @@ laundering or silent corpus mutation.
 
 ## 0.2f — Evaluation and release candidate
 
+- [x] run a 20-turn Mars session over 2,047 sources / 53,747 retrieval units
+  with zero model calls, cold reopen after every turn, and repeated command IDs;
+- [x] measure and repair the accidental full-`ReadReceipt` agent transport;
 - run 5–10 real investigations across mixed and focused corpora;
 - measure supported-answer rate, exact-source recovery, review burden, repeated
   search reduction, context size, and continuation after restart;

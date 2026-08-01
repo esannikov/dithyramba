@@ -2,6 +2,7 @@
 
 from .errors import AgentResearchError
 from .models import (
+    AgentEvidencePacket,
     AgentResearchTurn,
     AgentSessionContext,
     SessionContextBudget,
@@ -10,6 +11,7 @@ from .models import (
 from .service import AgentResearchFacade
 
 __all__ = [
+    "AgentEvidencePacket",
     "AgentResearchError",
     "AgentResearchFacade",
     "AgentResearchTurn",

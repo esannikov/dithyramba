@@ -4,10 +4,15 @@ from __future__ import annotations
 
 from typing import ClassVar, Self, TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_serializer, model_validator
 
 from dithyramba.contracts import canonical_sha256_hex
-from dithyramba.recall import EvidencePacket
+from dithyramba.recall import (
+    EvidenceFragment,
+    EvidencePacket,
+    PacketResultStatus,
+    RecallOmission,
+)
 from dithyramba.sessions import (
     ResearchSession,
     ResearchSessionBrief,
@@ -20,6 +25,7 @@ from dithyramba.sessions import (
 _HASH_PATTERN = r"^[0-9a-f]{64}$"
 _SESSION_ID_PATTERN = r"^research_session_[0-9a-f]{32}$"
 _EVENT_ID_PATTERN = r"^session_event_[0-9a-f]{32}$"
+_COMMAND_ID_PATTERN = r"^command_[a-z0-9]+(?:_[a-z0-9]+)*$"
 _T = TypeVar("_T")
 
 
@@ -203,22 +209,174 @@ class AgentSessionContext(_InteractiveModel):
         )
 
 
-class AgentResearchTurn(_InteractiveModel):
-    """One recalled EvidencePacket plus the compact state that follows it."""
+class AgentEvidencePacket(_InteractiveModel):
+    """Least-context projection of a full, locally retained EvidencePacket."""
 
-    SCHEMA: ClassVar[str] = "dithyramba.agent_research_turn/1.0"
+    SCHEMA: ClassVar[str] = "dithyramba.agent_evidence_packet/1.0"
 
     schema_id: str
-    turn_hash: str = Field(pattern=_HASH_PATTERN)
-    question_event_id: str = Field(pattern=_EVENT_ID_PATTERN)
-    evidence_event_id: str = Field(pattern=_EVENT_ID_PATTERN)
-    evidence_packet: EvidencePacket
-    context: AgentSessionContext
+    projection_hash: str = Field(pattern=_HASH_PATTERN)
+    evidence_packet_id: str
+    evidence_packet_hash: str = Field(pattern=_HASH_PATTERN)
+    query_request_id: str
+    query_request_hash: str = Field(pattern=_HASH_PATTERN)
+    corpus_snapshot_id: str
+    corpus_snapshot_hash: str = Field(pattern=_HASH_PATTERN)
+    result_status: PacketResultStatus
+    source_fragments: tuple[EvidenceFragment, ...]
+    coverage_report_id: str
+    coverage_report_hash: str = Field(pattern=_HASH_PATTERN)
+    processed_count: int = Field(ge=0)
+    skipped_count: int = Field(ge=0)
+    failed_count: int = Field(ge=0)
+    policy_omission_present: bool
+    omissions: tuple[RecallOmission, ...]
+    retrieval_candidate_count: int = Field(ge=0)
+    retrieval_selected_count: int = Field(ge=0)
+    read_receipt_id: str
+    read_receipt_hash: str = Field(pattern=_HASH_PATTERN)
+    access_receipt_id: str
+    access_receipt_hash: str = Field(pattern=_HASH_PATTERN)
+    retrieval_receipt_id: str
+    retrieval_receipt_hash: str = Field(pattern=_HASH_PATTERN)
+
+    @field_serializer("source_fragments")
+    def serialize_source_fragments(
+        self,
+        value: tuple[EvidenceFragment, ...],
+    ) -> list[dict[str, object]]:
+        return [item.payload() for item in value]
 
     @model_validator(mode="after")
     def validate_identity(self) -> Self:
         if self.schema_id != self.SCHEMA:
             raise ValueError(f"schema_id must be {self.SCHEMA}")
+        if self.projection_hash != canonical_sha256_hex(self.semantic_payload()):
+            raise ValueError("projection_hash does not match the agent evidence packet")
+        has_evidence = bool(self.source_fragments)
+        if has_evidence != (self.result_status is PacketResultStatus.EVIDENCE_FOUND):
+            raise ValueError("result_status must match projected source fragments")
+        if self.retrieval_selected_count != len(self.source_fragments):
+            raise ValueError("retrieval_selected_count must match projected fragments")
+        return self
+
+    def semantic_payload(self) -> dict[str, object]:
+        return {
+            "schema_id": self.schema_id,
+            "evidence_packet_id": self.evidence_packet_id,
+            "evidence_packet_hash": self.evidence_packet_hash,
+            "query_request_id": self.query_request_id,
+            "query_request_hash": self.query_request_hash,
+            "corpus_snapshot_id": self.corpus_snapshot_id,
+            "corpus_snapshot_hash": self.corpus_snapshot_hash,
+            "result_status": self.result_status.value,
+            "source_fragments": [item.payload() for item in self.source_fragments],
+            "coverage": {
+                "coverage_report_id": self.coverage_report_id,
+                "coverage_report_hash": self.coverage_report_hash,
+                "processed_count": self.processed_count,
+                "skipped_count": self.skipped_count,
+                "failed_count": self.failed_count,
+                "policy_omission_present": self.policy_omission_present,
+                "omissions": [item.payload() for item in self.omissions],
+            },
+            "retrieval": {
+                "candidate_count": self.retrieval_candidate_count,
+                "selected_count": self.retrieval_selected_count,
+            },
+            "receipts": {
+                "read_receipt_id": self.read_receipt_id,
+                "read_receipt_hash": self.read_receipt_hash,
+                "access_receipt_id": self.access_receipt_id,
+                "access_receipt_hash": self.access_receipt_hash,
+                "retrieval_receipt_id": self.retrieval_receipt_id,
+                "retrieval_receipt_hash": self.retrieval_receipt_hash,
+            },
+        }
+
+    @classmethod
+    def create(cls, packet: EvidencePacket) -> AgentEvidencePacket:
+        if type(packet) is not EvidencePacket:
+            raise TypeError("AgentEvidencePacket requires an exact EvidencePacket")
+        semantic: dict[str, object] = {
+            "schema_id": cls.SCHEMA,
+            "evidence_packet_id": packet.evidence_packet_id,
+            "evidence_packet_hash": packet.packet_hash,
+            "query_request_id": packet.query_request_id,
+            "query_request_hash": packet.query_request_hash,
+            "corpus_snapshot_id": packet.corpus_snapshot_id,
+            "corpus_snapshot_hash": packet.corpus_snapshot_hash,
+            "result_status": packet.result_status.value,
+            "source_fragments": [item.payload() for item in packet.source_fragments],
+            "coverage": {
+                "coverage_report_id": packet.coverage_report.coverage_report_id,
+                "coverage_report_hash": packet.coverage_report.report_hash,
+                "processed_count": packet.coverage_report.processed_count,
+                "skipped_count": packet.coverage_report.skipped_count,
+                "failed_count": packet.coverage_report.failed_count,
+                "policy_omission_present": packet.coverage_report.policy_omission_present,
+                "omissions": [item.payload() for item in packet.coverage_report.omissions],
+            },
+            "retrieval": {
+                "candidate_count": packet.retrieval_receipt.candidate_count,
+                "selected_count": packet.retrieval_receipt.selected_count,
+            },
+            "receipts": {
+                "read_receipt_id": packet.read_receipt.read_receipt_id,
+                "read_receipt_hash": packet.read_receipt.receipt_hash,
+                "access_receipt_id": packet.access_receipt.access_receipt_id,
+                "access_receipt_hash": packet.access_receipt.receipt_hash,
+                "retrieval_receipt_id": packet.retrieval_receipt.retrieval_receipt_id,
+                "retrieval_receipt_hash": packet.retrieval_receipt.receipt_hash,
+            },
+        }
+        return cls(
+            schema_id=cls.SCHEMA,
+            projection_hash=canonical_sha256_hex(semantic),
+            evidence_packet_id=packet.evidence_packet_id,
+            evidence_packet_hash=packet.packet_hash,
+            query_request_id=packet.query_request_id,
+            query_request_hash=packet.query_request_hash,
+            corpus_snapshot_id=packet.corpus_snapshot_id,
+            corpus_snapshot_hash=packet.corpus_snapshot_hash,
+            result_status=packet.result_status,
+            source_fragments=packet.source_fragments,
+            coverage_report_id=packet.coverage_report.coverage_report_id,
+            coverage_report_hash=packet.coverage_report.report_hash,
+            processed_count=packet.coverage_report.processed_count,
+            skipped_count=packet.coverage_report.skipped_count,
+            failed_count=packet.coverage_report.failed_count,
+            policy_omission_present=packet.coverage_report.policy_omission_present,
+            omissions=packet.coverage_report.omissions,
+            retrieval_candidate_count=packet.retrieval_receipt.candidate_count,
+            retrieval_selected_count=packet.retrieval_receipt.selected_count,
+            read_receipt_id=packet.read_receipt.read_receipt_id,
+            read_receipt_hash=packet.read_receipt.receipt_hash,
+            access_receipt_id=packet.access_receipt.access_receipt_id,
+            access_receipt_hash=packet.access_receipt.receipt_hash,
+            retrieval_receipt_id=packet.retrieval_receipt.retrieval_receipt_id,
+            retrieval_receipt_hash=packet.retrieval_receipt.receipt_hash,
+        )
+
+
+class AgentResearchTurn(_InteractiveModel):
+    """One compact evidence projection plus the compact state that follows it."""
+
+    SCHEMA: ClassVar[str] = "dithyramba.agent_research_turn/1.2"
+    LEGACY_SCHEMA: ClassVar[str] = "dithyramba.agent_research_turn/1.1"
+
+    schema_id: str
+    turn_hash: str = Field(pattern=_HASH_PATTERN)
+    command_id: str = Field(pattern=_COMMAND_ID_PATTERN, max_length=96)
+    question_event_id: str = Field(pattern=_EVENT_ID_PATTERN)
+    evidence_event_id: str = Field(pattern=_EVENT_ID_PATTERN)
+    evidence_packet: AgentEvidencePacket
+    context: AgentSessionContext
+
+    @model_validator(mode="after")
+    def validate_identity(self) -> Self:
+        if self.schema_id not in (self.SCHEMA, self.LEGACY_SCHEMA):
+            raise ValueError(f"schema_id must be {self.SCHEMA} or {self.LEGACY_SCHEMA}")
         if self.turn_hash != canonical_sha256_hex(self.semantic_payload()):
             raise ValueError("turn_hash does not match the agent research turn")
         return self
@@ -226,10 +384,11 @@ class AgentResearchTurn(_InteractiveModel):
     def semantic_payload(self) -> dict[str, object]:
         return {
             "schema_id": self.schema_id,
+            "command_id": self.command_id,
             "question_event_id": self.question_event_id,
             "evidence_event_id": self.evidence_event_id,
             "evidence_packet_id": self.evidence_packet.evidence_packet_id,
-            "evidence_packet_hash": self.evidence_packet.packet_hash,
+            "evidence_packet_hash": self.evidence_packet.evidence_packet_hash,
             "context_hash": self.context.context_hash,
         }
 
@@ -237,22 +396,27 @@ class AgentResearchTurn(_InteractiveModel):
     def create(
         cls,
         *,
+        command_id: str,
         question_event_id: str,
         evidence_event_id: str,
-        evidence_packet: EvidencePacket,
+        evidence_packet: AgentEvidencePacket,
         context: AgentSessionContext,
+        schema_id: str | None = None,
     ) -> AgentResearchTurn:
+        selected_schema = schema_id or cls.SCHEMA
         semantic: dict[str, object] = {
-            "schema_id": cls.SCHEMA,
+            "schema_id": selected_schema,
+            "command_id": command_id,
             "question_event_id": question_event_id,
             "evidence_event_id": evidence_event_id,
             "evidence_packet_id": evidence_packet.evidence_packet_id,
-            "evidence_packet_hash": evidence_packet.packet_hash,
+            "evidence_packet_hash": evidence_packet.evidence_packet_hash,
             "context_hash": context.context_hash,
         }
         return cls(
-            schema_id=cls.SCHEMA,
+            schema_id=selected_schema,
             turn_hash=canonical_sha256_hex(semantic),
+            command_id=command_id,
             question_event_id=question_event_id,
             evidence_event_id=evidence_event_id,
             evidence_packet=evidence_packet,

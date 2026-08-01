@@ -1,10 +1,14 @@
 # Interactive research memory 0.2
 
-Status: Session Spine and durable session store implemented locally
+Status: Session Spine, durable store, and least-context agent transport implemented locally
 
 Base: `0.1.0rc1` plus the proposition-level answer work in PR #5
 
-Implemented slices: session contracts, deterministic replay, and SQLite persistence
+Implemented slices: session contracts, deterministic replay, SQLite persistence,
+idempotent recall commands, and compact evidence projection
+
+Verification: 2,614 tests passed, 2 host/browser tests skipped, branch-aware
+coverage 95.03%, Ruff and strict MyPy passed, with no new runtime dependency
 
 ## Product objective
 
@@ -109,12 +113,22 @@ business logic.
 
 The implemented `AgentResearchFacade` exposes only bounded research actions. A
 turn returns two different objects: a compact `AgentSessionContext` containing
-recent journal state and explicit omission counts, and the current exact
-`EvidencePacket` containing source text and addresses. This avoids replaying the
-whole transcript while ensuring that compact state is never mistaken for proof.
-Before MCP exposure, commands need an idempotency receipt: a transport retry
-must reconcile an already-recorded question or attached packet instead of
-silently creating a second research event.
+recent journal state and explicit omission counts, and an
+`AgentEvidencePacket` containing only the selected exact source fragments,
+their addresses, compact coverage counts, and the IDs and hashes of the full
+audit receipts. The complete `EvidencePacket`, including its materialized
+`ReadReceipt`, remains local in the Library and can be inspected explicitly; it
+is not copied into every agent prompt. This avoids replaying the whole transcript
+or corpus-read manifest while preserving a cryptographic route back to the full
+audit artifact.
+
+Every recall command now requires a stable `command_id`. Its question event and
+start receipt commit atomically; its evidence event and exact response receipt
+also commit atomically. A retry with identical input returns the persisted turn
+without a second FTS run or journal event. A retry after interruption resumes
+from the one durable question, while reuse of the command ID for different input
+fails closed. These receipts reuse the existing append-only outbox, so no third
+editable session store or schema migration is introduced.
 
 ## Failure semantics
 
@@ -122,6 +136,11 @@ silently creating a second research event.
 - A broken event chain cannot be partially replayed.
 - An agent-authored `decision_recorded` or `session_closed` event is rejected.
 - Session state can be regenerated after loss because events are authoritative.
+- A completed command can be replayed byte-for-byte after restart; a partial
+  command cannot duplicate its question when the transport retries.
+- Ordinary command replay reconstructs the compact projection from its persisted
+  response receipt and does not rematerialize the full `EvidencePacket`. Legacy
+  0.2 development receipts are upgraded in memory by loading the full packet once.
 - A missing semantic judgment remains `review_required`; no model verdict becomes
   historical truth without its bound receipt.
 
@@ -149,6 +168,8 @@ is caught before or during the transaction rather than trusted to one boundary.
 7. Evidence and candidate events require typed, hash-pinned artifact references.
 8. Unit tests cover happy paths, tampering, ordering, scope, role, and closure errors.
 9. The package remains offline-first and adds no runtime dependency.
+10. The agent transport omits the materialized `ReadReceipt` while retaining its
+    immutable ID/hash and every selected exact fragment.
 
 ## Explicitly outside the implemented contour
 

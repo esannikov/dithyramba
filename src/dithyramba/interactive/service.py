@@ -6,11 +6,13 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 
 from dithyramba.access import QueryExclusions
+from dithyramba.contracts import canonical_json_bytes
 from dithyramba.persistence import (
     LibraryRepository,
     SQLiteResearchSessionRepository,
 )
 from dithyramba.persistence.recall import SQLiteRecallBackend
+from dithyramba.persistence.sessions import RecallCommandCompletion
 from dithyramba.recall import QueryRequest, RecallService, RetrievalBudget
 from dithyramba.sessions import (
     ResearchSession,
@@ -24,7 +26,12 @@ from dithyramba.sessions import (
 )
 
 from .errors import AgentResearchError
-from .models import AgentResearchTurn, AgentSessionContext, SessionContextBudget
+from .models import (
+    AgentEvidencePacket,
+    AgentResearchTurn,
+    AgentSessionContext,
+    SessionContextBudget,
+)
 
 _Clock = Callable[[], datetime]
 
@@ -51,8 +58,9 @@ class AgentResearchFacade:
         self._context_budget = context_budget or SessionContextBudget()
         self._sessions = SQLiteResearchSessionRepository(repository)
         self._coordinator = ResearchSessionCoordinator()
+        self._recall_backend = SQLiteRecallBackend(repository)
         self._recall = RecallService(
-            SQLiteRecallBackend(repository),
+            self._recall_backend,
             profile_version=profile_version,
         )
 
@@ -90,28 +98,40 @@ class AgentResearchFacade:
         session_id: str,
         question: str,
         *,
+        command_id: str,
         retrieval: RetrievalBudget | None = None,
     ) -> AgentResearchTurn:
-        """Record a question, run exact scoped recall, and attach its durable packet."""
+        """Run or exactly replay one idempotent, source-grounded recall command."""
 
         session = self._sessions.get_session(session_id)
-        question_event = self._append(
-            session,
-            kind=SessionEventKind.QUESTION_ASKED,
-            summary=question,
+        request = QueryRequest(
+            question=question,
+            library_id=session.library_id,
+            collection_ids=session.collection_ids,
+            corpus_snapshot_id=session.corpus_snapshot_id,
+            access_policy_id=session.access_policy_id,
+            purpose=session.purpose,
+            exclusions=session.scope.exclusions,
+            retrieval=retrieval or RetrievalBudget(),
         )
-        result = self._recall.recall(
-            QueryRequest(
-                question=question,
-                library_id=session.library_id,
-                collection_ids=session.collection_ids,
-                corpus_snapshot_id=session.corpus_snapshot_id,
-                access_policy_id=session.access_policy_id,
-                purpose=session.purpose,
-                exclusions=session.scope.exclusions,
-                retrieval=retrieval or RetrievalBudget(),
-            )
+        started_at = self._timestamp()
+        start = self._sessions.begin_recall_command(
+            session_id=session_id,
+            command_id=command_id,
+            request=request,
+            actor_id=self._agent_id,
+            occurred_at=started_at,
         )
+        completed = self._sessions.load_recall_command_completion(command_id)
+        if completed is not None:
+            if (
+                completed.command_hash != start.command_hash
+                or completed.question_event_id != start.question_event.event_id
+            ):
+                raise AgentResearchError("completed recall command disagrees with its start")
+            return self._turn_from_completion(completed)
+
+        result = self._recall.recall(request)
         packet = result.packet
         references = (
             SessionArtifactReference(
@@ -130,7 +150,7 @@ class AgentResearchFacade:
                 for fragment in packet.source_fragments
             ),
         )
-        evidence_event = self._append(
+        evidence_event = self._build_event(
             session,
             kind=SessionEventKind.EVIDENCE_ATTACHED,
             summary=(
@@ -139,12 +159,36 @@ class AgentResearchFacade:
             ),
             artifact_refs=references,
         )
-        return AgentResearchTurn.create(
-            question_event_id=question_event.event_id,
-            evidence_event_id=evidence_event.event_id,
-            evidence_packet=packet,
-            context=self.context(session_id),
+        events = self._sessions.list_events(session_id)
+        state = self._coordinator.replay(session, (*events, evidence_event))
+        projected_context = AgentSessionContext.create(
+            session=session,
+            state=state,
+            budget=self._context_budget,
         )
+        agent_evidence = AgentEvidencePacket.create(packet)
+        turn = AgentResearchTurn.create(
+            command_id=command_id,
+            question_event_id=start.question_event.event_id,
+            evidence_event_id=evidence_event.event_id,
+            evidence_packet=agent_evidence,
+            context=projected_context,
+        )
+        completion = self._sessions.complete_recall_command(
+            start=start,
+            evidence_event=evidence_event,
+            evidence_packet_id=packet.evidence_packet_id,
+            evidence_packet_hash=packet.packet_hash,
+            agent_evidence_json=canonical_json_bytes(agent_evidence.model_dump(mode="json")).decode(
+                "utf-8"
+            ),
+            context_json=canonical_json_bytes(projected_context.model_dump(mode="json")).decode(
+                "utf-8"
+            ),
+            turn_hash=turn.turn_hash,
+            occurred_at=evidence_event.occurred_at,
+        )
+        return self._turn_from_completion(completion)
 
     def record_draft(self, session_id: str, text: str) -> AgentSessionContext:
         return self._record_text(session_id, SessionEventKind.ANSWER_DRAFTED, text)
@@ -226,6 +270,57 @@ class AgentResearchFacade:
             occurred_at=self._timestamp(),
         )
         return self._sessions.append_event(updated[-1])
+
+    def _build_event(
+        self,
+        session: ResearchSession,
+        *,
+        kind: SessionEventKind,
+        summary: str,
+        artifact_refs: tuple[SessionArtifactReference, ...] = (),
+    ) -> SessionEvent:
+        events = self._sessions.list_events(session.session_id)
+        return self._coordinator.append(
+            session,
+            events,
+            kind=kind,
+            actor_kind=SessionActorKind.MODEL,
+            actor_id=self._agent_id,
+            summary=summary,
+            artifact_refs=artifact_refs,
+            occurred_at=self._timestamp(),
+        )[-1]
+
+    def _turn_from_completion(
+        self,
+        completion: RecallCommandCompletion,
+    ) -> AgentResearchTurn:
+        turn_schema = AgentResearchTurn.SCHEMA
+        if completion.agent_evidence_json is None:
+            packet = self._recall_backend.load_evidence_packet(completion.evidence_packet_id)
+            if packet.packet_hash != completion.evidence_packet_hash:
+                raise AgentResearchError("completed recall packet hash drifted")
+            agent_evidence = AgentEvidencePacket.create(packet)
+            turn_schema = AgentResearchTurn.LEGACY_SCHEMA
+        else:
+            agent_evidence = AgentEvidencePacket.model_validate_json(completion.agent_evidence_json)
+            if (
+                agent_evidence.evidence_packet_id != completion.evidence_packet_id
+                or agent_evidence.evidence_packet_hash != completion.evidence_packet_hash
+            ):
+                raise AgentResearchError("completed agent evidence projection drifted")
+        context = AgentSessionContext.model_validate_json(completion.context_json)
+        turn = AgentResearchTurn.create(
+            command_id=completion.command_id,
+            question_event_id=completion.question_event_id,
+            evidence_event_id=completion.evidence_event_id,
+            evidence_packet=agent_evidence,
+            context=context,
+            schema_id=turn_schema,
+        )
+        if turn.turn_hash != completion.turn_hash:
+            raise AgentResearchError("completed recall turn hash drifted")
+        return turn
 
     def _timestamp(self) -> str:
         value = self._clock()
