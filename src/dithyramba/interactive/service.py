@@ -2,25 +2,36 @@
 
 from __future__ import annotations
 
+import json
 from collections import OrderedDict
 from collections.abc import Callable
 from datetime import UTC, datetime
 
 from dithyramba.access import QueryExclusions
-from dithyramba.contracts import canonical_json_bytes
+from dithyramba.contracts import canonical_json_bytes, sha256_hex
+from dithyramba.evidence import (
+    EvidenceCandidate,
+    EvidenceCoverageGate,
+    EvidenceGateDecision,
+    EvidenceGateSpec,
+)
 from dithyramba.persistence import (
     LibraryRepository,
     SQLiteResearchSessionRepository,
 )
+from dithyramba.persistence.models import SourceFragmentText
 from dithyramba.persistence.recall import SQLiteRecallBackend
 from dithyramba.persistence.sessions import RecallCommandCompletion
 from dithyramba.recall import (
+    CandidateQualityAssessment,
     EvidenceFragment,
     QueryRequest,
     RecallScopeSession,
     RecallScopeSessionStats,
     RecallService,
     RetrievalBudget,
+    assess_candidate_quality,
+    meaningful_query_tokens,
 )
 from dithyramba.sessions import (
     ResearchSession,
@@ -35,14 +46,18 @@ from dithyramba.sessions import (
 
 from .errors import AgentResearchError
 from .models import (
+    AgentAnswerPreparation,
     AgentEvidencePacket,
     AgentResearchTurn,
     AgentSessionContext,
+    AgentSourceDrilldown,
     AgentSourceReference,
     SessionContextBudget,
 )
 
 _Clock = Callable[[], datetime]
+_DRILLDOWN_SOURCE_LIMIT = 3
+_DRILLDOWN_CANDIDATE_LIMIT = 100
 
 
 class AgentResearchFacade:
@@ -227,8 +242,175 @@ class AgentResearchFacade:
         )
         return self._turn_from_completion(completion)
 
-    def record_draft(self, session_id: str, text: str) -> AgentSessionContext:
-        return self._record_text(session_id, SessionEventKind.ANSWER_DRAFTED, text)
+    def prepare_answer(
+        self,
+        session_id: str,
+        *,
+        evidence_event_id: str,
+        gate_spec: EvidenceGateSpec,
+    ) -> AgentAnswerPreparation:
+        """Filter, repair and gate one recall turn before answer generation."""
+
+        if type(gate_spec) is not EvidenceGateSpec:
+            raise TypeError("prepare_answer requires an exact EvidenceGateSpec")
+        session = self._sessions.get_session(session_id)
+        evidence_event = next(
+            (
+                event
+                for event in self._sessions.list_events(session_id)
+                if event.event_id == evidence_event_id
+            ),
+            None,
+        )
+        if evidence_event is None or evidence_event.kind is not SessionEventKind.EVIDENCE_ATTACHED:
+            raise AgentResearchError("answer preparation requires a session evidence event")
+        completion = self._sessions.load_recall_completion_for_evidence_event(evidence_event_id)
+        if completion is None:
+            raise AgentResearchError("answer preparation cannot resolve the recall completion")
+        binding = self._recall_backend.load_evidence_packet_binding(completion.evidence_packet_id)
+        request = binding.query_request
+        self._require_session_request(session, request)
+        if gate_spec.question != request.question:
+            raise AgentResearchError("EvidenceGateSpec question differs from the recall question")
+        if completion.agent_evidence_json is None:
+            packet = self._recall_backend.load_evidence_packet(completion.evidence_packet_id)
+            agent_evidence = AgentEvidencePacket.create(
+                packet,
+                source_references=self._source_references(packet.source_fragments),
+            )
+        else:
+            agent_evidence = AgentEvidencePacket.model_validate_json(completion.agent_evidence_json)
+        if (
+            agent_evidence.evidence_packet_id != completion.evidence_packet_id
+            or agent_evidence.evidence_packet_hash != completion.evidence_packet_hash
+            or binding.packet_hash != completion.evidence_packet_hash
+        ):
+            raise AgentResearchError("answer preparation packet binding drifted")
+
+        broad_items = tuple(
+            (fragment, reference)
+            for fragment, reference in zip(
+                agent_evidence.source_fragments,
+                agent_evidence.source_references,
+                strict=True,
+            )
+        )
+        candidates, assessments = self._quality_admitted_candidates(
+            broad_items,
+            question=request.question,
+        )
+        gate_result = EvidenceCoverageGate(gate_spec).evaluate(candidates)
+        drilldown_projection: AgentSourceDrilldown | None = None
+
+        if gate_result.decision not in {
+            EvidenceGateDecision.READY,
+            EvidenceGateDecision.GAP_PRESERVED,
+        }:
+            source_ids = _first_source_ids(
+                tuple(reference.source_id for _fragment, reference in broad_items),
+                limit=_DRILLDOWN_SOURCE_LIMIT,
+            )
+            repair_query = _repair_query(gate_spec, gate_result)
+            if source_ids and repair_query:
+                scope_session = self._scope_session(session_id, request)
+                local = self._recall.source_local_drilldown(
+                    request,
+                    scope_session,
+                    question=repair_query,
+                    source_ids=source_ids,
+                    max_candidates=_DRILLDOWN_CANDIDATE_LIMIT,
+                )
+                local_items = tuple(
+                    (fragment, self._source_reference_from_text(fragment))
+                    for fragment in local.fragments
+                )
+                local_candidates, local_assessments = self._quality_admitted_candidates(
+                    local_items,
+                    question=repair_query,
+                    starting_rank=len(candidates) + 1,
+                    excluded_fragment_ids={item.source_fragment_id for item in assessments},
+                )
+                candidates = (*candidates, *local_candidates)
+                assessments = (*assessments, *local_assessments)
+                candidates = tuple(
+                    candidate.model_copy(update={"rank": rank})
+                    for rank, candidate in enumerate(candidates, start=1)
+                )
+                gate_result = EvidenceCoverageGate(gate_spec).evaluate(candidates)
+                drilldown_projection = AgentSourceDrilldown.create(
+                    question=repair_query,
+                    source_ids=local.source_ids,
+                    retrieval_result_hash=local.result.result_hash,
+                    candidate_count=local.result.candidate_count,
+                    selected_fragment_ids=tuple(
+                        item.source_fragment_id for item in local_candidates
+                    ),
+                    filtered_out_count=sum(1 for item in local_assessments if not item.admitted),
+                )
+
+        return AgentAnswerPreparation.create(
+            session_id=session_id,
+            evidence_event_id=evidence_event_id,
+            evidence_packet_id=completion.evidence_packet_id,
+            evidence_packet_hash=completion.evidence_packet_hash,
+            gate_spec=gate_spec,
+            gate_result=gate_result,
+            candidates=candidates,
+            quality_assessments=assessments,
+            drilldown=drilldown_projection,
+        )
+
+    def record_draft(
+        self,
+        session_id: str,
+        text: str,
+        *,
+        preparation: AgentAnswerPreparation,
+    ) -> AgentSessionContext:
+        """Record an answer draft only after exact gate preparation is replayed."""
+
+        if type(preparation) is not AgentAnswerPreparation:
+            raise TypeError("record_draft requires an exact AgentAnswerPreparation")
+        if preparation.session_id != session_id:
+            raise AgentResearchError("answer preparation belongs to another session")
+        verified = self.prepare_answer(
+            session_id,
+            evidence_event_id=preparation.evidence_event_id,
+            gate_spec=preparation.gate_spec,
+        )
+        if verified != preparation:
+            raise AgentResearchError("answer preparation no longer replays exactly")
+        if verified.response_mode != "answer":
+            raise AgentResearchError("EvidenceCoverageGate did not admit a source-backed answer")
+        session = self._sessions.get_session(session_id)
+        matched_ids = _matched_fragment_ids(verified)
+        candidates_by_id = {
+            candidate.source_fragment_id: candidate for candidate in verified.candidates
+        }
+        references = (
+            SessionArtifactReference(
+                artifact_kind=SessionArtifactKind.EVIDENCE_PACKET,
+                artifact_id=verified.evidence_packet_id,
+                artifact_hash=verified.evidence_packet_hash,
+                role="answer_gate",
+            ),
+            *tuple(
+                SessionArtifactReference(
+                    artifact_kind=SessionArtifactKind.SOURCE_FRAGMENT,
+                    artifact_id=fragment_id,
+                    artifact_hash=sha256_hex(candidates_by_id[fragment_id].text.encode("utf-8")),
+                    role="admitted_support",
+                )
+                for fragment_id in matched_ids[:31]
+            ),
+        )
+        self._append(
+            session,
+            kind=SessionEventKind.ANSWER_DRAFTED,
+            summary=text,
+            artifact_refs=references,
+        )
+        return self.context(session_id)
 
     def record_gap(self, session_id: str, text: str) -> AgentSessionContext:
         return self._record_text(session_id, SessionEventKind.GAP_RECORDED, text)
@@ -404,8 +586,135 @@ class AgentResearchFacade:
             )
         return tuple(references)
 
+    def _source_reference_from_text(
+        self,
+        fragment: SourceFragmentText,
+    ) -> AgentSourceReference:
+        source_version = self._repository.get_source_version(fragment.source_version_id)
+        if source_version.source_id != fragment.source_id:
+            raise AgentResearchError("source-local fragment version lineage drifted")
+        source = self._repository.get_source(fragment.source_id)
+        return AgentSourceReference(
+            source_fragment_id=fragment.source_fragment_id,
+            source_version_id=fragment.source_version_id,
+            source_id=source.source_id,
+            source_family_id=source.source_family_id,
+            root_source_id=source.root_source_id,
+            family_role=source.family_role.value,
+            title=source.title,
+            canonical_uri=source.canonical_uri,
+        )
+
+    def _quality_admitted_candidates(
+        self,
+        items: tuple[
+            tuple[EvidenceFragment | SourceFragmentText, AgentSourceReference],
+            ...,
+        ],
+        *,
+        question: str,
+        starting_rank: int = 1,
+        excluded_fragment_ids: set[str] | None = None,
+    ) -> tuple[tuple[EvidenceCandidate, ...], tuple[CandidateQualityAssessment, ...]]:
+        excluded = excluded_fragment_ids or set()
+        candidates: list[EvidenceCandidate] = []
+        assessments: list[CandidateQualityAssessment] = []
+        for fragment, reference in items:
+            if fragment.source_fragment_id in excluded:
+                continue
+            source_fragment = self._repository.get_source_fragment(fragment.source_fragment_id)
+            address = (
+                fragment.source_address.payload()
+                if isinstance(fragment, EvidenceFragment)
+                else json.loads(fragment.source_address_json)
+            )
+            assessment = assess_candidate_quality(
+                source_fragment_id=fragment.source_fragment_id,
+                question=question,
+                text=fragment.text,
+                fragment_kind=source_fragment.fragment_kind,
+                source_address=address,
+            )
+            assessments.append(assessment)
+            if not assessment.admitted:
+                continue
+            source = self._repository.get_source(reference.source_id)
+            candidates.append(
+                EvidenceCandidate(
+                    rank=starting_rank + len(candidates),
+                    source_fragment_id=fragment.source_fragment_id,
+                    source_id=reference.source_id,
+                    text=fragment.text,
+                    source_address=address,
+                    source_kind=source.media_type,
+                    source_family=reference.source_family_id,
+                    authority="unclassified",
+                    independence_group=reference.root_source_id,
+                    evidence_tags=tuple(
+                        sorted(
+                            {
+                                source_fragment.fragment_kind,
+                                source.media_type,
+                                reference.family_role,
+                            }
+                        )
+                    ),
+                )
+            )
+        return tuple(candidates), tuple(assessments)
+
+    @staticmethod
+    def _require_session_request(session: ResearchSession, request: QueryRequest) -> None:
+        if (
+            request.library_id != session.library_id
+            or request.collection_ids != session.collection_ids
+            or request.corpus_snapshot_id != session.corpus_snapshot_id
+            or request.access_policy_id != session.access_policy_id
+            or request.purpose != session.purpose
+            or request.exclusions != session.scope.exclusions
+        ):
+            raise AgentResearchError("answer preparation request differs from its session")
+
     def _timestamp(self) -> str:
         value = self._clock()
         if not isinstance(value, datetime) or value.tzinfo is None:
             raise AgentResearchError("clock must return a timezone-aware datetime")
         return value.astimezone(UTC).isoformat(timespec="microseconds").replace("+00:00", "Z")
+
+
+def _first_source_ids(values: tuple[str, ...], *, limit: int) -> tuple[str, ...]:
+    selected: list[str] = []
+    for value in values:
+        if value not in selected:
+            selected.append(value)
+        if len(selected) == limit:
+            break
+    return tuple(selected)
+
+
+def _repair_query(gate_spec: EvidenceGateSpec, gate_result: object) -> str | None:
+    missing_ids = set(getattr(gate_result, "missing_requirement_ids", ()))
+    raw = " ".join(
+        anchor
+        for requirement in gate_spec.requirements
+        if requirement.evidence_requirement_id in missing_ids
+        for group in requirement.anchor_groups
+        for anchor in group
+    )
+    tokens = (*meaningful_query_tokens(raw), *meaningful_query_tokens(gate_spec.question))
+    selected: list[str] = []
+    for token in tokens:
+        if token not in selected:
+            selected.append(token)
+        if len(selected) == 48:
+            break
+    return " ".join(selected) or None
+
+
+def _matched_fragment_ids(preparation: AgentAnswerPreparation) -> tuple[str, ...]:
+    selected: list[str] = []
+    for requirement in preparation.gate_result.requirements:
+        for fragment_id in requirement.matched_fragment_ids:
+            if fragment_id not in selected:
+                selected.append(fragment_id)
+    return tuple(selected)

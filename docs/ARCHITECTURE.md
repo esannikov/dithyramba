@@ -236,6 +236,34 @@ packet-backed passages without becoming another truth store. See
 [the 0.2 specification](INTERACTIVE_RESEARCH_MEMORY_SPEC.md) and
 [roadmap](ROADMAP_0.2.md).
 
+### Gate-bound answer route
+
+Raw recall remains an immutable `fts_v1` trace. Answer preparation is a
+derived, provider-free step over that trace:
+
+```text
+AgentEvidencePacket(retrieved_candidates)
+  → deterministic candidate-quality guards
+  → EvidenceCoverageGate
+  → if incomplete: source-local FTS over at most three already found Sources
+  → EvidenceCoverageGate replay
+  → answer | gap | blocked
+```
+
+The quality guards remove only explicit bibliography/reference headings,
+index-like layouts, table fragments, and candidates with no meaningful query
+overlap. They do not rewrite the persisted ranking receipt. Source-local repair
+reuses the exact session scope and searches only already authorized fragments;
+its result is bound into `AgentAnswerPreparation/1.0` and cannot replace the
+original EvidencePacket.
+
+`record_draft` accepts an answer only with an exact preparation. The facade
+repeats filtering, local repair, and the Gate immediately before appending the
+draft, then attaches the original packet and matched exact fragments to the
+session event. A blocked preparation cannot be recorded as an answer. This
+controls the Dithyramba journal boundary; it cannot prevent an external model
+from emitting ungrounded text outside the system.
+
 ### Ephemeral session recall cache
 
 The first recall in one process builds a `RecallScopeSession` from the exact
@@ -273,8 +301,9 @@ Python AgentResearchFacade
 
 The MCP server implements protocol lifecycle, `tools/list`, and `tools/call`
 without duplicating research logic. It exposes `open_session`, `recall`,
-`session_context`, `record_draft`, `record_gap`, and `reject_path`. It does not
-expose candidate acceptance, human decisions, promotion, or closure.
+`session_context`, `prepare_answer`, `record_draft`, `record_gap`, and
+`reject_path`. It does not expose candidate acceptance, human decisions,
+promotion, or closure.
 
 Modern Session Lens events reuse the compact command receipt and direct
 fragment metadata lookup. Full packet reconstruction remains available for

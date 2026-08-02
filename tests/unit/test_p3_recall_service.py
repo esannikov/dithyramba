@@ -1611,6 +1611,56 @@ def test_recall_scope_session_rejects_scope_or_service_drift_before_write() -> N
     scope_session.close()
 
 
+def test_source_local_drilldown_is_bounded_to_authorized_named_sources() -> None:
+    specs = (
+        SourceSpec("alpha", "alpha broad evidence"),
+        SourceSpec("beta", "beta exact passage"),
+    )
+    scenario = _scenario(specs)
+    service = _canonical_fts_service(scenario)
+    with service.open_scope_session(scenario.request) as scope_session:
+        result = service.source_local_drilldown(
+            scenario.request,
+            scope_session,
+            question="exact passage",
+            source_ids=(specs[1].source_id,),
+            max_candidates=5,
+        )
+
+        assert result.source_ids == (specs[1].source_id,)
+        assert tuple(item.source_id for item in result.fragments) == (specs[1].source_id,)
+        assert result.result.trace[0].source_fragment_id == specs[1].fragment_id
+        assert scope_session.stats.search_count == 1
+
+        with pytest.raises(RecallRequestError, match="exact RecallScopeSession"):
+            service.source_local_drilldown(
+                scenario.request,
+                cast(Any, object()),
+                question="exact",
+                source_ids=(specs[1].source_id,),
+            )
+        for invalid_ids in (
+            (),
+            (specs[0].source_id, specs[0].source_id),
+            ("",),
+            cast(Any, [specs[0].source_id]),
+        ):
+            with pytest.raises(RecallRequestError, match="unique nonblank"):
+                service.source_local_drilldown(
+                    scenario.request,
+                    scope_session,
+                    question="exact",
+                    source_ids=invalid_ids,
+                )
+        with pytest.raises(RecallRequestError, match="authorized read scope"):
+            service.source_local_drilldown(
+                scenario.request,
+                scope_session,
+                question="exact",
+                source_ids=("source_outside",),
+            )
+
+
 def test_recall_batch_rejects_mixed_scope_before_any_write() -> None:
     scenario = _scenario((SourceSpec("allowed", "alpha public"),))
     service = _canonical_fts_service(scenario)

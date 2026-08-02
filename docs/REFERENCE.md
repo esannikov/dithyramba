@@ -105,8 +105,13 @@ start read-only loopback views. Session Lens requires one existing
 
 `mcp` runs a stdio server over one existing Library. It reserves stdout for
 newline-delimited JSON-RPC and exposes `open_session`, `recall`,
-`session_context`, `record_draft`, `record_gap`, and `reject_path`. It has no
-human acceptance, decision, promotion, deletion, or session-closure tool.
+`session_context`, `prepare_answer`, `record_draft`, `record_gap`, and
+`reject_path`. `prepare_answer` applies deterministic candidate hygiene,
+evaluates an explicit `EvidenceGateSpec`, and may run a bounded search inside
+already found Sources before returning `answer`, `gap`, or `blocked`.
+`record_draft` requires an exactly replayable `answer` preparation. The MCP
+surface has no human acceptance, decision, promotion, deletion, or
+session-closure tool.
 
 `reasoning-check` consumes one absolute-path `IdeaTrace`, exact claim-evidence
 case set, and semantic entailment result. It makes no provider call and emits a

@@ -33,8 +33,9 @@ tests pass.
 
 Status: complete
 
-- [x] expose a small Python facade: `open`, `recall`, `attach_evidence`,
-  `record_draft`, `link_candidates`, `record_gap`, `reject_path`, `context`;
+- [x] expose a small Python facade: `open`, `recall`, `prepare_answer`,
+  `attach_evidence`, `record_draft`, `link_candidates`, `record_gap`,
+  `reject_path`, `context`;
 - [x] assemble a bounded context projection from the session state and return
   exact evidence text separately in a compact `AgentEvidencePacket`;
 - [x] keep the full `EvidencePacket` and `ReadReceipt` local while exposing their
@@ -43,7 +44,7 @@ Status: complete
   outside the agent facade;
 - [x] add command idempotency and partial-turn reconciliation through atomic
   question/completion receipts in the existing append-only outbox;
-- [x] pass the full repository gate after the PhD-scale session and Lens repair: 2,652
+- [x] pass the full repository gate after the answer-route repair: 2,678
   passed, 2 host/browser skips, branch-aware coverage 95.02%, Ruff and strict
   MyPy green;
 - [x] reuse one process-local authorized read-set and FTS index for questions
@@ -107,10 +108,10 @@ laundering or silent corpus mutation.
   supports, 61/120 useful top-five fragments, zero model tokens;
 - [x] keep raw recall explicitly candidate-only in `AgentEvidencePacket/1.2`
   and expose exact source/family dominance without breaking 1.0/1.1 replay;
-- bind `EvidenceCoverageGate` to the interactive answer route so abundant hits
-  cannot answer a known gap;
-- add reviewed work/source identity for cross-format copies and a conditional
-  source drilldown for answer-bearing passages;
+- [x] bind `EvidenceCoverageGate` to the interactive answer route: deterministic
+  noise guards, conditional drilldown inside up to three already found Sources,
+  exact replay before `record_draft`, and fail-closed blocked/gap states;
+- add reviewed work/source identity for cross-format copies;
 - replace development agent labels with independent human adjudication and
   measure correction load and answer usefulness;
 - measure exact-source recovery, repeated search reduction, context size, and

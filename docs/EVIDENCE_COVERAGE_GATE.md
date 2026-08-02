@@ -87,13 +87,33 @@ result = EvidenceCoverageGate(spec).evaluate(candidates)
 source-role metadata, and an independence group. Candidate order does not
 change the canonical result; rank remains part of the input.
 
-## Current boundary
+## Interactive answer boundary
 
-The module is a pure public Python contract under `dithyramba.evidence`. It is
-not yet a default `recall` CLI step and creates no persistent database object.
-Consumers may apply it to an authorized `EvidencePacket` or another exact
-fragment projection. Persistence and UI promotion require a later versioned
-integration contract.
+The pure evaluator remains public under `dithyramba.evidence`; ordinary
+`recall` still returns candidates and never invents a pass. The interactive
+facade and stdio MCP now bind it to the answer route:
+
+1. `recall` returns `AgentEvidencePacket/1.2` with
+   `admission_state: retrieved_candidates`;
+2. `prepare_answer` removes deterministic bibliography, index, table, and
+   no-overlap noise;
+3. the Gate evaluates the exact remaining fragments;
+4. if an answerable question is incomplete and the missing requirement has
+   literal anchors, a bounded FTS repair searches inside at most three Sources
+   already found by the broad recall;
+5. the Gate evaluates the combined exact candidates again;
+6. `record_draft` replays the same preparation and refuses any state other than
+   `ready`.
+
+The original FTS receipt is never rewritten. The local drilldown is recorded in
+`AgentAnswerPreparation/1.0` with its query, source IDs, result hash, selected
+fragment IDs, and filtered count. The draft event links the original packet and
+the exact matched source fragments.
+
+This proves declared evidence-role coverage immediately before the journal
+accepts a source-backed draft. It does not prove entailment of every sentence,
+historical truth, or human acceptance. An external model can still emit text
+outside Dithyramba; the system controls its own answer/journal boundary.
 
 Corpus-specific replays and measurements remain development evidence. They do
 not establish general retrieval quality or evidence sufficiency.

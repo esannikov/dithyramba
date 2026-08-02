@@ -20,6 +20,12 @@ from dithyramba.access import (
 )
 from dithyramba.collections import CollectionConfig, CollectionKind, build_collection_root
 from dithyramba.contracts import canonical_json_bytes, canonical_sha256_hex
+from dithyramba.evidence import (
+    EvidenceAnswerability,
+    EvidenceGateDecision,
+    EvidenceGateSpec,
+    EvidenceRequirement,
+)
 from dithyramba.ingest.service import IngestService
 from dithyramba.interactive import (
     AgentEvidencePacket,
@@ -55,6 +61,7 @@ from dithyramba.persistence.sessions import (
     _validated_session,
 )
 from dithyramba.recall import (
+    CandidateNoiseReason,
     EvidencePacket,
     QueryRequest,
     RetrievalBudget,
@@ -296,9 +303,28 @@ def test_agent_turn_reopens_with_same_compact_context_and_exact_packet(tmp_path:
             "evidence_packet",
             "source_fragment",
         }
+        preparation = facade.prepare_answer(
+            opened.session_id,
+            evidence_event_id=turn.evidence_event_id,
+            gate_spec=EvidenceGateSpec(
+                query_key="dialogue_power",
+                question="dialogue blocking power relation",
+                expected_answerability=EvidenceAnswerability.ANSWERABLE,
+                requirements=(
+                    EvidenceRequirement(
+                        key="exact_support",
+                        label="Exact dialogue blocking support",
+                        allowed_source_ids=(source_id,),
+                        anchor_groups=(("blocking",), ("power relation",)),
+                    ),
+                ),
+            ),
+        )
+        assert preparation.gate_result.decision is EvidenceGateDecision.READY
         facade.record_draft(
             opened.session_id,
             "Stage the change in status through movement; this remains a draft.",
+            preparation=preparation,
         )
         facade.record_gap(opened.session_id, "Need a counterexample with static blocking.")
         facade.record_gap(opened.session_id, "Need evidence about eyelines.")
@@ -326,7 +352,166 @@ def test_agent_turn_reopens_with_same_compact_context_and_exact_packet(tmp_path:
         ).context(opened.session_id)
         assert reopened.context_hash == final_hash
         assert reopened.state_hash == final.state_hash
-        assert reopened.evidence_references == final.evidence_references
+    assert reopened.evidence_references == final.evidence_references
+
+
+def test_answer_route_filters_noise_drills_into_found_source_and_blocks_gaps(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "corpus"
+    root.mkdir()
+    (root / "craft.md").write_text(
+        """# Dialogue craft
+
+Dialogue staging and power shape the scene. Dialogue staging keeps power visible.
+
+## Bibliography
+
+Smith, J. Dialogue Staging and Power. London, 2020.
+
+## Hidden technique
+
+The decisive tactic is triangulated eyeline control.
+""",
+        encoding="utf-8",
+    )
+    with initialize_library(
+        LibraryConfig(name="Answer preparation"), data_root=tmp_path / "data"
+    ) as repository:
+        collection_id, snapshot_id, policy_id, source_id = _prepare_library(repository, root)
+        facade = AgentResearchFacade(
+            repository,
+            agent_id="agent:answer_route",
+            profile_version=current_fts_runtime_profile().profile_version,
+            clock=_TickingClock(),
+        )
+        opened = facade.open(
+            brief=ResearchSessionBrief.create(
+                question="How does this work explain dialogue staging?",
+                intended_use="source-backed answer",
+                success_criteria=("retain exact support",),
+            ),
+            corpus_snapshot_id=snapshot_id,
+            access_policy_id=policy_id,
+            purpose="research",
+            collection_ids=(collection_id,),
+        )
+        turn = facade.recall(
+            opened.session_id,
+            "dialogue staging power",
+            command_id="command_source_drilldown_001",
+            retrieval=RetrievalBudget(max_candidates=10, max_source_fragments=3),
+        )
+        with pytest.raises(TypeError, match="exact EvidenceGateSpec"):
+            facade.prepare_answer(
+                opened.session_id,
+                evidence_event_id=turn.evidence_event_id,
+                gate_spec=cast(Any, object()),
+            )
+        with pytest.raises(AgentResearchError, match="session evidence event"):
+            facade.prepare_answer(
+                opened.session_id,
+                evidence_event_id="session_event_" + "0" * 32,
+                gate_spec=EvidenceGateSpec(
+                    query_key="missing_event",
+                    question="dialogue staging power",
+                    expected_answerability=EvidenceAnswerability.ANSWERABLE,
+                    requirements=(
+                        EvidenceRequirement(
+                            key="exact_technique",
+                            label="Exact technique",
+                            anchor_groups=(("eyeline control",),),
+                        ),
+                    ),
+                ),
+            )
+        with pytest.raises(AgentResearchError, match="question differs"):
+            facade.prepare_answer(
+                opened.session_id,
+                evidence_event_id=turn.evidence_event_id,
+                gate_spec=EvidenceGateSpec(
+                    query_key="wrong_question",
+                    question="a different question",
+                    expected_answerability=EvidenceAnswerability.ANSWERABLE,
+                    requirements=(
+                        EvidenceRequirement(
+                            key="exact_technique",
+                            label="Exact technique",
+                            anchor_groups=(("eyeline control",),),
+                        ),
+                    ),
+                ),
+            )
+        ready = facade.prepare_answer(
+            opened.session_id,
+            evidence_event_id=turn.evidence_event_id,
+            gate_spec=EvidenceGateSpec(
+                query_key="triangulated_eyeline",
+                question="dialogue staging power",
+                expected_answerability=EvidenceAnswerability.ANSWERABLE,
+                requirements=(
+                    EvidenceRequirement(
+                        key="exact_technique",
+                        label="Exact technique inside the found work",
+                        allowed_source_ids=(source_id,),
+                        anchor_groups=(("triangulated",), ("eyeline control",)),
+                    ),
+                ),
+            ),
+        )
+
+        assert ready.response_mode == "answer"
+        assert ready.gate_result.decision is EvidenceGateDecision.READY
+        assert ready.drilldown is not None
+        assert ready.drilldown.source_ids == (source_id,)
+        assert any("triangulated eyeline control" in item.text for item in ready.candidates)
+        assert any(
+            CandidateNoiseReason.BIBLIOGRAPHY in item.reasons for item in ready.quality_assessments
+        )
+        with pytest.raises(TypeError, match="exact AgentAnswerPreparation"):
+            facade.record_draft(
+                opened.session_id,
+                "Invalid preparation type.",
+                preparation=cast(Any, object()),
+            )
+        with pytest.raises(AgentResearchError, match="another session"):
+            facade.record_draft(
+                "research_session_" + "0" * 32,
+                "Preparation from another session.",
+                preparation=ready,
+            )
+        context = facade.record_draft(
+            opened.session_id,
+            "The work names triangulated eyeline control as the decisive tactic.",
+            preparation=ready,
+        )
+        assert context.drafts[-1].text.startswith("The work names")
+
+        blocked = facade.prepare_answer(
+            opened.session_id,
+            evidence_event_id=turn.evidence_event_id,
+            gate_spec=EvidenceGateSpec(
+                query_key="absent_exact_mechanism",
+                question="dialogue staging power",
+                expected_answerability=EvidenceAnswerability.ANSWERABLE,
+                requirements=(
+                    EvidenceRequirement(
+                        key="absent_support",
+                        label="Missing exact mechanism",
+                        allowed_source_ids=(source_id,),
+                        anchor_groups=(("mechanism absent from this corpus",),),
+                    ),
+                ),
+            ),
+        )
+        assert blocked.response_mode == "blocked"
+        assert blocked.gate_result.decision is EvidenceGateDecision.INSUFFICIENT
+        with pytest.raises(AgentResearchError, match="did not admit"):
+            facade.record_draft(
+                opened.session_id,
+                "This unsupported answer must not enter the journal.",
+                preparation=blocked,
+            )
 
 
 def test_new_agent_turn_never_loads_the_corpus_wide_packet(

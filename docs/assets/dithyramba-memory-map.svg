@@ -130,7 +130,7 @@
     <rect x="330" y="782" width="230" height="184" rx="4" fill="#f1f6f8" stroke="#3f687c" stroke-width="1.6"/>
     <text x="350" y="816" class="figure" fill="#3f687c">B · ADAPTER [R]</text>
     <text x="350" y="851" class="node-title">stdio MCP</text>
-    <text x="350" y="883" class="copy">six bounded tools</text>
+    <text x="350" y="883" class="copy">seven bounded tools</text>
     <text x="350" y="910" class="copy">JSON-RPC transport only</text>
     <line x1="350" y1="930" x2="540" y2="930" class="guide"/>
     <text x="350" y="953" class="small">no business or review logic</text>

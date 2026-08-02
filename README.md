@@ -171,7 +171,7 @@ or worker-memory guards.
 | CLI | Library setup, ingest, snapshot, FTS recall, packet inspection and replay, review, backup and restore | default public path |
 | `EvidencePacket/1.0` | persisted, source-closed retrieval result | versioned preview contract |
 | Loopback HTTP service | local programmatic access to one pinned Library | implemented; not remotely exposed |
-| stdio MCP | bounded `open_session`, `recall`, context, draft, gap, and rejected-path tools over the Python facade | implemented on the 0.2 development branch; no acceptance or promotion tools |
+| stdio MCP | bounded session, recall, answer preparation, gated draft, gap, and rejected-path tools over the Python facade | implemented on the 0.2 development branch; no acceptance or promotion tools |
 | Reading Room | read-only inspection of one Library, snapshot, policy, and scope | implemented preview |
 | Session Lens | brief, chronological research journal, exact packet-backed passages, drafts, gaps, and rejected paths | implemented GET-only 0.2 projection |
 | Research Atlas / Lens | case-specific questions, hypotheses, timeline, and exact sources | implemented projection surface |
@@ -188,10 +188,12 @@ lexical repair, an optional two-query QueryCloud, and
 intermediate artifacts are not yet persisted for cold exact replay.
 
 ```text
-FTS50 → bounded repair → coverage check
-      → FTS100 only when needed
-      → optional q1/q2 only for a named gap
-      → matched proof or explicit gap
+raw FTS candidates
+  → strict bibliography / index / table / topic-noise guards
+  → EvidenceCoverageGate
+  → conditional search inside up to three already found Sources
+  → EvidenceCoverageGate again
+  → answer-ready preparation or explicit blocked/gap state
 ```
 
 Generated query variants are discovery aids, never evidence. A rank score says
@@ -199,7 +201,11 @@ that a passage may be relevant; only exact passage content can satisfy an
 explicit evidence requirement. Human acceptance remains a separate decision.
 Agent-facing packets therefore expose `admission_state: retrieved_candidates`
 plus compact source-diversity diagnostics; they never relabel retrieval hits as
-verified support before the Gate.
+verified support before the Gate. The interactive route now exposes
+`prepare_answer`; `record_draft` requires that exact preparation to replay as
+`ready`, so a raw packet cannot enter the journal as a source-backed answer.
+The gate proves declared evidence-role coverage, not semantic entailment of the
+final prose or human acceptance.
 The optional `semantic` dependency set has a larger native dependency surface
 and is not part of the core package-acceptance gate.
 
@@ -349,7 +355,7 @@ uv build
 ./scripts/acceptance.sh --quick
 ```
 
-For this update, the canonical local gate passed 2,652 tests with two
+For this update, the canonical local gate passed 2,678 tests with two
 host-dependent browser skips. Strict typing, zero terminology findings,
 95.02% branch-aware combined coverage, and the dependency audit also passed.
 Distribution closure verifies every schema migration through v13, the Lens

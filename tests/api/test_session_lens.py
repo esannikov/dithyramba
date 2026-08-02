@@ -30,6 +30,11 @@ from dithyramba.api.session_lens import (
 )
 from dithyramba.cli import app
 from dithyramba.collections import CollectionConfig, CollectionKind, build_collection_root
+from dithyramba.evidence import (
+    EvidenceAnswerability,
+    EvidenceGateSpec,
+    EvidenceRequirement,
+)
 from dithyramba.ingest import MarkdownSourceAddress
 from dithyramba.ingest.service import IngestService
 from dithyramba.interactive import AgentResearchFacade
@@ -107,9 +112,27 @@ def _session_world(tmp_path: Path) -> tuple[str, Path, str, str, str]:
             "blocking changes power relation dialogue scene",
             command_id="command_session_lens_001",
         )
+        preparation = facade.prepare_answer(
+            opened.session_id,
+            evidence_event_id=turn.evidence_event_id,
+            gate_spec=EvidenceGateSpec(
+                query_key="session_lens_power",
+                question="blocking changes power relation dialogue scene",
+                expected_answerability=EvidenceAnswerability.ANSWERABLE,
+                requirements=(
+                    EvidenceRequirement(
+                        key="exact_support",
+                        label="Exact power relation support",
+                        allowed_source_ids=(outcome.source_id,),
+                        anchor_groups=(("blocking",), ("power relation",)),
+                    ),
+                ),
+            ),
+        )
         facade.record_draft(
             opened.session_id,
             "Movement can externalize a status change; retain this as a working synthesis.",
+            preparation=preparation,
         )
         facade.record_gap(opened.session_id, "Need a static-blocking counterexample.")
         facade.reject_path(

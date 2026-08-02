@@ -7,7 +7,15 @@ from typing import ClassVar, Literal, Self, TypeVar
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, model_validator
 
 from dithyramba.contracts import canonical_sha256_hex
+from dithyramba.evidence import (
+    EvidenceCandidate,
+    EvidenceCoverageGate,
+    EvidenceCoverageResult,
+    EvidenceGateDecision,
+    EvidenceGateSpec,
+)
 from dithyramba.recall import (
+    CandidateQualityAssessment,
     EvidenceFragment,
     EvidencePacket,
     PacketResultStatus,
@@ -462,6 +470,184 @@ class AgentEvidencePacket(_InteractiveModel):
             access_receipt_hash=packet.access_receipt.receipt_hash,
             retrieval_receipt_id=packet.retrieval_receipt.retrieval_receipt_id,
             retrieval_receipt_hash=packet.retrieval_receipt.receipt_hash,
+        )
+
+
+class AgentSourceDrilldown(_InteractiveModel):
+    """Compact receipt for one conditional search inside already found works."""
+
+    SCHEMA: ClassVar[str] = "dithyramba.agent_source_drilldown/1.0"
+
+    schema_id: str
+    drilldown_hash: str = Field(pattern=_HASH_PATTERN)
+    question: str
+    source_ids: tuple[str, ...]
+    retrieval_result_hash: str = Field(pattern=_HASH_PATTERN)
+    candidate_count: int = Field(ge=0)
+    selected_fragment_ids: tuple[str, ...]
+    filtered_out_count: int = Field(ge=0)
+
+    @model_validator(mode="after")
+    def validate_identity(self) -> Self:
+        if self.schema_id != self.SCHEMA:
+            raise ValueError(f"schema_id must be {self.SCHEMA}")
+        if not self.source_ids or len(set(self.source_ids)) != len(self.source_ids):
+            raise ValueError("source drilldown requires unique Source IDs")
+        if len(set(self.selected_fragment_ids)) != len(self.selected_fragment_ids):
+            raise ValueError("source drilldown fragment IDs must be unique")
+        if self.drilldown_hash != canonical_sha256_hex(self.semantic_payload()):
+            raise ValueError("drilldown_hash does not match the source drilldown")
+        return self
+
+    def semantic_payload(self) -> dict[str, object]:
+        return {
+            "schema_id": self.schema_id,
+            "question": self.question,
+            "source_ids": list(self.source_ids),
+            "retrieval_result_hash": self.retrieval_result_hash,
+            "candidate_count": self.candidate_count,
+            "selected_fragment_ids": list(self.selected_fragment_ids),
+            "filtered_out_count": self.filtered_out_count,
+        }
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        question: str,
+        source_ids: tuple[str, ...],
+        retrieval_result_hash: str,
+        candidate_count: int,
+        selected_fragment_ids: tuple[str, ...],
+        filtered_out_count: int,
+    ) -> AgentSourceDrilldown:
+        semantic: dict[str, object] = {
+            "schema_id": cls.SCHEMA,
+            "question": question,
+            "source_ids": list(source_ids),
+            "retrieval_result_hash": retrieval_result_hash,
+            "candidate_count": candidate_count,
+            "selected_fragment_ids": list(selected_fragment_ids),
+            "filtered_out_count": filtered_out_count,
+        }
+        return cls(
+            schema_id=cls.SCHEMA,
+            drilldown_hash=canonical_sha256_hex(semantic),
+            question=question,
+            source_ids=source_ids,
+            retrieval_result_hash=retrieval_result_hash,
+            candidate_count=candidate_count,
+            selected_fragment_ids=selected_fragment_ids,
+            filtered_out_count=filtered_out_count,
+        )
+
+
+class AgentAnswerPreparation(_InteractiveModel):
+    """Gate-bound context that must exist before an answer draft is recorded."""
+
+    SCHEMA: ClassVar[str] = "dithyramba.agent_answer_preparation/1.0"
+
+    schema_id: str
+    preparation_hash: str = Field(pattern=_HASH_PATTERN)
+    session_id: str = Field(pattern=_SESSION_ID_PATTERN)
+    evidence_event_id: str = Field(pattern=_EVENT_ID_PATTERN)
+    evidence_packet_id: str
+    evidence_packet_hash: str = Field(pattern=_HASH_PATTERN)
+    gate_spec: EvidenceGateSpec
+    gate_result: EvidenceCoverageResult
+    candidates: tuple[EvidenceCandidate, ...]
+    quality_assessments: tuple[CandidateQualityAssessment, ...]
+    drilldown: AgentSourceDrilldown | None = None
+    response_mode: Literal["answer", "gap", "blocked"]
+
+    @model_validator(mode="after")
+    def validate_identity(self) -> Self:
+        if self.schema_id != self.SCHEMA:
+            raise ValueError(f"schema_id must be {self.SCHEMA}")
+        if len({item.source_fragment_id for item in self.candidates}) != len(self.candidates):
+            raise ValueError("answer candidates must have unique fragment IDs")
+        assessment_ids = tuple(item.source_fragment_id for item in self.quality_assessments)
+        if len(set(assessment_ids)) != len(assessment_ids):
+            raise ValueError("quality assessments must have unique fragment IDs")
+        admitted_ids = {
+            item.source_fragment_id for item in self.quality_assessments if item.admitted
+        }
+        if {item.source_fragment_id for item in self.candidates} != admitted_ids:
+            raise ValueError("answer candidates must equal quality-admitted fragments")
+        recomputed = EvidenceCoverageGate(self.gate_spec).evaluate(self.candidates)
+        if recomputed != self.gate_result:
+            raise ValueError("gate_result does not match exact answer candidates")
+        expected_mode = {
+            EvidenceGateDecision.READY: "answer",
+            EvidenceGateDecision.GAP_PRESERVED: "gap",
+        }.get(self.gate_result.decision, "blocked")
+        if self.response_mode != expected_mode:
+            raise ValueError("response_mode does not match the evidence gate decision")
+        if self.preparation_hash != canonical_sha256_hex(self.semantic_payload()):
+            raise ValueError("preparation_hash does not match answer preparation")
+        return self
+
+    def semantic_payload(self) -> dict[str, object]:
+        return {
+            "schema_id": self.schema_id,
+            "session_id": self.session_id,
+            "evidence_event_id": self.evidence_event_id,
+            "evidence_packet_id": self.evidence_packet_id,
+            "evidence_packet_hash": self.evidence_packet_hash,
+            "gate_spec": self.gate_spec.semantic_payload(),
+            "gate_result": self.gate_result.semantic_payload(),
+            "candidates": [item.semantic_payload() for item in self.candidates],
+            "quality_assessments": [
+                item.model_dump(mode="json") for item in self.quality_assessments
+            ],
+            "drilldown": None if self.drilldown is None else self.drilldown.semantic_payload(),
+            "response_mode": self.response_mode,
+        }
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        session_id: str,
+        evidence_event_id: str,
+        evidence_packet_id: str,
+        evidence_packet_hash: str,
+        gate_spec: EvidenceGateSpec,
+        gate_result: EvidenceCoverageResult,
+        candidates: tuple[EvidenceCandidate, ...],
+        quality_assessments: tuple[CandidateQualityAssessment, ...],
+        drilldown: AgentSourceDrilldown | None,
+    ) -> AgentAnswerPreparation:
+        response_mode: Literal["answer", "gap", "blocked"] = {
+            EvidenceGateDecision.READY: "answer",
+            EvidenceGateDecision.GAP_PRESERVED: "gap",
+        }.get(gate_result.decision, "blocked")  # type: ignore[assignment]
+        semantic: dict[str, object] = {
+            "schema_id": cls.SCHEMA,
+            "session_id": session_id,
+            "evidence_event_id": evidence_event_id,
+            "evidence_packet_id": evidence_packet_id,
+            "evidence_packet_hash": evidence_packet_hash,
+            "gate_spec": gate_spec.semantic_payload(),
+            "gate_result": gate_result.semantic_payload(),
+            "candidates": [item.semantic_payload() for item in candidates],
+            "quality_assessments": [item.model_dump(mode="json") for item in quality_assessments],
+            "drilldown": None if drilldown is None else drilldown.semantic_payload(),
+            "response_mode": response_mode,
+        }
+        return cls(
+            schema_id=cls.SCHEMA,
+            preparation_hash=canonical_sha256_hex(semantic),
+            session_id=session_id,
+            evidence_event_id=evidence_event_id,
+            evidence_packet_id=evidence_packet_id,
+            evidence_packet_hash=evidence_packet_hash,
+            gate_spec=gate_spec,
+            gate_result=gate_result,
+            candidates=candidates,
+            quality_assessments=quality_assessments,
+            drilldown=drilldown,
+            response_mode=response_mode,
         )
 
 

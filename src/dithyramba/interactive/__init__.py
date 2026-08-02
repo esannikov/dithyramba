@@ -2,9 +2,11 @@
 
 from .errors import AgentResearchError
 from .models import (
+    AgentAnswerPreparation,
     AgentEvidencePacket,
     AgentResearchTurn,
     AgentSessionContext,
+    AgentSourceDrilldown,
     AgentSourceReference,
     SessionContextBudget,
     SessionContextOmissions,
@@ -12,11 +14,13 @@ from .models import (
 from .service import AgentResearchFacade
 
 __all__ = [
+    "AgentAnswerPreparation",
     "AgentEvidencePacket",
     "AgentResearchError",
     "AgentResearchFacade",
     "AgentResearchTurn",
     "AgentSessionContext",
+    "AgentSourceDrilldown",
     "AgentSourceReference",
     "SessionContextBudget",
     "SessionContextOmissions",

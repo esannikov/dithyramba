@@ -12,6 +12,11 @@ from typer.testing import CliRunner
 
 from dithyramba.access import AccessPolicySnapshot, CollectionRule, PolicyEffect
 from dithyramba.collections import CollectionConfig, CollectionKind, build_collection_root
+from dithyramba.evidence import (
+    EvidenceAnswerability,
+    EvidenceGateSpec,
+    EvidenceRequirement,
+)
 from dithyramba.ingest.service import IngestService
 from dithyramba.interactive import AgentResearchFacade
 from dithyramba.library import LibraryConfig
@@ -140,6 +145,7 @@ def test_mcp_protocol_lifecycle_and_errors(tmp_path: Path) -> None:
             "open_session",
             "recall",
             "session_context",
+            "prepare_answer",
             "record_draft",
             "record_gap",
             "reject_path",
@@ -303,8 +309,49 @@ def test_mcp_tools_drive_real_compact_research_session(
         assert repeated is not None
         assert repeated["result"]["structuredContent"]["turn_hash"] == turn["turn_hash"]
 
+        gate_spec = EvidenceGateSpec(
+            query_key="mcp_dialogue_power",
+            question="blocking power eyelines attention",
+            expected_answerability=EvidenceAnswerability.ANSWERABLE,
+            requirements=(
+                EvidenceRequirement(
+                    key="exact_support",
+                    label="Exact blocking support",
+                    anchor_groups=(("blocking",), ("power",)),
+                ),
+            ),
+        )
+        prepared = _rpc(
+            server,
+            "tools/call",
+            {
+                "name": "prepare_answer",
+                "arguments": {
+                    "session_id": session_id,
+                    "evidence_event_id": turn["evidence_event_id"],
+                    "gate_spec": gate_spec.model_dump(mode="json"),
+                },
+            },
+        )
+        assert prepared is not None and prepared["result"]["isError"] is False
+        preparation = prepared["result"]["structuredContent"]
+        assert preparation["response_mode"] == "answer"
+
+        drafted = _rpc(
+            server,
+            "tools/call",
+            {
+                "name": "record_draft",
+                "arguments": {
+                    "session_id": session_id,
+                    "text": "Use blocking to externalize the status shift.",
+                    "preparation": preparation,
+                },
+            },
+        )
+        assert drafted is not None and drafted["result"]["isError"] is False
+
         for name, text in (
-            ("record_draft", "Use blocking to externalize the status shift."),
             ("record_gap", "Need a counterexample with static staging."),
             ("reject_path", "Do not use generic advice without a source."),
         ):

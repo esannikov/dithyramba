@@ -10,7 +10,7 @@ Implemented slices: session contracts, deterministic replay, SQLite persistence,
 idempotent recall commands, compact evidence projection, reusable process-local
 scope capability, stdio MCP lifecycle/tools, and human journal projection
 
-Verification: 2,652 tests passed, 2 host/browser tests skipped, branch-aware
+Verification: 2,678 tests passed, 2 host/browser tests skipped, branch-aware
 coverage 95.02%, Ruff and strict MyPy passed, with no new runtime dependency
 
 ## Product objective
@@ -149,11 +149,19 @@ cold replay, a changed scope, or a substituted backend always takes the strict
 full-validation route. The optimization is therefore explicit reuse inside one
 authorized session, not a global trust cache.
 
-The stdio MCP server implements the standard initialization lifecycle and six
-bounded tools over `AgentResearchFacade`: open, recall, context, draft, gap, and
-rejected path. Standard output is reserved for newline-delimited JSON-RPC;
-diagnostics go to standard error. Human acceptance, decisions, promotion, and
-session closure remain absent.
+The stdio MCP server implements the standard initialization lifecycle and seven
+bounded tools over `AgentResearchFacade`: open, recall, context, answer
+preparation, draft, gap, and rejected path. Answer preparation filters explicit
+reference matter, index/table layout, and lexical topic drift; evaluates an
+explicit `EvidenceGateSpec`; and conditionally searches inside up to three
+Sources already found by broad recall when literal support remains missing.
+The resulting `AgentAnswerPreparation/1.0` binds the exact candidates, filter
+decisions, optional local-search receipt, and Gate result. Draft recording
+replays that preparation and fails closed unless its mode is `answer`.
+Standard output is reserved for newline-delimited JSON-RPC; diagnostics go to
+standard error. Human acceptance, decisions, promotion, and session closure
+remain absent. The Gate proves declared fragment coverage, not the entailment
+or truth of the final prose.
 
 Session Lens is a GET-only projection of one durable session. It displays the
 operator brief, chronological journal, exact source titles and passages, drafts,

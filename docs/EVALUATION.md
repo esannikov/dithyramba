@@ -386,15 +386,18 @@ validity claim.
 The run caused one product contract repair: `AgentEvidencePacket/1.2` labels
 raw recall as `retrieved_candidates` and carries exact source/family dominance
 diagnostics. It does not claim that ranking precision improved. Planned repairs
-remain bounded: boilerplate/domain guards, reviewed cross-format identity,
-conditional source drilldown, and interactive `EvidenceCoverageGate` binding.
+remain bounded. The answer-route repair now exists: deterministic bibliography/
+index/table/topic-noise guards, conditional source-local drilldown, and
+interactive `EvidenceCoverageGate` binding. Reviewed cross-format source
+identity and human calibration remain open; the engineering checks below do
+not substitute for that research-quality review.
 
 ## Engineering verification
 
-The current 0.2 development candidate collects 2,654 engineering tests. In its
+The current 0.2 development candidate collects 2,680 engineering tests. In its
 canonical local gate:
 
-- 2,652 passed with two host-dependent browser skips;
+- 2,678 passed with two host-dependent browser skips;
 - branch-aware combined coverage was `95.02%` at a strict `95.00%` gate;
 - terminology, format, lint, and strict typing passed;
 - the dependency audit found no known vulnerabilities;

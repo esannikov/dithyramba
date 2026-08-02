@@ -117,6 +117,12 @@ from .provisioning import (
     verify_provisioned_model,
     verify_provisioned_reranker_model,
 )
+from .quality import (
+    CandidateNoiseReason,
+    CandidateQualityAssessment,
+    assess_candidate_quality,
+    meaningful_query_tokens,
+)
 from .rerank import (
     BGE_M3_RERANKER_PROFILE,
     MMARCO_MINILM_RERANKER_PROFILE,
@@ -193,6 +199,7 @@ from .service import (
     RecallScopeSessionStats,
     RecallService,
     RecallSnapshotError,
+    SourceLocalDrilldownResult,
 )
 from .vector import (
     CorpusVectorGeneration,
@@ -217,6 +224,8 @@ __all__ = [
     "SEMANTIC_VECTOR_NORMALIZATION",
     "AccessReceipt",
     "ArtifactContractError",
+    "CandidateNoiseReason",
+    "CandidateQualityAssessment",
     "CompatibilityContractError",
     "ContentTokenOffset",
     "CorpusLayer",
@@ -350,8 +359,10 @@ __all__ = [
     "SemanticVectorNormalization",
     "SentenceTransformersCrossEncoderProvider",
     "SentenceTransformersProvider",
+    "SourceLocalDrilldownResult",
     "VectorContractError",
     "VectorManifestItem",
+    "assess_candidate_quality",
     "audit_semantic_coverage",
     "current_fts_runtime_profile",
     "current_model_runtime_profile",
@@ -362,6 +373,7 @@ __all__ = [
     "format_fts_score",
     "load_packed_vector",
     "materialize_semantic_span_vectors",
+    "meaningful_query_tokens",
     "pack_normalized_vector",
     "plan_semantic_spans",
     "provision_model",
