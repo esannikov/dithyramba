@@ -225,7 +225,8 @@ class AgentSourceReference(_InteractiveModel):
 class AgentEvidencePacket(_InteractiveModel):
     """Least-context projection of a full, locally retained EvidencePacket."""
 
-    SCHEMA: ClassVar[str] = "dithyramba.agent_evidence_packet/1.1"
+    SCHEMA: ClassVar[str] = "dithyramba.agent_evidence_packet/1.2"
+    SOURCE_REFERENCE_SCHEMA: ClassVar[str] = "dithyramba.agent_evidence_packet/1.1"
     LEGACY_SCHEMA: ClassVar[str] = "dithyramba.agent_evidence_packet/1.0"
 
     schema_id: str
@@ -239,6 +240,11 @@ class AgentEvidencePacket(_InteractiveModel):
     result_status: PacketResultStatus
     source_fragments: tuple[EvidenceFragment, ...]
     source_references: tuple[AgentSourceReference, ...] = ()
+    admission_state: Literal["retrieved_candidates"] | None = None
+    distinct_source_count: int | None = Field(default=None, ge=0)
+    distinct_source_family_count: int | None = Field(default=None, ge=0)
+    max_fragments_per_source: int | None = Field(default=None, ge=0)
+    max_fragments_per_source_family: int | None = Field(default=None, ge=0)
     coverage_report_id: str
     coverage_report_hash: str = Field(pattern=_HASH_PATTERN)
     processed_count: int = Field(ge=0)
@@ -264,8 +270,9 @@ class AgentEvidencePacket(_InteractiveModel):
 
     @model_validator(mode="after")
     def validate_identity(self) -> Self:
-        if self.schema_id not in (self.SCHEMA, self.LEGACY_SCHEMA):
-            raise ValueError(f"schema_id must be {self.SCHEMA} or {self.LEGACY_SCHEMA}")
+        supported_schemas = (self.SCHEMA, self.SOURCE_REFERENCE_SCHEMA, self.LEGACY_SCHEMA)
+        if self.schema_id not in supported_schemas:
+            raise ValueError("schema_id must be one of the supported AgentEvidencePacket schemas")
         if self.projection_hash != canonical_sha256_hex(self.semantic_payload()):
             raise ValueError("projection_hash does not match the agent evidence packet")
         has_evidence = bool(self.source_fragments)
@@ -284,6 +291,28 @@ class AgentEvidencePacket(_InteractiveModel):
             for item in self.source_fragments
         ):
             raise ValueError("source references must exactly match projected fragments")
+        diagnostics = (
+            self.admission_state,
+            self.distinct_source_count,
+            self.distinct_source_family_count,
+            self.max_fragments_per_source,
+            self.max_fragments_per_source_family,
+        )
+        if self.schema_id != self.SCHEMA:
+            if any(item is not None for item in diagnostics):
+                raise ValueError("older agent evidence cannot contain candidate diagnostics")
+            return self
+        if self.admission_state != "retrieved_candidates":
+            raise ValueError("agent evidence must remain retrieved_candidates before a gate")
+        expected = _candidate_diagnostics(self.source_references)
+        actual = (
+            self.distinct_source_count,
+            self.distinct_source_family_count,
+            self.max_fragments_per_source,
+            self.max_fragments_per_source_family,
+        )
+        if actual != expected:
+            raise ValueError("candidate diagnostics do not match projected sources")
         return self
 
     def semantic_payload(self) -> dict[str, object]:
@@ -319,10 +348,18 @@ class AgentEvidencePacket(_InteractiveModel):
                 "retrieval_receipt_hash": self.retrieval_receipt_hash,
             },
         }
-        if self.schema_id == self.SCHEMA:
+        if self.schema_id in (self.SCHEMA, self.SOURCE_REFERENCE_SCHEMA):
             payload["source_references"] = [
                 item.model_dump(mode="json") for item in self.source_references
             ]
+        if self.schema_id == self.SCHEMA:
+            payload["candidate_diagnostics"] = {
+                "admission_state": self.admission_state,
+                "distinct_source_count": self.distinct_source_count,
+                "distinct_source_family_count": self.distinct_source_family_count,
+                "max_fragments_per_source": self.max_fragments_per_source,
+                "max_fragments_per_source_family": self.max_fragments_per_source_family,
+            }
         return payload
 
     @classmethod
@@ -336,6 +373,12 @@ class AgentEvidencePacket(_InteractiveModel):
             raise TypeError("AgentEvidencePacket requires an exact EvidencePacket")
         selected_schema = cls.LEGACY_SCHEMA if source_references is None else cls.SCHEMA
         selected_references = source_references or ()
+        (
+            distinct_source_count,
+            distinct_source_family_count,
+            max_fragments_per_source,
+            max_fragments_per_source_family,
+        ) = _candidate_diagnostics(selected_references)
         semantic: dict[str, object] = {
             "schema_id": selected_schema,
             "evidence_packet_id": packet.evidence_packet_id,
@@ -372,6 +415,13 @@ class AgentEvidencePacket(_InteractiveModel):
             semantic["source_references"] = [
                 item.model_dump(mode="json") for item in selected_references
             ]
+            semantic["candidate_diagnostics"] = {
+                "admission_state": "retrieved_candidates",
+                "distinct_source_count": distinct_source_count,
+                "distinct_source_family_count": distinct_source_family_count,
+                "max_fragments_per_source": max_fragments_per_source,
+                "max_fragments_per_source_family": max_fragments_per_source_family,
+            }
         return cls(
             schema_id=selected_schema,
             projection_hash=canonical_sha256_hex(semantic),
@@ -384,6 +434,19 @@ class AgentEvidencePacket(_InteractiveModel):
             result_status=packet.result_status,
             source_fragments=packet.source_fragments,
             source_references=selected_references,
+            admission_state=("retrieved_candidates" if selected_schema == cls.SCHEMA else None),
+            distinct_source_count=(
+                distinct_source_count if selected_schema == cls.SCHEMA else None
+            ),
+            distinct_source_family_count=(
+                distinct_source_family_count if selected_schema == cls.SCHEMA else None
+            ),
+            max_fragments_per_source=(
+                max_fragments_per_source if selected_schema == cls.SCHEMA else None
+            ),
+            max_fragments_per_source_family=(
+                max_fragments_per_source_family if selected_schema == cls.SCHEMA else None
+            ),
             coverage_report_id=packet.coverage_report.coverage_report_id,
             coverage_report_hash=packet.coverage_report.report_hash,
             processed_count=packet.coverage_report.processed_count,
@@ -465,6 +528,24 @@ class AgentResearchTurn(_InteractiveModel):
             evidence_packet=evidence_packet,
             context=context,
         )
+
+
+def _candidate_diagnostics(
+    references: tuple[AgentSourceReference, ...],
+) -> tuple[int, int, int, int]:
+    source_counts: dict[str, int] = {}
+    family_counts: dict[str, int] = {}
+    for reference in references:
+        source_counts[reference.source_id] = source_counts.get(reference.source_id, 0) + 1
+        family_counts[reference.source_family_id] = (
+            family_counts.get(reference.source_family_id, 0) + 1
+        )
+    return (
+        len(source_counts),
+        len(family_counts),
+        max(source_counts.values(), default=0),
+        max(family_counts.values(), default=0),
+    )
 
 
 def _tail(values: tuple[_T, ...], limit: int) -> tuple[tuple[_T, ...], int]:

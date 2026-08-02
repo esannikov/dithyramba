@@ -149,6 +149,16 @@ They can introduce a synonym, split evidence roles, or guard relation state.
 The original question remains unchanged. New candidates are reranked against
 that original question. Generated query text is never evidence.
 
+The agent-facing packet also says `admission_state: retrieved_candidates`.
+This is intentional: FTS can prove that a passage was retrieved from the
+permitted snapshot, but retrieval alone cannot prove that the passage supports
+the answer. The packet reports distinct sources, distinct SourceFamilies, and
+the largest number of selected fragments from one source or family so an agent
+can see source dominance before invoking `EvidenceCoverageGate`.
+These counts do not infer that differently encoded PDF and EPUB files are the
+same scholarly work. Cross-format editions must be declared in a pinned source
+identity manifest; otherwise a SourceFamily count can overstate independence.
+
 ## Why provenance saves downstream context
 
 Without Dithyramba, a consumer agent may receive a large Markdown manual or a

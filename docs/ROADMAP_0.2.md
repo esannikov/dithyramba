@@ -43,14 +43,15 @@ Status: complete
   outside the agent facade;
 - [x] add command idempotency and partial-turn reconciliation through atomic
   question/completion receipts in the existing append-only outbox;
-- [x] pass the full repository gate after the PhD-scale session and Lens repair: 2,647
-  passed, 2 host/browser skips, branch-aware coverage 95.01%, Ruff and strict
+- [x] pass the full repository gate after the PhD-scale session and Lens repair: 2,652
+  passed, 2 host/browser skips, branch-aware coverage 95.02%, Ruff and strict
   MyPy green;
 - [x] reuse one process-local authorized read-set and FTS index for questions
   inside the same exact session scope;
 - [x] add a thin local stdio MCP adapter over the Python facade.
 - [x] expose human-readable source title/URI references beside every selected
-  fragment in `AgentEvidencePacket/1.1`, while retaining 1.0 replay support;
+  fragment in `AgentEvidencePacket/1.2`, mark raw recall as
+  `retrieved_candidates`, report source dominance, and retain 1.0/1.1 replay;
 - [x] validate the full immutable scope closure once per explicit live session
   and revalidate selected stored fragments on each later completion;
 
@@ -101,8 +102,19 @@ laundering or silent corpus mutation.
 - [x] run the M1 PhD scale diagnostic: 622 sources / 263,363 fragments, second
   same-session completion 13.557 s, and 24-fragment Lens projection
   0.062–0.064 s with zero model tokens;
-- measure supported-answer rate, exact-source recovery, review burden, repeated
-  search reduction, context size, and continuation after restart;
+- [x] freeze and run the first 24-question / 72-query PhD scholarly holdout on
+  a corrected 615-source / 259,165-fragment scope: 20/72 direct top-three
+  supports, 61/120 useful top-five fragments, zero model tokens;
+- [x] keep raw recall explicitly candidate-only in `AgentEvidencePacket/1.2`
+  and expose exact source/family dominance without breaking 1.0/1.1 replay;
+- bind `EvidenceCoverageGate` to the interactive answer route so abundant hits
+  cannot answer a known gap;
+- add reviewed work/source identity for cross-format copies and a conditional
+  source drilldown for answer-bearing passages;
+- replace development agent labels with independent human adjudication and
+  measure correction load and answer usefulness;
+- measure exact-source recovery, repeated search reduction, context size, and
+  continuation after restart on the same frozen questions;
 - compare session memory against raw-file agent search under the same task set;
 - fix only recurring causal failures;
 - run the full clean-install acceptance route on a clean second machine.

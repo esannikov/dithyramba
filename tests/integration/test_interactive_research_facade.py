@@ -163,6 +163,15 @@ def test_agent_turn_reopens_with_same_compact_context_and_exact_packet(tmp_path:
         assert len(turn.evidence_packet.source_references) == len(
             turn.evidence_packet.source_fragments
         )
+        assert turn.evidence_packet.admission_state == "retrieved_candidates"
+        assert turn.evidence_packet.distinct_source_count == 1
+        assert turn.evidence_packet.distinct_source_family_count == 1
+        assert turn.evidence_packet.max_fragments_per_source == len(
+            turn.evidence_packet.source_fragments
+        )
+        assert turn.evidence_packet.max_fragments_per_source_family == len(
+            turn.evidence_packet.source_fragments
+        )
         source_reference = turn.evidence_packet.source_references[0]
         assert source_reference.source_id == source_id
         assert source_reference.canonical_uri.endswith("/craft.md")
@@ -187,6 +196,54 @@ def test_agent_turn_reopens_with_same_compact_context_and_exact_packet(tmp_path:
         mismatched_sources["projection_hash"] = canonical_sha256_hex(mismatched_semantic)
         with pytest.raises(ValidationError, match="source references"):
             AgentEvidencePacket.model_validate_json(json.dumps(mismatched_sources))
+
+        mismatched_diagnostics = turn.evidence_packet.model_dump(mode="json")
+        mismatched_diagnostics["distinct_source_family_count"] = 2
+        diagnostics_semantic = turn.evidence_packet.semantic_payload()
+        candidate_diagnostics = diagnostics_semantic["candidate_diagnostics"]
+        assert isinstance(candidate_diagnostics, dict)
+        candidate_diagnostics["distinct_source_family_count"] = 2
+        mismatched_diagnostics["projection_hash"] = canonical_sha256_hex(diagnostics_semantic)
+        with pytest.raises(ValidationError, match="candidate diagnostics"):
+            AgentEvidencePacket.model_validate_json(json.dumps(mismatched_diagnostics))
+
+        source_reference_payload = turn.evidence_packet.model_dump(mode="json")
+        source_reference_payload["schema_id"] = AgentEvidencePacket.SOURCE_REFERENCE_SCHEMA
+        for key in (
+            "admission_state",
+            "distinct_source_count",
+            "distinct_source_family_count",
+            "max_fragments_per_source",
+            "max_fragments_per_source_family",
+        ):
+            source_reference_payload[key] = None
+        source_reference_semantic = turn.evidence_packet.semantic_payload()
+        source_reference_semantic["schema_id"] = AgentEvidencePacket.SOURCE_REFERENCE_SCHEMA
+        del source_reference_semantic["candidate_diagnostics"]
+        source_reference_payload["projection_hash"] = canonical_sha256_hex(
+            source_reference_semantic
+        )
+        restored_source_reference_packet = AgentEvidencePacket.model_validate_json(
+            json.dumps(source_reference_payload)
+        )
+        assert restored_source_reference_packet.schema_id.endswith("/1.1")
+        assert restored_source_reference_packet.admission_state is None
+
+        older_with_diagnostics = dict(source_reference_payload)
+        older_with_diagnostics["admission_state"] = "retrieved_candidates"
+        older_with_diagnostics["projection_hash"] = canonical_sha256_hex(source_reference_semantic)
+        with pytest.raises(ValidationError, match="older agent evidence"):
+            AgentEvidencePacket.model_validate_json(json.dumps(older_with_diagnostics))
+
+        admitted_without_gate = turn.evidence_packet.model_dump(mode="json")
+        admitted_without_gate["admission_state"] = None
+        admitted_semantic = turn.evidence_packet.semantic_payload()
+        admitted_candidate_diagnostics = admitted_semantic["candidate_diagnostics"]
+        assert isinstance(admitted_candidate_diagnostics, dict)
+        admitted_candidate_diagnostics["admission_state"] = None
+        admitted_without_gate["projection_hash"] = canonical_sha256_hex(admitted_semantic)
+        with pytest.raises(ValidationError, match="retrieved_candidates"):
+            AgentEvidencePacket.model_validate_json(json.dumps(admitted_without_gate))
 
         legacy_with_sources = AgentEvidencePacket.create(
             facade._recall_backend.load_evidence_packet(turn.evidence_packet.evidence_packet_id)

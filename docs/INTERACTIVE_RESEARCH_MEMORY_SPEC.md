@@ -10,8 +10,8 @@ Implemented slices: session contracts, deterministic replay, SQLite persistence,
 idempotent recall commands, compact evidence projection, reusable process-local
 scope capability, stdio MCP lifecycle/tools, and human journal projection
 
-Verification: 2,647 tests passed, 2 host/browser tests skipped, branch-aware
-coverage 95.01%, Ruff and strict MyPy passed, with no new runtime dependency
+Verification: 2,652 tests passed, 2 host/browser tests skipped, branch-aware
+coverage 95.02%, Ruff and strict MyPy passed, with no new runtime dependency
 
 ## Product objective
 

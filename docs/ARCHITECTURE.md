@@ -226,10 +226,11 @@ MCP transport, and GET-only Session Lens are implemented. Migration
 0013 persists the immutable session receipt and typed hash-chained events,
 validates exact artifact closure, and rebuilds compact state after a cold reopen.
 The facade and MCP return compact journal state separately from the current
-exact evidence projection. `AgentEvidencePacket/1.1` pairs every selected exact
-fragment with a human-readable source title/URI and immutable source identity;
-it still omits the materialized corpus-wide read manifest. Neither surface
-exposes acceptance, operator decisions, or closure. Session Lens renders the
+exact evidence projection. `AgentEvidencePacket/1.2` pairs every selected exact
+fragment with a human-readable source title/URI and immutable source identity,
+marks the set as `retrieved_candidates`, and reports compact source-dominance
+diagnostics; it still omits the materialized corpus-wide read manifest. Neither
+surface exposes acceptance, operator decisions, or closure. Session Lens renders the
 brief, chronological journal, gaps, drafts, rejected paths, and exact
 packet-backed passages without becoming another truth store. See
 [the 0.2 specification](INTERACTIVE_RESEARCH_MEMORY_SPEC.md) and

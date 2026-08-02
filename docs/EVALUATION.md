@@ -355,13 +355,47 @@ human evaluation was performed. The result isolated a mechanical defect: the
 coverage gate had inspected only the first 30 reranked candidates even when
 the exact proof was already present deeper in a bounded union.
 
+## M1 PhD scholarly holdout
+
+A private research corpus was used to test source-grounded navigation without
+shipping its copyrighted contents. The questions and three query variants per
+question were frozen before retrieval. The corrected run excluded seven
+author-side or duplicated SourceFamilies and searched **615 sources / 259,165
+fragments**.
+
+| Measure | Result |
+|---|---:|
+| Frozen questions / local searches | 24 / 72 |
+| Total wall time / cold scope | 1,219.752 s / 56.818 s |
+| Median per question, three searches | 39.959 s |
+| Exact replay | 0.006 s, unchanged hash |
+| Direct support in top 3 | 20/72 (27.8%) |
+| Useful evidence in top 5 | 61/120 (50.8%) |
+| Questions with any direct top-3 support | 12/24 |
+| Questions with at least four useful top-5 fragments | 9/24 |
+| Dithyramba model calls / tokens | 0 / 0 |
+
+The test deliberately keeps retrieval separate from evidence admission. All
+three unsupported trap questions still returned lexical candidates. A broad
+query also found sources about neural art while leaving exact named-work
+examples below the top five. Therefore candidate abundance and source-family
+diversity are diagnostics, not answer confidence. The labels are a conservative
+agent audit and require independent human adjudication before any external
+validity claim.
+
+The run caused one product contract repair: `AgentEvidencePacket/1.2` labels
+raw recall as `retrieved_candidates` and carries exact source/family dominance
+diagnostics. It does not claim that ranking precision improved. Planned repairs
+remain bounded: boilerplate/domain guards, reviewed cross-format identity,
+conditional source drilldown, and interactive `EvidenceCoverageGate` binding.
+
 ## Engineering verification
 
-The current 0.2 development candidate collects 2,649 engineering tests. In its
+The current 0.2 development candidate collects 2,654 engineering tests. In its
 canonical local gate:
 
-- 2,647 passed with two host-dependent browser skips;
-- branch-aware combined coverage was `95.01%` at a strict `95.00%` gate;
+- 2,652 passed with two host-dependent browser skips;
+- branch-aware combined coverage was `95.02%` at a strict `95.00%` gate;
 - terminology, format, lint, and strict typing passed;
 - the dependency audit found no known vulnerabilities;
 - a separate sdist-to-wheel closure installed non-editably in isolated Python

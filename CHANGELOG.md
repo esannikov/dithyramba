@@ -16,8 +16,9 @@ history belong in dated evaluation reports, not in the product changelog.
   with six bounded research tools and no human acceptance or promotion tool.
 - GET-only Session Lens for briefs, chronological questions, packet-backed
   evidence, drafts, gaps, rejected paths, and exact source inspection.
-- `AgentEvidencePacket/1.1` human-readable source references beside every exact
-  selected fragment, with replay support for 1.0 development receipts.
+- `AgentEvidencePacket/1.2` explicitly marks recall output as
+  `retrieved_candidates` and exposes compact source and SourceFamily dominance
+  diagnostics. Human-readable `/1.1` and legacy `/1.0` packets remain readable.
 
 - `AnswerProjection/1.0` and `PropositionCoverageGate`: an optional
   display-governance layer that partitions the exact final answer into facts,
