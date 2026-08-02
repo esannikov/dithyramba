@@ -599,6 +599,7 @@ def test_model_root_swap_cannot_redirect_the_download_staging(tmp_path: Path) ->
     models.mkdir(mode=0o700)
     outside = tmp_path / "outside"
     outside.mkdir(mode=0o755)
+    outside_mode = stat.S_IMODE(outside.stat().st_mode)
     detached = tmp_path / "models-detached"
     seen_staging: list[Path] = []
 
@@ -621,7 +622,7 @@ def test_model_root_swap_cannot_redirect_the_download_staging(tmp_path: Path) ->
 
     assert seen_staging
     assert not any(outside.iterdir())
-    assert stat.S_IMODE(outside.stat().st_mode) == 0o755
+    assert stat.S_IMODE(outside.stat().st_mode) == outside_mode
 
 
 def test_fd_scanner_rejects_zero_marker_hardlinks_and_open_failures(
