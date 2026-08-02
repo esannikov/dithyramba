@@ -18,6 +18,8 @@ _TOKEN_PATTERN = re.compile(r"[^\W_]+", re.UNICODE)
 _YEAR_PATTERN = re.compile(r"\b(?:1[5-9]|20)\d{2}[a-z]?\b", re.IGNORECASE)
 _PAGE_RUN_PATTERN = re.compile(r"(?:^|[,;]\s*)\d{1,4}(?:[-\u2013]\d{1,4})?(?=\s*(?:[,;]|$))")
 _MARKDOWN_TABLE_RULE = re.compile(r"^\s*\|?(?:\s*:?-{3,}:?\s*\|){2,}", re.MULTILINE)
+_NUMBERED_REFERENCE_START = re.compile(r"^\s*(?:\[\d{1,4}\]|\d{1,4}[.)])\s+\S")
+_TRAILING_PAGE_NUMBER = re.compile(r"(?:\s|\.{2,})\d{1,4}\s*$")
 
 _REFERENCE_HEADINGS = frozenset(
     {
@@ -180,19 +182,51 @@ def _looks_like_reference_list(lines: tuple[str, ...]) -> bool:
     if len(lines) < 3:
         return False
     reference_like = 0
+    numbered_entries = 0
+    dated_lines = 0
     for line in lines:
         normalized = _normalized_text(line)
         has_year = _YEAR_PATTERN.search(normalized) is not None
+        if _NUMBERED_REFERENCE_START.search(normalized) is not None:
+            numbered_entries += 1
+        if has_year:
+            dated_lines += 1
         has_identifier = "doi.org/" in normalized or "isbn" in normalized
         has_citation_punctuation = normalized.count(".") >= 2 and "," in normalized
         if has_identifier or (has_year and has_citation_punctuation):
             reference_like += 1
-    return reference_like >= 3 and reference_like * 4 >= len(lines) * 3
+    dense_citations = reference_like >= 3 and reference_like * 4 >= len(lines) * 3
+    numbered_bibliography = numbered_entries >= 4 and dated_lines >= 4
+    return dense_citations or numbered_bibliography
 
 
 def _looks_like_index(lines: tuple[str, ...]) -> bool:
     if len(lines) < 4:
         return False
+    normalized_head = tuple(_normalized_text(line) for line in lines[:3])
+    has_index_heading = any(
+        line == "index"
+        or line.startswith("index page numbers")
+        or line == "покажчик"
+        or line.startswith("покажчик сторін")
+        for line in normalized_head
+    )
+    if has_index_heading:
+        return True
+    has_contents_heading = any(
+        line == "contents"
+        or line.startswith("contents ")
+        or line == "table of contents"
+        or line.startswith("table of contents ")
+        or line == "зміст"
+        or line.startswith("зміст ")
+        for line in normalized_head
+    )
+    trailing_pages = sum(
+        1 for line in lines if _TRAILING_PAGE_NUMBER.search(_normalized_text(line)) is not None
+    )
+    if has_contents_heading and trailing_pages >= 4:
+        return True
     index_like = 0
     for line in lines:
         if len(_PAGE_RUN_PATTERN.findall(line)) >= 2 and len(line) <= 180:

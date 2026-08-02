@@ -464,6 +464,8 @@ The decisive tactic is triangulated eyeline control.
         assert ready.gate_result.decision is EvidenceGateDecision.READY
         assert ready.drilldown is not None
         assert ready.drilldown.source_ids == (source_id,)
+        assert len(ready.candidates) == 1
+        assert ready.drilldown.selected_fragment_ids == (ready.candidates[0].source_fragment_id,)
         assert any("triangulated eyeline control" in item.text for item in ready.candidates)
         assert any(
             CandidateNoiseReason.BIBLIOGRAPHY in item.reasons for item in ready.quality_assessments

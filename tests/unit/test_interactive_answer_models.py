@@ -15,12 +15,41 @@ from dithyramba.evidence import (
     EvidenceRequirement,
 )
 from dithyramba.interactive import AgentAnswerPreparation, AgentSourceDrilldown
-from dithyramba.recall import CandidateQualityAssessment
+from dithyramba.interactive.service import _compact_ready_candidates
+from dithyramba.recall import CandidateNoiseReason, CandidateQualityAssessment
 
 HASH_A = "a" * 64
 HASH_B = "b" * 64
 SESSION_ID = "research_session_" + "1" * 32
 EVENT_ID = "session_event_" + "2" * 32
+
+
+def _candidate(
+    fragment_id: str,
+    *,
+    rank: int,
+    text: str,
+    source_id: str,
+) -> EvidenceCandidate:
+    return EvidenceCandidate(
+        rank=rank,
+        source_fragment_id=fragment_id,
+        source_id=source_id,
+        text=text,
+        source_address={
+            "schema": "dithyramba.source_address/1.0",
+            "kind": "markdown",
+            "heading_path": ["Evidence"],
+            "line_start": rank,
+            "line_end": rank,
+            "char_start": 0,
+            "char_end": len(text),
+        },
+        source_kind="book",
+        source_family=f"family_{source_id}",
+        authority="unclassified",
+        independence_group=source_id,
+    )
 
 
 def _drilldown() -> AgentSourceDrilldown:
@@ -141,6 +170,119 @@ def test_gap_preparation_has_an_explicit_non_answer_mode() -> None:
     )
 
     assert preparation.response_mode == "gap"
+
+
+def test_ready_candidates_are_compacted_to_the_minimal_covering_set() -> None:
+    spec = EvidenceGateSpec(
+        query_key="compact_ready",
+        question="Where is the exact technique?",
+        expected_answerability=EvidenceAnswerability.ANSWERABLE,
+        requirements=(
+            EvidenceRequirement(
+                key="exact_technique",
+                label="Exact technique",
+                anchor_groups=(("triangulated eyeline",),),
+            ),
+        ),
+    )
+    candidates = (
+        _candidate(
+            "fragment_first",
+            rank=1,
+            text="The method uses triangulated eyeline control.",
+            source_id="source_first",
+        ),
+        _candidate(
+            "fragment_redundant",
+            rank=2,
+            text="A second passage repeats triangulated eyeline control.",
+            source_id="source_second",
+        ),
+        _candidate(
+            "fragment_related",
+            rank=3,
+            text="The chapter discusses dialogue staging.",
+            source_id="source_third",
+        ),
+    )
+    assessments = (
+        *(
+            CandidateQualityAssessment(source_fragment_id=item.source_fragment_id, admitted=True)
+            for item in candidates
+        ),
+        CandidateQualityAssessment(
+            source_fragment_id="fragment_noise",
+            admitted=False,
+            reasons=(CandidateNoiseReason.TOPIC_DRIFT,),
+        ),
+    )
+
+    compact, compact_assessments, result = _compact_ready_candidates(
+        gate_spec=spec,
+        candidates=candidates,
+        assessments=assessments,
+    )
+
+    assert tuple(item.source_fragment_id for item in compact) == ("fragment_first",)
+    assert tuple(item.rank for item in compact) == (1,)
+    assert result.decision.value == "ready"
+    assert tuple(item.source_fragment_id for item in compact_assessments) == (
+        "fragment_first",
+        "fragment_noise",
+    )
+
+
+def test_ready_compaction_keeps_required_independent_sources_and_missing_input() -> None:
+    spec = EvidenceGateSpec(
+        query_key="independent_support",
+        question="Which independent sources support the event?",
+        expected_answerability=EvidenceAnswerability.ANSWERABLE,
+        requirements=(
+            EvidenceRequirement(
+                key="two_sources",
+                label="Two independent sources",
+                anchor_groups=(("dated event",),),
+                min_independent_groups=2,
+            ),
+        ),
+        min_total_independent_groups=2,
+    )
+    candidates = (
+        _candidate(
+            "fragment_source_a",
+            rank=4,
+            text="The archive records the dated event.",
+            source_id="source_a",
+        ),
+        _candidate(
+            "fragment_source_b",
+            rank=9,
+            text="The catalogue independently records the dated event.",
+            source_id="source_b",
+        ),
+    )
+    assessments = tuple(
+        CandidateQualityAssessment(source_fragment_id=item.source_fragment_id, admitted=True)
+        for item in candidates
+    )
+
+    compact, _compact_assessments, result = _compact_ready_candidates(
+        gate_spec=spec,
+        candidates=candidates,
+        assessments=assessments,
+    )
+    missing, missing_assessments, missing_result = _compact_ready_candidates(
+        gate_spec=spec,
+        candidates=candidates[:1],
+        assessments=assessments[:1],
+    )
+
+    assert len(compact) == 2
+    assert tuple(item.rank for item in compact) == (1, 2)
+    assert result.decision.value == "ready"
+    assert missing == candidates[:1]
+    assert missing_assessments == assessments[:1]
+    assert missing_result.decision.value == "insufficient"
 
 
 @pytest.mark.parametrize(

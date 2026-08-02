@@ -12,6 +12,7 @@ from dithyramba.contracts import canonical_json_bytes, sha256_hex
 from dithyramba.evidence import (
     EvidenceCandidate,
     EvidenceCoverageGate,
+    EvidenceCoverageResult,
     EvidenceGateDecision,
     EvidenceGateSpec,
 )
@@ -346,6 +347,27 @@ class AgentResearchFacade:
                         item.source_fragment_id for item in local_candidates
                     ),
                     filtered_out_count=sum(1 for item in local_assessments if not item.admitted),
+                )
+
+        if gate_result.decision is EvidenceGateDecision.READY:
+            candidates, assessments, gate_result = _compact_ready_candidates(
+                gate_spec=gate_spec,
+                candidates=candidates,
+                assessments=assessments,
+            )
+            if drilldown_projection is not None:
+                selected_ids = {item.source_fragment_id for item in candidates}
+                drilldown_projection = AgentSourceDrilldown.create(
+                    question=drilldown_projection.question,
+                    source_ids=drilldown_projection.source_ids,
+                    retrieval_result_hash=drilldown_projection.retrieval_result_hash,
+                    candidate_count=drilldown_projection.candidate_count,
+                    selected_fragment_ids=tuple(
+                        fragment_id
+                        for fragment_id in drilldown_projection.selected_fragment_ids
+                        if fragment_id in selected_ids
+                    ),
+                    filtered_out_count=drilldown_projection.filtered_out_count,
                 )
 
         return AgentAnswerPreparation.create(
@@ -709,6 +731,52 @@ def _repair_query(gate_spec: EvidenceGateSpec, gate_result: object) -> str | Non
         if len(selected) == 48:
             break
     return " ".join(selected) or None
+
+
+def _compact_ready_candidates(
+    *,
+    gate_spec: EvidenceGateSpec,
+    candidates: tuple[EvidenceCandidate, ...],
+    assessments: tuple[CandidateQualityAssessment, ...],
+) -> tuple[
+    tuple[EvidenceCandidate, ...],
+    tuple[CandidateQualityAssessment, ...],
+    EvidenceCoverageResult,
+]:
+    """Return a deterministic inclusion-minimal candidate set that stays ready."""
+
+    gate = EvidenceCoverageGate(gate_spec)
+    initial = gate.evaluate(candidates)
+    if initial.decision is not EvidenceGateDecision.READY:
+        return candidates, assessments, initial
+    matched_ids = {
+        fragment_id
+        for requirement in initial.requirements
+        for fragment_id in requirement.matched_fragment_ids
+    }
+    selected = [
+        candidate for candidate in candidates if candidate.source_fragment_id in matched_ids
+    ]
+    for candidate in tuple(reversed(selected)):
+        trial = [
+            item for item in selected if item.source_fragment_id != candidate.source_fragment_id
+        ]
+        if gate.evaluate(tuple(trial)).decision is EvidenceGateDecision.READY:
+            selected = trial
+    compact = tuple(
+        candidate.model_copy(update={"rank": rank})
+        for rank, candidate in enumerate(selected, start=1)
+    )
+    selected_ids = {item.source_fragment_id for item in compact}
+    compact_assessments = tuple(
+        assessment
+        for assessment in assessments
+        if not assessment.admitted or assessment.source_fragment_id in selected_ids
+    )
+    result = gate.evaluate(compact)
+    if result.decision is not EvidenceGateDecision.READY:
+        raise AgentResearchError("ready candidate compaction changed the gate decision")
+    return compact, compact_assessments, result
 
 
 def _matched_fragment_ids(preparation: AgentAnswerPreparation) -> tuple[str, ...]:

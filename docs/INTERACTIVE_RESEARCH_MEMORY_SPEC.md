@@ -158,6 +158,12 @@ Sources already found by broad recall when literal support remains missing.
 The resulting `AgentAnswerPreparation/1.0` binds the exact candidates, filter
 decisions, optional local-search receipt, and Gate result. Draft recording
 replays that preparation and fails closed unless its mode is `answer`.
+For a `ready` result, the interactive projection exposes only an
+inclusion-minimal set of Gate-matched fragments. The immutable retrieval and
+drilldown receipts remain available for audit, while a gap keeps its diagnostic
+candidate neighbourhood. Requirements that depend on a subject domain and an
+evidence role must bind both as anchor groups in the same requirement so two
+unrelated fragments cannot manufacture coverage.
 Standard output is reserved for newline-delimited JSON-RPC; diagnostics go to
 standard error. Human acceptance, decisions, promotion, and session closure
 remain absent. The Gate proves declared fragment coverage, not the entailment

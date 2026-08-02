@@ -104,6 +104,60 @@ def test_reference_list_is_detected_without_a_heading() -> None:
     assert CandidateNoiseReason.BIBLIOGRAPHY in result.reasons
 
 
+def test_wrapped_numbered_bibliography_page_is_withheld() -> None:
+    result = _assessment(
+        "\n".join(
+            (
+                "81. Carruthers G. The sense of agency // Cognition. 2012. Vol. 21.",
+                "Pp. 30-45.",
+                "82. Carruthers P. Conscious Thought. Cambridge : MIT Press, 2005.",
+                "Pp. 134-156.",
+                "83. Chalmers D. The Conscious Mind. Oxford : OUP, 1996.",
+                "432 p.",
+                "84. Chambon V. Human agency // NeuroReport. 2002. Vol. 13.",
+                "Pp. 1975-1978.",
+            )
+        ),
+        question="model agency consciousness authorship",
+    )
+
+    assert CandidateNoiseReason.BIBLIOGRAPHY in result.reasons
+
+
+def test_pdf_contents_page_is_withheld_without_heading_metadata() -> None:
+    result = _assessment(
+        "\n".join(
+            (
+                "Contents xv",
+                "7.6.3.1 Exploratory data analysis 211",
+                "7.6.3.2 Experiments 211",
+                "7.6.3.3 Error analysis and explainability 212",
+                "Bibliography 221",
+                "Index 255",
+            )
+        ),
+        question="data analysis explainability",
+    )
+
+    assert CandidateNoiseReason.INDEX in result.reasons
+
+
+def test_index_heading_in_raw_pdf_text_is_sufficient_to_withhold_page() -> None:
+    result = _assessment(
+        "\n".join(
+            (
+                "Index Page numbers followed by f and t indicate figures and tables.",
+                "Actor-Network Theory, 92",
+                "Advanced imaging, 147",
+                "Artistic Assessment, 131",
+            )
+        ),
+        question="art provenance expert validation",
+    )
+
+    assert CandidateNoiseReason.INDEX in result.reasons
+
+
 @pytest.mark.parametrize(
     ("text", "fragment_kind"),
     [

@@ -36,6 +36,10 @@ history belong in dated evaluation reports, not in the product changelog.
 
 ### Changed
 
+- `prepare_answer` now projects a `ready` result as an inclusion-minimal set of
+  exact Gate-matched fragments while preserving immutable retrieval, drilldown,
+  and rejected-candidate receipts. Candidate hygiene also detects wrapped
+  numbered bibliographies and raw PDF contents pages more reliably.
 - Rebuilt the public architecture figure and product documentation around the
   two-plane 0.2 design: durable evidence core plus bounded interactive session
   loop. Updated the clean-install and wheel-closure checks to require schema

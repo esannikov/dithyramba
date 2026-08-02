@@ -193,6 +193,7 @@ raw FTS candidates
   → EvidenceCoverageGate
   → conditional search inside up to three already found Sources
   → EvidenceCoverageGate again
+  → inclusion-minimal exact fragments for a ready answer
   → answer-ready preparation or explicit blocked/gap state
 ```
 
@@ -206,6 +207,12 @@ verified support before the Gate. The interactive route now exposes
 `ready`, so a raw packet cannot enter the journal as a source-backed answer.
 The gate proves declared evidence-role coverage, not semantic entailment of the
 final prose or human acceptance.
+The original retrieval and local-search receipts remain immutable; only the
+agent-facing ready projection is compacted. Subject-domain and evidence-role
+anchors that must describe the same claim are required to co-occur inside one
+requirement and one fragment. Optional post-generation
+`ClaimEvidenceEntailmentGate` and `PropositionCoverageGate` checks remain a
+separate disclosed boundary for final prose.
 The optional `semantic` dependency set has a larger native dependency surface
 and is not part of the core package-acceptance gate.
 
