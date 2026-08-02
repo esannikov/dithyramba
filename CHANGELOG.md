@@ -16,6 +16,9 @@ history belong in dated evaluation reports, not in the product changelog.
   with six bounded research tools and no human acceptance or promotion tool.
 - GET-only Session Lens for briefs, chronological questions, packet-backed
   evidence, drafts, gaps, rejected paths, and exact source inspection.
+- `AgentEvidencePacket/1.2` explicitly marks recall output as
+  `retrieved_candidates` and exposes compact source and SourceFamily dominance
+  diagnostics. Human-readable `/1.1` and legacy `/1.0` packets remain readable.
 
 - `AnswerProjection/1.0` and `PropositionCoverageGate`: an optional
   display-governance layer that partitions the exact final answer into facts,
@@ -33,6 +36,10 @@ history belong in dated evaluation reports, not in the product changelog.
 
 ### Changed
 
+- `prepare_answer` now projects a `ready` result as an inclusion-minimal set of
+  exact Gate-matched fragments while preserving immutable retrieval, drilldown,
+  and rejected-candidate receipts. Candidate hygiene also detects wrapped
+  numbered bibliographies and raw PDF contents pages more reliably.
 - Rebuilt the public architecture figure and product documentation around the
   two-plane 0.2 design: durable evidence core plus bounded interactive session
   loop. Updated the clean-install and wheel-closure checks to require schema
@@ -42,6 +49,18 @@ history belong in dated evaluation reports, not in the product changelog.
   cold reopens with zero model tokens. Automatic relation-aware repair remains
   out of production after a one-case challenger repaired only one of two query
   variants.
+- Large-scope session completion now validates the shared immutable corpus
+  closure once per explicit live scope and revalidates selected stored
+  fragments on later questions. Modern Session Lens events reopen compact
+  command receipts and direct fragment metadata instead of reconstructing a
+  corpus-wide `ReadReceipt` to render a page.
+- Session Lens now distinguishes the source title from the exact file/URI
+  locator. It no longer labels a book or file title as the person who asserted
+  the passage, and it never exposes a full local filesystem path in the human
+  view. The same safe locator is now present in the stable JSON projection;
+  web locators retain their host and path while credentials, query strings,
+  and fragments stay hidden. A source without a stored title falls back to
+  this safe locator instead of exposing its raw canonical URI.
 
 - Simplified the research route to local FTS, bounded lexical expansion,
   conditional QueryCloud, exact proof admission, and deterministic evidence

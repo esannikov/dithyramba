@@ -132,6 +132,16 @@ class RecallScopeSessionStats:
     search_count: int
 
 
+@dataclass(frozen=True, slots=True)
+class SourceLocalDrilldownResult:
+    """One bounded FTS result restricted to already authorized Sources."""
+
+    question: str
+    source_ids: tuple[str, ...]
+    result: FtsSearchResult
+    fragments: tuple[SourceFragmentText, ...]
+
+
 class RecallScopeSession:
     """Ephemeral authorized read-set and FTS index bound to one exact scope.
 
@@ -157,6 +167,7 @@ class RecallScopeSession:
         self._prepared = prepared
         self._fts_session = fts_session
         self._search_count = 0
+        self._completion_capability = object()
 
     @property
     def closed(self) -> bool:
@@ -299,6 +310,19 @@ class _AtomicRecallBatchBackend(Protocol):
     ) -> tuple[tuple[ProcessingRunRecord, EvidencePacket], ...]: ...
 
 
+@runtime_checkable
+class _ScopedRecallCompletionBackend(Protocol):
+    """Optional backend seam for reusing one fully validated scope in-process."""
+
+    def complete_scoped_recall_run(
+        self,
+        *,
+        processing_run_id: str,
+        packet: EvidencePacket,
+        scope_capability: object,
+    ) -> tuple[ProcessingRunRecord, EvidencePacket]: ...
+
+
 class RecallService:
     """Build EvidencePackets from one exact snapshot through protected local FTS."""
 
@@ -410,6 +434,72 @@ class RecallService:
             snapshot=snapshot,
             expected_packet=None,
             scope_session=scope_session,
+        )
+
+    def source_local_drilldown(
+        self,
+        request: QueryRequest,
+        scope_session: RecallScopeSession,
+        *,
+        question: str,
+        source_ids: tuple[str, ...],
+        max_candidates: int = 100,
+    ) -> SourceLocalDrilldownResult:
+        """Search only inside named Sources from one existing authorized scope.
+
+        This is an answer-route repair, not a replacement retrieval receipt. The
+        original broad FTS packet remains immutable; callers must bind any local
+        candidates to a subsequent evidence gate before using them in an answer.
+        """
+
+        canonical_request = _validated_request(request)
+        if type(scope_session) is not RecallScopeSession:
+            raise RecallRequestError("source drilldown requires an exact RecallScopeSession")
+        scope_session._require_request(self, canonical_request)
+        if (
+            type(source_ids) is not tuple
+            or not source_ids
+            or any(type(source_id) is not str or not source_id for source_id in source_ids)
+            or len(set(source_ids)) != len(source_ids)
+        ):
+            raise RecallRequestError("source drilldown requires unique nonblank Source IDs")
+        selected_source_ids = tuple(sorted(source_ids, key=lambda item: item.encode("ascii")))
+        available_source_ids = {
+            fragment.source_id for fragment in scope_session._prepared.read_fragments
+        }
+        if not set(selected_source_ids).issubset(available_source_ids):
+            raise RecallRequestError("source drilldown exceeds the authorized read scope")
+        selected_fragments = tuple(
+            fragment
+            for fragment in scope_session._prepared.read_fragments
+            if fragment.source_id in selected_source_ids
+        )
+        fts_fragments = tuple(
+            FtsFragment(
+                source_fragment_id=fragment.source_fragment_id,
+                text=fragment.text,
+                text_sha256=fragment.text_sha256,
+            )
+            for fragment in selected_fragments
+        )
+        result = search_ephemeral_fts(
+            question=question,
+            fragments=fts_fragments,
+            max_candidates=max_candidates,
+        )
+        result = _validated_fts_result(
+            result,
+            fragments=fts_fragments,
+            profile_version=self._profile_version,
+            max_candidates=max_candidates,
+        )
+        fragments_by_id = {fragment.source_fragment_id: fragment for fragment in selected_fragments}
+        scope_session._search_count += 1
+        return SourceLocalDrilldownResult(
+            question=question,
+            source_ids=selected_source_ids,
+            result=result,
+            fragments=tuple(fragments_by_id[item.source_fragment_id] for item in result.trace),
         )
 
     def recall_batch(self, requests: tuple[QueryRequest, ...]) -> tuple[RecallResult, ...]:
@@ -677,10 +767,19 @@ class RecallService:
                         "replay did not reproduce the original EvidencePacket"
                     )
                 try:
-                    completion = self._backend.complete_recall_run(
-                        processing_run_id=lifecycle.processing_run_id,
-                        packet=packet,
-                    )
+                    if scope_session is not None and isinstance(
+                        self._backend, _ScopedRecallCompletionBackend
+                    ):
+                        completion = self._backend.complete_scoped_recall_run(
+                            processing_run_id=lifecycle.processing_run_id,
+                            packet=packet,
+                            scope_capability=scope_session._completion_capability,
+                        )
+                    else:
+                        completion = self._backend.complete_recall_run(
+                            processing_run_id=lifecycle.processing_run_id,
+                            packet=packet,
+                        )
                 except Exception as error:
                     raise RecallPersistenceError(
                         "recall artifacts could not be atomically persisted"

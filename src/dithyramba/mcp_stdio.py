@@ -17,7 +17,8 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from dithyramba._version import __version__
 from dithyramba.access import QueryExclusions
-from dithyramba.interactive import AgentResearchFacade
+from dithyramba.evidence import EvidenceGateSpec
+from dithyramba.interactive import AgentAnswerPreparation, AgentResearchFacade
 from dithyramba.persistence import LibraryRepository
 from dithyramba.recall import RetrievalBudget
 from dithyramba.sessions import ResearchSessionBrief
@@ -60,6 +61,15 @@ class _JournalInput(_SessionInput):
     text: str = Field(min_length=1, max_length=8_000)
 
 
+class _PrepareAnswerInput(_SessionInput):
+    evidence_event_id: str
+    gate_spec: dict[str, object]
+
+
+class _RecordDraftInput(_JournalInput):
+    preparation: dict[str, object]
+
+
 @dataclass(frozen=True, slots=True)
 class _ToolSpec:
     name: str
@@ -76,9 +86,9 @@ class _ToolSpec:
             "description": self.description,
             "inputSchema": schema,
             "annotations": {
-                "readOnlyHint": self.name in {"session_context"},
+                "readOnlyHint": self.name in {"prepare_answer", "session_context"},
                 "destructiveHint": False,
-                "idempotentHint": self.name in {"recall", "session_context"},
+                "idempotentHint": self.name in {"prepare_answer", "recall", "session_context"},
                 "openWorldHint": False,
             },
         }
@@ -104,10 +114,16 @@ _TOOLS = (
         _SessionInput,
     ),
     _ToolSpec(
+        "prepare_answer",
+        "Prepare evidence-backed answer",
+        "Filter candidates, repair inside found works, and run EvidenceCoverageGate.",
+        _PrepareAnswerInput,
+    ),
+    _ToolSpec(
         "record_draft",
         "Record answer draft",
-        "Append a model-authored draft; this does not accept or canonize it.",
-        _JournalInput,
+        "Append a model-authored draft only with an exactly replayed ready preparation.",
+        _RecordDraftInput,
     ),
     _ToolSpec(
         "record_gap",
@@ -293,9 +309,27 @@ class McpStdioServer:
         if name == "session_context":
             session_input = _require_model(parsed, _SessionInput)
             return self._facade.context(session_input.session_id)
-        journal_input = _require_model(parsed, _JournalInput)
+        if name == "prepare_answer":
+            prepare_input = _require_model(parsed, _PrepareAnswerInput)
+            gate_spec = EvidenceGateSpec.model_validate_json(
+                json.dumps(prepare_input.gate_spec, ensure_ascii=False, separators=(",", ":"))
+            )
+            return self._facade.prepare_answer(
+                prepare_input.session_id,
+                evidence_event_id=prepare_input.evidence_event_id,
+                gate_spec=gate_spec,
+            )
         if name == "record_draft":
-            return self._facade.record_draft(journal_input.session_id, journal_input.text)
+            draft_input = _require_model(parsed, _RecordDraftInput)
+            preparation = AgentAnswerPreparation.model_validate_json(
+                json.dumps(draft_input.preparation, ensure_ascii=False, separators=(",", ":"))
+            )
+            return self._facade.record_draft(
+                draft_input.session_id,
+                draft_input.text,
+                preparation=preparation,
+            )
+        journal_input = _require_model(parsed, _JournalInput)
         if name == "record_gap":
             return self._facade.record_gap(journal_input.session_id, journal_input.text)
         if name == "reject_path":

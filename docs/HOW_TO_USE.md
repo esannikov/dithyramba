@@ -162,17 +162,30 @@ uv run dithyramba mcp \
 ```
 
 The client launches that command and speaks newline-delimited JSON-RPC over
-standard input/output. Dithyramba exposes six bounded tools:
+standard input/output. Dithyramba exposes seven bounded tools:
 
 ```text
-open_session → recall → session_context
-             → record_draft / record_gap / reject_path
+open_session → recall → prepare_answer → record_draft
+             → session_context / record_gap / reject_path
 ```
 
 `open_session` requires the research question, intended use, success criteria,
 snapshot, policy, purpose, and Collection IDs. Save its `session_id`. Every
 `recall` also requires a stable `command_id`; retrying the same command with the
 same input returns the stored turn, while changing the input fails closed.
+
+Before generating a source-backed answer, call `prepare_answer` with the
+recall turn's `evidence_event_id` and an explicit `EvidenceGateSpec`. The
+preparation filters obvious reference matter, indexes, tables, and lexical
+topic drift; runs `EvidenceCoverageGate`; and, only when a literal requirement
+is still missing, searches inside up to three Sources already found by the
+broad recall. It then returns `answer`, `gap`, or `blocked` together with the
+exact candidates and gate result.
+
+Pass the complete returned preparation to `record_draft`. Dithyramba repeats
+the preparation immediately before appending the draft and rejects a changed
+or non-`answer` result. The Gate checks declared fragment coverage, not the
+truth or entailment of every generated sentence; human review remains separate.
 
 The first recall builds one process-local authorized read-set and FTS index for
 that exact session scope. Later questions reuse it. The cache is destroyed when

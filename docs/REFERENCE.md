@@ -105,8 +105,13 @@ start read-only loopback views. Session Lens requires one existing
 
 `mcp` runs a stdio server over one existing Library. It reserves stdout for
 newline-delimited JSON-RPC and exposes `open_session`, `recall`,
-`session_context`, `record_draft`, `record_gap`, and `reject_path`. It has no
-human acceptance, decision, promotion, deletion, or session-closure tool.
+`session_context`, `prepare_answer`, `record_draft`, `record_gap`, and
+`reject_path`. `prepare_answer` applies deterministic candidate hygiene,
+evaluates an explicit `EvidenceGateSpec`, and may run a bounded search inside
+already found Sources before returning `answer`, `gap`, or `blocked`.
+`record_draft` requires an exactly replayable `answer` preparation. The MCP
+surface has no human acceptance, decision, promotion, deletion, or
+session-closure tool.
 
 `reasoning-check` consumes one absolute-path `IdeaTrace`, exact claim-evidence
 case set, and semantic entailment result. It makes no provider call and emits a
@@ -186,6 +191,20 @@ not create a compatibility promise beyond the declared `0.1.x` preview.
 | `ResearchSessionBrief` | `dithyramba.research_session_brief/1.0` | bounded purpose, success criteria, and limits |
 | `ResearchSession` | `dithyramba.research_session/1.0` | immutable Library/snapshot/policy scope |
 | `SessionEvent` | `dithyramba.session_event/1.0` | typed append-only research-journal step |
+
+Interactive transport adds two compact, derived schemas rather than changing
+the durable `EvidencePacket/1.0`:
+
+| View | Schema | Boundary |
+|---|---|---|
+| `AgentSessionContext` | `dithyramba.agent_session_context/1.0` | bounded recent journal state plus explicit omission counts |
+| `AgentEvidencePacket` | `dithyramba.agent_evidence_packet/1.2` | selected exact fragments, readable source references, candidate-only admission state, source-diversity diagnostics, coverage, and IDs/hashes of the full audit receipts |
+
+`AgentEvidencePacket/1.0` and `/1.1` remain readable for development-session
+replay. Version 1.0 lacks readable source references; version 1.1 has source
+references but predates the explicit `retrieved_candidates` admission state and
+source-diversity diagnostics. The full materialized `ReadReceipt` stays local
+in every version and is reopened only through the strict audit route.
 
 Schema v10 added an internal append-only `CorpusReadSet`: one exact protected
 fragment manifest can be shared by several recall requests over the same

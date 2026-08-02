@@ -2,12 +2,20 @@
 
 from __future__ import annotations
 
-from typing import ClassVar, Self, TypeVar
+from typing import ClassVar, Literal, Self, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, model_validator
 
 from dithyramba.contracts import canonical_sha256_hex
+from dithyramba.evidence import (
+    EvidenceCandidate,
+    EvidenceCoverageGate,
+    EvidenceCoverageResult,
+    EvidenceGateDecision,
+    EvidenceGateSpec,
+)
 from dithyramba.recall import (
+    CandidateQualityAssessment,
     EvidenceFragment,
     EvidencePacket,
     PacketResultStatus,
@@ -209,10 +217,25 @@ class AgentSessionContext(_InteractiveModel):
         )
 
 
+class AgentSourceReference(_InteractiveModel):
+    """Human-readable source identity paired with one selected fragment."""
+
+    source_fragment_id: str
+    source_version_id: str
+    source_id: str
+    source_family_id: str
+    root_source_id: str
+    family_role: Literal["root", "derivative", "duplicate"]
+    title: str | None
+    canonical_uri: str
+
+
 class AgentEvidencePacket(_InteractiveModel):
     """Least-context projection of a full, locally retained EvidencePacket."""
 
-    SCHEMA: ClassVar[str] = "dithyramba.agent_evidence_packet/1.0"
+    SCHEMA: ClassVar[str] = "dithyramba.agent_evidence_packet/1.2"
+    SOURCE_REFERENCE_SCHEMA: ClassVar[str] = "dithyramba.agent_evidence_packet/1.1"
+    LEGACY_SCHEMA: ClassVar[str] = "dithyramba.agent_evidence_packet/1.0"
 
     schema_id: str
     projection_hash: str = Field(pattern=_HASH_PATTERN)
@@ -224,6 +247,12 @@ class AgentEvidencePacket(_InteractiveModel):
     corpus_snapshot_hash: str = Field(pattern=_HASH_PATTERN)
     result_status: PacketResultStatus
     source_fragments: tuple[EvidenceFragment, ...]
+    source_references: tuple[AgentSourceReference, ...] = ()
+    admission_state: Literal["retrieved_candidates"] | None = None
+    distinct_source_count: int | None = Field(default=None, ge=0)
+    distinct_source_family_count: int | None = Field(default=None, ge=0)
+    max_fragments_per_source: int | None = Field(default=None, ge=0)
+    max_fragments_per_source_family: int | None = Field(default=None, ge=0)
     coverage_report_id: str
     coverage_report_hash: str = Field(pattern=_HASH_PATTERN)
     processed_count: int = Field(ge=0)
@@ -249,8 +278,9 @@ class AgentEvidencePacket(_InteractiveModel):
 
     @model_validator(mode="after")
     def validate_identity(self) -> Self:
-        if self.schema_id != self.SCHEMA:
-            raise ValueError(f"schema_id must be {self.SCHEMA}")
+        supported_schemas = (self.SCHEMA, self.SOURCE_REFERENCE_SCHEMA, self.LEGACY_SCHEMA)
+        if self.schema_id not in supported_schemas:
+            raise ValueError("schema_id must be one of the supported AgentEvidencePacket schemas")
         if self.projection_hash != canonical_sha256_hex(self.semantic_payload()):
             raise ValueError("projection_hash does not match the agent evidence packet")
         has_evidence = bool(self.source_fragments)
@@ -258,10 +288,43 @@ class AgentEvidencePacket(_InteractiveModel):
             raise ValueError("result_status must match projected source fragments")
         if self.retrieval_selected_count != len(self.source_fragments):
             raise ValueError("retrieval_selected_count must match projected fragments")
+        if self.schema_id == self.LEGACY_SCHEMA:
+            if self.source_references:
+                raise ValueError("legacy agent evidence cannot contain source references")
+        elif tuple(
+            (item.source_fragment_id, item.source_version_id, item.source_family_id)
+            for item in self.source_references
+        ) != tuple(
+            (item.source_fragment_id, item.source_version_id, item.source_family_id)
+            for item in self.source_fragments
+        ):
+            raise ValueError("source references must exactly match projected fragments")
+        diagnostics = (
+            self.admission_state,
+            self.distinct_source_count,
+            self.distinct_source_family_count,
+            self.max_fragments_per_source,
+            self.max_fragments_per_source_family,
+        )
+        if self.schema_id != self.SCHEMA:
+            if any(item is not None for item in diagnostics):
+                raise ValueError("older agent evidence cannot contain candidate diagnostics")
+            return self
+        if self.admission_state != "retrieved_candidates":
+            raise ValueError("agent evidence must remain retrieved_candidates before a gate")
+        expected = _candidate_diagnostics(self.source_references)
+        actual = (
+            self.distinct_source_count,
+            self.distinct_source_family_count,
+            self.max_fragments_per_source,
+            self.max_fragments_per_source_family,
+        )
+        if actual != expected:
+            raise ValueError("candidate diagnostics do not match projected sources")
         return self
 
     def semantic_payload(self) -> dict[str, object]:
-        return {
+        payload: dict[str, object] = {
             "schema_id": self.schema_id,
             "evidence_packet_id": self.evidence_packet_id,
             "evidence_packet_hash": self.evidence_packet_hash,
@@ -293,13 +356,39 @@ class AgentEvidencePacket(_InteractiveModel):
                 "retrieval_receipt_hash": self.retrieval_receipt_hash,
             },
         }
+        if self.schema_id in (self.SCHEMA, self.SOURCE_REFERENCE_SCHEMA):
+            payload["source_references"] = [
+                item.model_dump(mode="json") for item in self.source_references
+            ]
+        if self.schema_id == self.SCHEMA:
+            payload["candidate_diagnostics"] = {
+                "admission_state": self.admission_state,
+                "distinct_source_count": self.distinct_source_count,
+                "distinct_source_family_count": self.distinct_source_family_count,
+                "max_fragments_per_source": self.max_fragments_per_source,
+                "max_fragments_per_source_family": self.max_fragments_per_source_family,
+            }
+        return payload
 
     @classmethod
-    def create(cls, packet: EvidencePacket) -> AgentEvidencePacket:
+    def create(
+        cls,
+        packet: EvidencePacket,
+        *,
+        source_references: tuple[AgentSourceReference, ...] | None = None,
+    ) -> AgentEvidencePacket:
         if type(packet) is not EvidencePacket:
             raise TypeError("AgentEvidencePacket requires an exact EvidencePacket")
+        selected_schema = cls.LEGACY_SCHEMA if source_references is None else cls.SCHEMA
+        selected_references = source_references or ()
+        (
+            distinct_source_count,
+            distinct_source_family_count,
+            max_fragments_per_source,
+            max_fragments_per_source_family,
+        ) = _candidate_diagnostics(selected_references)
         semantic: dict[str, object] = {
-            "schema_id": cls.SCHEMA,
+            "schema_id": selected_schema,
             "evidence_packet_id": packet.evidence_packet_id,
             "evidence_packet_hash": packet.packet_hash,
             "query_request_id": packet.query_request_id,
@@ -330,8 +419,19 @@ class AgentEvidencePacket(_InteractiveModel):
                 "retrieval_receipt_hash": packet.retrieval_receipt.receipt_hash,
             },
         }
+        if selected_schema == cls.SCHEMA:
+            semantic["source_references"] = [
+                item.model_dump(mode="json") for item in selected_references
+            ]
+            semantic["candidate_diagnostics"] = {
+                "admission_state": "retrieved_candidates",
+                "distinct_source_count": distinct_source_count,
+                "distinct_source_family_count": distinct_source_family_count,
+                "max_fragments_per_source": max_fragments_per_source,
+                "max_fragments_per_source_family": max_fragments_per_source_family,
+            }
         return cls(
-            schema_id=cls.SCHEMA,
+            schema_id=selected_schema,
             projection_hash=canonical_sha256_hex(semantic),
             evidence_packet_id=packet.evidence_packet_id,
             evidence_packet_hash=packet.packet_hash,
@@ -341,6 +441,20 @@ class AgentEvidencePacket(_InteractiveModel):
             corpus_snapshot_hash=packet.corpus_snapshot_hash,
             result_status=packet.result_status,
             source_fragments=packet.source_fragments,
+            source_references=selected_references,
+            admission_state=("retrieved_candidates" if selected_schema == cls.SCHEMA else None),
+            distinct_source_count=(
+                distinct_source_count if selected_schema == cls.SCHEMA else None
+            ),
+            distinct_source_family_count=(
+                distinct_source_family_count if selected_schema == cls.SCHEMA else None
+            ),
+            max_fragments_per_source=(
+                max_fragments_per_source if selected_schema == cls.SCHEMA else None
+            ),
+            max_fragments_per_source_family=(
+                max_fragments_per_source_family if selected_schema == cls.SCHEMA else None
+            ),
             coverage_report_id=packet.coverage_report.coverage_report_id,
             coverage_report_hash=packet.coverage_report.report_hash,
             processed_count=packet.coverage_report.processed_count,
@@ -356,6 +470,184 @@ class AgentEvidencePacket(_InteractiveModel):
             access_receipt_hash=packet.access_receipt.receipt_hash,
             retrieval_receipt_id=packet.retrieval_receipt.retrieval_receipt_id,
             retrieval_receipt_hash=packet.retrieval_receipt.receipt_hash,
+        )
+
+
+class AgentSourceDrilldown(_InteractiveModel):
+    """Compact receipt for one conditional search inside already found works."""
+
+    SCHEMA: ClassVar[str] = "dithyramba.agent_source_drilldown/1.0"
+
+    schema_id: str
+    drilldown_hash: str = Field(pattern=_HASH_PATTERN)
+    question: str
+    source_ids: tuple[str, ...]
+    retrieval_result_hash: str = Field(pattern=_HASH_PATTERN)
+    candidate_count: int = Field(ge=0)
+    selected_fragment_ids: tuple[str, ...]
+    filtered_out_count: int = Field(ge=0)
+
+    @model_validator(mode="after")
+    def validate_identity(self) -> Self:
+        if self.schema_id != self.SCHEMA:
+            raise ValueError(f"schema_id must be {self.SCHEMA}")
+        if not self.source_ids or len(set(self.source_ids)) != len(self.source_ids):
+            raise ValueError("source drilldown requires unique Source IDs")
+        if len(set(self.selected_fragment_ids)) != len(self.selected_fragment_ids):
+            raise ValueError("source drilldown fragment IDs must be unique")
+        if self.drilldown_hash != canonical_sha256_hex(self.semantic_payload()):
+            raise ValueError("drilldown_hash does not match the source drilldown")
+        return self
+
+    def semantic_payload(self) -> dict[str, object]:
+        return {
+            "schema_id": self.schema_id,
+            "question": self.question,
+            "source_ids": list(self.source_ids),
+            "retrieval_result_hash": self.retrieval_result_hash,
+            "candidate_count": self.candidate_count,
+            "selected_fragment_ids": list(self.selected_fragment_ids),
+            "filtered_out_count": self.filtered_out_count,
+        }
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        question: str,
+        source_ids: tuple[str, ...],
+        retrieval_result_hash: str,
+        candidate_count: int,
+        selected_fragment_ids: tuple[str, ...],
+        filtered_out_count: int,
+    ) -> AgentSourceDrilldown:
+        semantic: dict[str, object] = {
+            "schema_id": cls.SCHEMA,
+            "question": question,
+            "source_ids": list(source_ids),
+            "retrieval_result_hash": retrieval_result_hash,
+            "candidate_count": candidate_count,
+            "selected_fragment_ids": list(selected_fragment_ids),
+            "filtered_out_count": filtered_out_count,
+        }
+        return cls(
+            schema_id=cls.SCHEMA,
+            drilldown_hash=canonical_sha256_hex(semantic),
+            question=question,
+            source_ids=source_ids,
+            retrieval_result_hash=retrieval_result_hash,
+            candidate_count=candidate_count,
+            selected_fragment_ids=selected_fragment_ids,
+            filtered_out_count=filtered_out_count,
+        )
+
+
+class AgentAnswerPreparation(_InteractiveModel):
+    """Gate-bound context that must exist before an answer draft is recorded."""
+
+    SCHEMA: ClassVar[str] = "dithyramba.agent_answer_preparation/1.0"
+
+    schema_id: str
+    preparation_hash: str = Field(pattern=_HASH_PATTERN)
+    session_id: str = Field(pattern=_SESSION_ID_PATTERN)
+    evidence_event_id: str = Field(pattern=_EVENT_ID_PATTERN)
+    evidence_packet_id: str
+    evidence_packet_hash: str = Field(pattern=_HASH_PATTERN)
+    gate_spec: EvidenceGateSpec
+    gate_result: EvidenceCoverageResult
+    candidates: tuple[EvidenceCandidate, ...]
+    quality_assessments: tuple[CandidateQualityAssessment, ...]
+    drilldown: AgentSourceDrilldown | None = None
+    response_mode: Literal["answer", "gap", "blocked"]
+
+    @model_validator(mode="after")
+    def validate_identity(self) -> Self:
+        if self.schema_id != self.SCHEMA:
+            raise ValueError(f"schema_id must be {self.SCHEMA}")
+        if len({item.source_fragment_id for item in self.candidates}) != len(self.candidates):
+            raise ValueError("answer candidates must have unique fragment IDs")
+        assessment_ids = tuple(item.source_fragment_id for item in self.quality_assessments)
+        if len(set(assessment_ids)) != len(assessment_ids):
+            raise ValueError("quality assessments must have unique fragment IDs")
+        admitted_ids = {
+            item.source_fragment_id for item in self.quality_assessments if item.admitted
+        }
+        if {item.source_fragment_id for item in self.candidates} != admitted_ids:
+            raise ValueError("answer candidates must equal quality-admitted fragments")
+        recomputed = EvidenceCoverageGate(self.gate_spec).evaluate(self.candidates)
+        if recomputed != self.gate_result:
+            raise ValueError("gate_result does not match exact answer candidates")
+        expected_mode = {
+            EvidenceGateDecision.READY: "answer",
+            EvidenceGateDecision.GAP_PRESERVED: "gap",
+        }.get(self.gate_result.decision, "blocked")
+        if self.response_mode != expected_mode:
+            raise ValueError("response_mode does not match the evidence gate decision")
+        if self.preparation_hash != canonical_sha256_hex(self.semantic_payload()):
+            raise ValueError("preparation_hash does not match answer preparation")
+        return self
+
+    def semantic_payload(self) -> dict[str, object]:
+        return {
+            "schema_id": self.schema_id,
+            "session_id": self.session_id,
+            "evidence_event_id": self.evidence_event_id,
+            "evidence_packet_id": self.evidence_packet_id,
+            "evidence_packet_hash": self.evidence_packet_hash,
+            "gate_spec": self.gate_spec.semantic_payload(),
+            "gate_result": self.gate_result.semantic_payload(),
+            "candidates": [item.semantic_payload() for item in self.candidates],
+            "quality_assessments": [
+                item.model_dump(mode="json") for item in self.quality_assessments
+            ],
+            "drilldown": None if self.drilldown is None else self.drilldown.semantic_payload(),
+            "response_mode": self.response_mode,
+        }
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        session_id: str,
+        evidence_event_id: str,
+        evidence_packet_id: str,
+        evidence_packet_hash: str,
+        gate_spec: EvidenceGateSpec,
+        gate_result: EvidenceCoverageResult,
+        candidates: tuple[EvidenceCandidate, ...],
+        quality_assessments: tuple[CandidateQualityAssessment, ...],
+        drilldown: AgentSourceDrilldown | None,
+    ) -> AgentAnswerPreparation:
+        response_mode: Literal["answer", "gap", "blocked"] = {
+            EvidenceGateDecision.READY: "answer",
+            EvidenceGateDecision.GAP_PRESERVED: "gap",
+        }.get(gate_result.decision, "blocked")  # type: ignore[assignment]
+        semantic: dict[str, object] = {
+            "schema_id": cls.SCHEMA,
+            "session_id": session_id,
+            "evidence_event_id": evidence_event_id,
+            "evidence_packet_id": evidence_packet_id,
+            "evidence_packet_hash": evidence_packet_hash,
+            "gate_spec": gate_spec.semantic_payload(),
+            "gate_result": gate_result.semantic_payload(),
+            "candidates": [item.semantic_payload() for item in candidates],
+            "quality_assessments": [item.model_dump(mode="json") for item in quality_assessments],
+            "drilldown": None if drilldown is None else drilldown.semantic_payload(),
+            "response_mode": response_mode,
+        }
+        return cls(
+            schema_id=cls.SCHEMA,
+            preparation_hash=canonical_sha256_hex(semantic),
+            session_id=session_id,
+            evidence_event_id=evidence_event_id,
+            evidence_packet_id=evidence_packet_id,
+            evidence_packet_hash=evidence_packet_hash,
+            gate_spec=gate_spec,
+            gate_result=gate_result,
+            candidates=candidates,
+            quality_assessments=quality_assessments,
+            drilldown=drilldown,
+            response_mode=response_mode,
         )
 
 
@@ -422,6 +714,24 @@ class AgentResearchTurn(_InteractiveModel):
             evidence_packet=evidence_packet,
             context=context,
         )
+
+
+def _candidate_diagnostics(
+    references: tuple[AgentSourceReference, ...],
+) -> tuple[int, int, int, int]:
+    source_counts: dict[str, int] = {}
+    family_counts: dict[str, int] = {}
+    for reference in references:
+        source_counts[reference.source_id] = source_counts.get(reference.source_id, 0) + 1
+        family_counts[reference.source_family_id] = (
+            family_counts.get(reference.source_family_id, 0) + 1
+        )
+    return (
+        len(source_counts),
+        len(family_counts),
+        max(source_counts.values(), default=0),
+        max(family_counts.values(), default=0),
+    )
 
 
 def _tail(values: tuple[_T, ...], limit: int) -> tuple[tuple[_T, ...], int]:

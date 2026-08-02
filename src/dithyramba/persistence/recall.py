@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import re
 import sqlite3
+from collections import OrderedDict
 from dataclasses import dataclass
 from typing import Literal, cast
 
@@ -67,6 +68,7 @@ RecallRunKind = Literal["recall", "replay"]
 _RUN_ID_PATTERN = re.compile(r"^run_[a-z0-9]+(?:_[a-z0-9]+)*$")
 _LARGE_PROJECTION_READ_THRESHOLD = 300
 _PROJECTION_READ_PERMIT_TABLE = "dithyramba_projection_read_permit"
+_VALIDATED_SCOPE_CACHE_CAPACITY = 4
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,7 +88,51 @@ class _CorpusReadSetIdentity:
 
     corpus_read_set_id: str
     set_hash: str
-    payload: dict[str, object]
+
+
+@dataclass(frozen=True, slots=True)
+class _ValidatedRecallScope:
+    """Process-local proof that one immutable corpus scope passed full closure.
+
+    The exact ``read_items`` tuple is an in-memory capability issued by the
+    prepared recall corpus.  Reusing it avoids scanning the same append-only
+    CorpusReadSet after every question while selected fragments are still
+    revalidated against stored text on every turn.
+    """
+
+    scope_bytes: bytes
+    read_items: tuple[ReadReceiptItem, ...]
+    read_set: _CorpusReadSetIdentity
+    permitted_fragment_ids: frozenset[str]
+    source_version_count: int
+    corpus_snapshot_id: str
+    snapshot_hash: str
+    access_policy_id: str
+    policy_hash: str
+    exclusion_hash: str
+    permitted_set_hash: str
+    retrieval_corpus_hash: str
+    policy_omission_present: bool
+    code_version: str
+    profile_version: str
+
+
+@dataclass(frozen=True, slots=True)
+class EvidencePacketBinding:
+    """Compact, fully hash-checked packet identity for session/UI routing.
+
+    The binding proves that the stored packet row is canonical, terminally
+    linked to a successful recall run, and bound to this Library's canonical
+    QueryRequest.  It intentionally does not materialize the corpus-wide
+    ReadReceipt; callers that need full replay must use ``load_evidence_packet``.
+    """
+
+    evidence_packet_id: str
+    packet_hash: str
+    query_request: QueryRequest
+    corpus_snapshot_id: str
+    result_status: PacketResultStatus
+    source_fragment_items: tuple[tuple[str, int, str], ...]
 
 
 class SQLiteRecallBackend:
@@ -102,6 +148,7 @@ class SQLiteRecallBackend:
         if not isinstance(repository, LibraryRepository):
             raise TypeError("SQLiteRecallBackend requires a LibraryRepository")
         self._repository = repository
+        self._validated_scopes: OrderedDict[object, _ValidatedRecallScope] = OrderedDict()
 
     @property
     def repository(self) -> LibraryRepository:
@@ -277,11 +324,46 @@ class SQLiteRecallBackend:
         processing_run_id: str,
         packet: EvidencePacket,
     ) -> tuple[ProcessingRunRecord, EvidencePacket]:
+        """Complete one ordinary recall without a reusable scope capability."""
+
+        return self._complete_recall_run(
+            processing_run_id=processing_run_id,
+            packet=packet,
+            scope_capability=None,
+        )
+
+    def complete_scoped_recall_run(
+        self,
+        *,
+        processing_run_id: str,
+        packet: EvidencePacket,
+        scope_capability: object,
+    ) -> tuple[ProcessingRunRecord, EvidencePacket]:
+        """Complete one recall through an exact process-local scope capability."""
+
+        if scope_capability is None:
+            raise TypeError("scoped recall completion requires a capability")
+        return self._complete_recall_run(
+            processing_run_id=processing_run_id,
+            packet=packet,
+            scope_capability=scope_capability,
+        )
+
+    def _complete_recall_run(
+        self,
+        *,
+        processing_run_id: str,
+        packet: EvidencePacket,
+        scope_capability: object | None,
+    ) -> tuple[ProcessingRunRecord, EvidencePacket]:
         """Atomically persist/reuse every artifact, link them, and finish a run."""
 
         if type(packet) is not EvidencePacket:
             raise TypeError("complete_recall_run requires an exact EvidencePacket")
         finished_at = _timestamp(self._repository._clock)
+        scope_bytes: bytes | None = None
+        cache_entry: _ValidatedRecallScope | None = None
+        pending_cache_entry: _ValidatedRecallScope | None = None
         try:
             with self._repository._store.transaction(immediate=True) as connection:
                 run_row = self._load_running_recall_run(connection, processing_run_id)
@@ -291,17 +373,32 @@ class SQLiteRecallBackend:
                     connection,
                     request.corpus_snapshot_id,
                 )
-                projections = self._validate_receipt_closure(
-                    connection,
-                    request=request,
-                    snapshot=snapshot,
-                    coverage=packet.coverage_report,
-                    read=packet.read_receipt,
-                    access=packet.access_receipt,
-                    retrieval=packet.retrieval_receipt,
-                    code_version=str(run_row[4]),
-                    profile_version=str(run_row[5]),
-                )
+                scope_bytes = _recall_batch_scope_payload(request)
+                if scope_capability is not None:
+                    cache_entry = self._validated_scopes.get(scope_capability)
+                if cache_entry is not None:
+                    projections = self._validate_cached_receipt_closure(
+                        connection,
+                        request=request,
+                        snapshot=snapshot,
+                        packet=packet,
+                        code_version=str(run_row[4]),
+                        profile_version=str(run_row[5]),
+                        cached=cache_entry,
+                    )
+                else:
+                    cache_entry = None
+                    projections = self._validate_receipt_closure(
+                        connection,
+                        request=request,
+                        snapshot=snapshot,
+                        coverage=packet.coverage_report,
+                        read=packet.read_receipt,
+                        access=packet.access_receipt,
+                        retrieval=packet.retrieval_receipt,
+                        code_version=str(run_row[4]),
+                        profile_version=str(run_row[5]),
+                    )
                 self._validate_packet_closure(
                     packet,
                     request=request,
@@ -315,12 +412,30 @@ class SQLiteRecallBackend:
                     query_request_id=query_request_id,
                     coverage=packet.coverage_report,
                 )
-                self._ensure_read_receipt(
-                    connection,
-                    processing_run_id=processing_run_id,
-                    query_request_id=query_request_id,
-                    receipt=packet.read_receipt,
-                )
+                if cache_entry is None:
+                    read_set = self._ensure_read_receipt(
+                        connection,
+                        processing_run_id=processing_run_id,
+                        query_request_id=query_request_id,
+                        receipt=packet.read_receipt,
+                    )
+                    if read_set is not None:
+                        pending_cache_entry = self._validated_scope_entry(
+                            request=request,
+                            snapshot=snapshot,
+                            packet=packet,
+                            projections=projections,
+                            read_set=read_set,
+                            code_version=str(run_row[4]),
+                            profile_version=str(run_row[5]),
+                        )
+                else:
+                    self._ensure_cached_read_receipt_head(
+                        connection,
+                        processing_run_id=processing_run_id,
+                        receipt=packet.read_receipt,
+                        cached=cache_entry,
+                    )
                 self._ensure_access_receipt(
                     connection,
                     processing_run_id=processing_run_id,
@@ -385,9 +500,16 @@ class SQLiteRecallBackend:
                 )
         except sqlite3.IntegrityError as error:
             raise PersistenceConflictError("recall completion conflicted") from error
+        if scope_capability is not None and scope_bytes is not None:
+            if pending_cache_entry is not None:
+                self._validated_scopes[scope_capability] = pending_cache_entry
+            elif cache_entry is not None:
+                self._validated_scopes.move_to_end(scope_capability)
+            while len(self._validated_scopes) > _VALIDATED_SCOPE_CACHE_CAPACITY:
+                self._validated_scopes.popitem(last=False)
         return (
             self._repository.get_processing_run(processing_run_id),
-            self.load_evidence_packet(packet.evidence_packet_id),
+            packet,
         )
 
     def complete_recall_batch(
@@ -750,6 +872,148 @@ class SQLiteRecallBackend:
                 )
             return packet
 
+    def load_evidence_packet_binding(self, evidence_packet_id: str) -> EvidencePacketBinding:
+        """Load a compact packet/session binding without expanding its full read set."""
+
+        with self._repository._store.transaction() as connection:
+            row = connection.execute(
+                """
+                SELECT ep.evidence_packet_id, ep.query_request_id,
+                       ep.corpus_snapshot_id, ep.result_status, ep.packet_json,
+                       ep.packet_hash, ep.created_at
+                FROM evidence_packets AS ep
+                JOIN query_requests AS request
+                  ON request.query_request_id = ep.query_request_id
+                WHERE ep.evidence_packet_id = ? AND request.library_id = ?
+                """,
+                (evidence_packet_id, self._repository.library_id),
+            ).fetchone()
+            if row is None:
+                raise EvidencePacketNotFoundError(
+                    f"EvidencePacket does not exist: {evidence_packet_id}"
+                )
+            _validated_timestamp(str(row[6]))
+            payload = _load_canonical_object(str(row[4]), "EvidencePacket payload")
+            _expect_exact_keys(
+                payload,
+                {
+                    "schema",
+                    "query_request_id",
+                    "query_request_hash",
+                    "corpus_snapshot_id",
+                    "corpus_snapshot_hash",
+                    "result_status",
+                    "source_fragments",
+                    "counterevidence",
+                    "evidence_gaps",
+                    "coverage_report",
+                    "receipts",
+                    "evidence_packet_id",
+                    "packet_hash",
+                },
+                "EvidencePacket",
+            )
+            stored_id = payload.pop("evidence_packet_id")
+            stored_hash = payload.pop("packet_hash")
+            packet_hash = str(row[5])
+            if (
+                payload.get("schema") != EvidencePacket.SCHEMA
+                or type(stored_id) is not str
+                or type(stored_hash) is not str
+                or stored_id != str(row[0])
+                or stored_id != evidence_packet_id
+                or stored_hash != packet_hash
+                or canonical_content_id("packet", payload) != stored_id
+                or canonical_sha256_hex(payload) != stored_hash
+                or payload.get("query_request_id") != str(row[1])
+                or payload.get("corpus_snapshot_id") != str(row[2])
+                or payload.get("result_status") != str(row[3])
+            ):
+                raise PersistenceIntegrityError("EvidencePacket compact identity closure failed")
+
+            request = self._load_query_request(connection, str(row[1]))
+            if payload.get(
+                "query_request_hash"
+            ) != request.request_hash or request.corpus_snapshot_id != str(row[2]):
+                raise PersistenceIntegrityError("EvidencePacket QueryRequest binding is stale")
+
+            link_rows = connection.execute(
+                """
+                SELECT run.kind, run.query_request_id, run.status, run.output_hash
+                FROM recall_run_artifacts AS artifacts
+                JOIN processing_runs AS run
+                  ON run.processing_run_id = artifacts.processing_run_id
+                WHERE artifacts.evidence_packet_id = ?
+                ORDER BY artifacts.processing_run_id
+                """,
+                (evidence_packet_id,),
+            ).fetchall()
+            if not link_rows or any(
+                str(link[0]) not in ("recall", "replay")
+                or str(link[1]) != request.query_request_id
+                or str(link[2]) != ProcessingRunStatus.SUCCEEDED.value
+                or str(link[3]) != packet_hash
+                for link in link_rows
+            ):
+                raise PersistenceIntegrityError(
+                    "EvidencePacket compact run binding is not terminally closed"
+                )
+
+            raw_fragments = payload.get("source_fragments")
+            if type(raw_fragments) is not list:
+                raise PersistenceIntegrityError("EvidencePacket source fragments are invalid")
+            try:
+                expected_items = tuple(
+                    (
+                        str(fragment["source_fragment_id"]),
+                        "evidence",
+                        int(fragment["rank"]),
+                        str(fragment["score"]),
+                    )
+                    for fragment in raw_fragments
+                    if type(fragment) is dict
+                )
+            except (KeyError, TypeError, ValueError) as error:
+                raise PersistenceIntegrityError(
+                    "EvidencePacket source fragment projection is invalid"
+                ) from error
+            if len(expected_items) != len(raw_fragments):
+                raise PersistenceIntegrityError(
+                    "EvidencePacket source fragment projection is invalid"
+                )
+            item_rows = connection.execute(
+                """
+                SELECT source_fragment_id, role, rank, score_text
+                FROM packet_items
+                WHERE evidence_packet_id = ?
+                ORDER BY rank
+                """,
+                (evidence_packet_id,),
+            ).fetchall()
+            actual_items = tuple(
+                (str(item[0]), str(item[1]), int(item[2]), str(item[3])) for item in item_rows
+            )
+            if actual_items != expected_items:
+                raise PersistenceIntegrityError(
+                    "EvidencePacket packet_items differ from compact payload"
+                )
+            try:
+                status = PacketResultStatus(str(row[3]))
+            except ValueError as error:
+                raise PersistenceIntegrityError(
+                    "EvidencePacket result status is invalid"
+                ) from error
+            return EvidencePacketBinding(
+                evidence_packet_id=evidence_packet_id,
+                packet_hash=packet_hash,
+                query_request=request,
+                corpus_snapshot_id=str(row[2]),
+                result_status=status,
+                source_fragment_items=tuple(
+                    (fragment_id, rank, score) for fragment_id, _role, rank, score in expected_items
+                ),
+            )
+
     def _load_query_request(
         self,
         connection: sqlite3.Connection,
@@ -1054,6 +1318,121 @@ class SQLiteRecallBackend:
                 "batch RetrievalReceipt contains a fragment outside the shared read set"
             )
 
+    def _validated_scope_entry(
+        self,
+        *,
+        request: QueryRequest,
+        snapshot: CorpusSnapshot,
+        packet: EvidencePacket,
+        projections: dict[str, _FragmentProjection],
+        read_set: _CorpusReadSetIdentity,
+        code_version: str,
+        profile_version: str,
+    ) -> _ValidatedRecallScope:
+        read_items = packet.read_receipt.items
+        permitted_fragment_ids = frozenset(item.source_fragment_id for item in read_items)
+        if len(permitted_fragment_ids) != len(read_items) or permitted_fragment_ids != set(
+            projections
+        ):
+            raise PersistenceIntegrityError(
+                "validated recall scope differs from its protected read projections"
+            )
+        access = packet.access_receipt
+        return _ValidatedRecallScope(
+            scope_bytes=_recall_batch_scope_payload(request),
+            read_items=read_items,
+            read_set=read_set,
+            permitted_fragment_ids=permitted_fragment_ids,
+            source_version_count=packet.coverage_report.processed_count,
+            corpus_snapshot_id=snapshot.corpus_snapshot_id,
+            snapshot_hash=snapshot.manifest_hash,
+            access_policy_id=request.access_policy_id,
+            policy_hash=access.policy_hash,
+            exclusion_hash=access.exclusion_hash,
+            permitted_set_hash=access.permitted_set_hash,
+            retrieval_corpus_hash=access.retrieval_corpus_hash,
+            policy_omission_present=access.policy_omission_present,
+            code_version=_validated_label(code_version, "code version"),
+            profile_version=_validated_label(profile_version, "profile version"),
+        )
+
+    def _validate_cached_receipt_closure(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        request: QueryRequest,
+        snapshot: CorpusSnapshot,
+        packet: EvidencePacket,
+        code_version: str,
+        profile_version: str,
+        cached: _ValidatedRecallScope,
+    ) -> dict[str, _FragmentProjection]:
+        coverage = packet.coverage_report
+        read = packet.read_receipt
+        access = packet.access_receipt
+        retrieval = packet.retrieval_receipt
+        for value, expected_type, label in (
+            (coverage, RecallCoverageReport, "RecallCoverageReport"),
+            (read, ReadReceipt, "ReadReceipt"),
+            (access, AccessReceipt, "AccessReceipt"),
+            (retrieval, RetrievalReceipt, "RetrievalReceipt"),
+        ):
+            if type(value) is not expected_type:
+                raise PersistenceIntegrityError(f"{label} must use its exact contract type")
+        if (
+            _recall_batch_scope_payload(request) != cached.scope_bytes
+            or not _same_read_capability(read.items, cached.read_items)
+            or request.query_request_id != canonical_content_id("query", request.semantic_payload())
+            or request.request_hash != canonical_sha256_hex(request.semantic_payload())
+            or snapshot.library_id != self._repository.library_id
+            or snapshot.corpus_snapshot_id != cached.corpus_snapshot_id
+            or snapshot.manifest_hash != cached.snapshot_hash
+            or snapshot.corpus_snapshot_id != request.corpus_snapshot_id
+            or snapshot.collection_ids != request.collection_ids
+        ):
+            raise PersistenceIntegrityError("cached recall scope identity closure failed")
+        if any(
+            artifact.query_request_hash != request.request_hash
+            for artifact in (coverage, read, access, retrieval)
+        ):
+            raise PersistenceIntegrityError("cached receipt references a different QueryRequest")
+        if (
+            access.library_id != self._repository.library_id
+            or access.access_policy_id != cached.access_policy_id
+            or access.corpus_snapshot_id != cached.corpus_snapshot_id
+            or access.snapshot_hash != cached.snapshot_hash
+            or access.policy_hash != cached.policy_hash
+            or access.exclusion_hash != cached.exclusion_hash
+            or access.permitted_set_hash != cached.permitted_set_hash
+            or access.retrieval_corpus_hash != cached.retrieval_corpus_hash
+            or access.policy_omission_present != cached.policy_omission_present
+            or coverage.policy_omission_present != cached.policy_omission_present
+            or coverage.processed_count != cached.source_version_count
+            or read.retrieval_corpus_hash != cached.retrieval_corpus_hash
+        ):
+            raise PersistenceIntegrityError(
+                "cached access/read closure differs from validated scope"
+            )
+        if (
+            retrieval.code_version != _validated_label(code_version, "code version")
+            or retrieval.code_version != cached.code_version
+            or retrieval.profile_version != _validated_label(profile_version, "profile version")
+            or retrieval.profile_version != cached.profile_version
+            or retrieval.profile != request.retrieval.profile
+            or retrieval.max_candidates != request.retrieval.max_candidates
+            or retrieval.max_source_fragments != request.retrieval.max_source_fragments
+            or retrieval.retrieval_corpus_hash != cached.retrieval_corpus_hash
+        ):
+            raise PersistenceIntegrityError("cached retrieval closure differs from validated scope")
+        if not {item.source_fragment_id for item in retrieval.trace}.issubset(
+            cached.permitted_fragment_ids
+        ):
+            raise PersistenceIntegrityError(
+                "cached RetrievalReceipt contains a fragment outside the protected read set"
+            )
+        selected_ids = tuple(item.source_fragment_id for item in packet.source_fragments)
+        return self._load_fragment_projections(connection, selected_ids)
+
     def _load_fragment_projections(
         self,
         connection: sqlite3.Connection,
@@ -1322,9 +1701,10 @@ class SQLiteRecallBackend:
         processing_run_id: str,
         query_request_id: str,
         receipt: ReadReceipt,
-    ) -> None:
+    ) -> _CorpusReadSetIdentity | None:
         read_receipt_id = receipt.read_receipt_id
         receipt_hash = receipt.receipt_hash
+        read_set: _CorpusReadSetIdentity | None = None
         existing = connection.execute(
             """
             SELECT read_receipt_id, receipt_hash
@@ -1334,6 +1714,7 @@ class SQLiteRecallBackend:
             """,
             (read_receipt_id, receipt_hash),
         ).fetchall()
+        inserted = not existing
         if not existing:
             read_set = self._ensure_corpus_read_set(connection, receipt)
             connection.execute(
@@ -1367,15 +1748,154 @@ class SQLiteRecallBackend:
             hash_column="receipt_hash",
             digest=receipt_hash,
         )
-        loaded = self._load_read_receipt(
-            connection,
+        if not inserted:
+            loaded = self._load_read_receipt(
+                connection,
+                read_receipt_id,
+                query_request_id=query_request_id,
+                query_request_hash=receipt.query_request_hash,
+                retrieval_corpus_hash=receipt.retrieval_corpus_hash,
+            )
+            if loaded != receipt or loaded.canonical_bytes != receipt.canonical_bytes:
+                raise PersistenceIntegrityError(
+                    "persisted ReadReceipt conflicts with content address"
+                )
+        if read_set is None:
+            read_set = self._read_receipt_set_identity(
+                connection,
+                read_receipt_id=read_receipt_id,
+                receipt=receipt,
+            )
+        return read_set
+
+    def _ensure_cached_read_receipt_head(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        processing_run_id: str,
+        receipt: ReadReceipt,
+        cached: _ValidatedRecallScope,
+    ) -> None:
+        if (
+            not _same_read_capability(receipt.items, cached.read_items)
+            or receipt.retrieval_corpus_hash != cached.retrieval_corpus_hash
+        ):
+            raise PersistenceIntegrityError(
+                "cached ReadReceipt does not carry the validated in-memory read capability"
+            )
+        set_rows = connection.execute(
+            """
+            SELECT corpus_read_set_id, library_id, retrieval_corpus_hash,
+                   item_count, set_hash
+            FROM corpus_read_sets
+            WHERE corpus_read_set_id = ? OR set_hash = ?
+            ORDER BY corpus_read_set_id
+            """,
+            (cached.read_set.corpus_read_set_id, cached.read_set.set_hash),
+        ).fetchall()
+        if len(set_rows) != 1:
+            raise PersistenceIntegrityError("cached CorpusReadSet identity is absent or ambiguous")
+        set_row = set_rows[0]
+        if (
+            str(set_row[0]) != cached.read_set.corpus_read_set_id
+            or str(set_row[1]) != self._repository.library_id
+            or str(set_row[2]) != cached.retrieval_corpus_hash
+            or int(set_row[3]) != len(cached.read_items)
+            or str(set_row[4]) != cached.read_set.set_hash
+        ):
+            raise PersistenceIntegrityError(
+                "cached CorpusReadSet head differs from validated scope"
+            )
+
+        read_receipt_id = receipt.read_receipt_id
+        receipt_hash = receipt.receipt_hash
+        rows = connection.execute(
+            """
+            SELECT read_receipt_id, receipt_hash
+            FROM read_receipts
+            WHERE read_receipt_id = ? OR receipt_hash = ?
+            ORDER BY read_receipt_id
+            """,
+            (read_receipt_id, receipt_hash),
+        ).fetchall()
+        if not rows:
+            connection.execute(
+                """
+                INSERT INTO read_receipts(
+                    read_receipt_id, processing_run_id, receipt_hash
+                ) VALUES (?, ?, ?)
+                """,
+                (read_receipt_id, processing_run_id, receipt_hash),
+            )
+            connection.execute(
+                """
+                INSERT INTO read_receipt_corpus_sets(
+                    read_receipt_id, corpus_read_set_id
+                ) VALUES (?, ?)
+                """,
+                (read_receipt_id, cached.read_set.corpus_read_set_id),
+            )
+        elif len(rows) != 1 or (str(rows[0][0]), str(rows[0][1])) != (
             read_receipt_id,
-            query_request_id=query_request_id,
-            query_request_hash=receipt.query_request_hash,
-            retrieval_corpus_hash=receipt.retrieval_corpus_hash,
+            receipt_hash,
+        ):
+            raise PersistenceIntegrityError(
+                "ReadReceipt ID/hash resolve to conflicting persisted rows"
+            )
+        link_rows = connection.execute(
+            """
+            SELECT corpus_read_set_id
+            FROM read_receipt_corpus_sets
+            WHERE read_receipt_id = ?
+            """,
+            (read_receipt_id,),
+        ).fetchall()
+        if len(link_rows) != 1 or str(link_rows[0][0]) != cached.read_set.corpus_read_set_id:
+            raise PersistenceIntegrityError(
+                "cached ReadReceipt head does not reference the validated CorpusReadSet"
+            )
+        _require_unique_artifact_identity(
+            connection,
+            table="read_receipts",
+            id_column="read_receipt_id",
+            identifier=read_receipt_id,
+            hash_column="receipt_hash",
+            digest=receipt_hash,
         )
-        if loaded != receipt or loaded.canonical_bytes != receipt.canonical_bytes:
-            raise PersistenceIntegrityError("persisted ReadReceipt conflicts with content address")
+
+    def _read_receipt_set_identity(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        read_receipt_id: str,
+        receipt: ReadReceipt,
+    ) -> _CorpusReadSetIdentity | None:
+        rows = connection.execute(
+            """
+            SELECT corpus.corpus_read_set_id, corpus.library_id,
+                   corpus.retrieval_corpus_hash, corpus.item_count, corpus.set_hash
+            FROM read_receipt_corpus_sets AS link
+            JOIN corpus_read_sets AS corpus
+              ON corpus.corpus_read_set_id = link.corpus_read_set_id
+            WHERE link.read_receipt_id = ?
+            """,
+            (read_receipt_id,),
+        ).fetchall()
+        if not rows:
+            return None
+        if len(rows) != 1:
+            raise PersistenceIntegrityError("ReadReceipt CorpusReadSet link is absent or ambiguous")
+        row = rows[0]
+        if (
+            str(row[1]) != self._repository.library_id
+            or str(row[2]) != receipt.retrieval_corpus_hash
+            or int(row[3]) != len(receipt.items)
+        ):
+            raise PersistenceIntegrityError("ReadReceipt CorpusReadSet head is inconsistent")
+        return _CorpusReadSetIdentity(
+            corpus_read_set_id=str(row[0]),
+            set_hash=str(row[4]),
+        )
 
     def _ensure_batch_read_receipt_head(
         self,
@@ -2380,6 +2900,18 @@ def _retrieval_from_payload(payload: dict[str, object]) -> RetrievalReceipt:
     return receipt
 
 
+def _same_read_capability(
+    current: tuple[ReadReceiptItem, ...],
+    validated: tuple[ReadReceiptItem, ...],
+) -> bool:
+    """Prove that Pydantic only rebuilt the tuple, not its protected items."""
+
+    return len(current) == len(validated) and all(
+        current_item is validated_item
+        for current_item, validated_item in zip(current, validated, strict=True)
+    )
+
+
 def _corpus_read_set_identity(
     *,
     library_id: str,
@@ -2395,7 +2927,6 @@ def _corpus_read_set_identity(
     return _CorpusReadSetIdentity(
         corpus_read_set_id=canonical_content_id("corpus_read_set", payload),
         set_hash=canonical_sha256_hex(payload),
-        payload=payload,
     )
 
 

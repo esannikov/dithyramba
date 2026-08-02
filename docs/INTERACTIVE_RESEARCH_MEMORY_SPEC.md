@@ -1,17 +1,17 @@
 # Interactive research memory 0.2
 
 Status: Session Spine, durable store, scoped cache, least-context agent
-transport, stdio MCP, and GET-only Session Lens implemented in the 0.2
-development candidate
+transport, human-readable source references, stdio MCP, and compact GET-only
+Session Lens implemented in the 0.2 development candidate
 
 Base: `0.1.0rc1` plus proposition-level answer governance and schema v13
 
 Implemented slices: session contracts, deterministic replay, SQLite persistence,
 idempotent recall commands, compact evidence projection, reusable process-local
-scope cache, stdio MCP lifecycle/tools, and human journal projection
+scope capability, stdio MCP lifecycle/tools, and human journal projection
 
-Verification: 2,627 tests passed, 2 host/browser tests skipped, branch-aware
-coverage 95.03%, Ruff and strict MyPy passed, with no new runtime dependency
+Verification: 2,678 tests passed, 2 host/browser tests skipped, branch-aware
+coverage 95.02%, Ruff and strict MyPy passed, with no new runtime dependency
 
 ## Product objective
 
@@ -118,8 +118,9 @@ The implemented `AgentResearchFacade` exposes only bounded research actions. A
 turn returns two different objects: a compact `AgentSessionContext` containing
 recent journal state and explicit omission counts, and an
 `AgentEvidencePacket` containing only the selected exact source fragments,
-their addresses, compact coverage counts, and the IDs and hashes of the full
-audit receipts. The complete `EvidencePacket`, including its materialized
+their addresses, human-readable source title/URI references, compact coverage
+counts, and the IDs and hashes of the full audit receipts. The complete
+`EvidencePacket`, including its materialized
 `ReadReceipt`, remains local in the Library and can be inspected explicitly; it
 is not copied into every agent prompt. This avoids replaying the whole transcript
 or corpus-read manifest while preserving a cryptographic route back to the full
@@ -140,16 +141,58 @@ explicitly closable, and never serialized. Every recall still writes its normal
 durable request, run, receipt, packet, and journal events. A restart rebuilds the
 cache rather than trusting stale ranking state.
 
-The stdio MCP server implements the standard initialization lifecycle and six
-bounded tools over `AgentResearchFacade`: open, recall, context, draft, gap, and
-rejected path. Standard output is reserved for newline-delimited JSON-RPC;
-diagnostics go to standard error. Human acceptance, decisions, promotion, and
-session closure remain absent.
+The first completed recall in that explicit scope fully validates the shared
+corpus-read closure. Later questions reuse an in-process capability for the same
+immutable scope, while each selected fragment is still checked against stored
+text, address, and hash before its new packet is committed. One-shot recall,
+cold replay, a changed scope, or a substituted backend always takes the strict
+full-validation route. The optimization is therefore explicit reuse inside one
+authorized session, not a global trust cache.
+
+The stdio MCP server implements the standard initialization lifecycle and seven
+bounded tools over `AgentResearchFacade`: open, recall, context, answer
+preparation, draft, gap, and rejected path. Answer preparation filters explicit
+reference matter, index/table layout, and lexical topic drift; evaluates an
+explicit `EvidenceGateSpec`; and conditionally searches inside up to three
+Sources already found by broad recall when literal support remains missing.
+The resulting `AgentAnswerPreparation/1.0` binds the exact candidates, filter
+decisions, optional local-search receipt, and Gate result. Draft recording
+replays that preparation and fails closed unless its mode is `answer`.
+For a `ready` result, the interactive projection exposes only an
+inclusion-minimal set of Gate-matched fragments. The immutable retrieval and
+drilldown receipts remain available for audit, while a gap keeps its diagnostic
+candidate neighbourhood. Requirements that depend on a subject domain and an
+evidence role must bind both as anchor groups in the same requirement so two
+unrelated fragments cannot manufacture coverage.
+Standard output is reserved for newline-delimited JSON-RPC; diagnostics go to
+standard error. Human acceptance, decisions, promotion, and session closure
+remain absent. The Gate proves declared fragment coverage, not the entailment
+or truth of the final prose.
 
 Session Lens is a GET-only projection of one durable session. It displays the
 operator brief, chronological journal, exact source titles and passages, drafts,
 gaps, and rejected routes. Internal artifact IDs are available only in expanded
 technical details. Selecting evidence is inspectable but never marks it accepted.
+Modern events reopen their already persisted compact agent packet, validate its
+binding to the durable evidence packet, and resolve each selected fragment by a
+direct metadata lookup. They do not expand the corpus-wide `ReadReceipt` merely
+to draw a page. Legacy development events keep the strict full-packet fallback.
+
+Each visible evidence item separates the source title, a human-safe exact
+file/URI locator, and the fragment address. A title is not presented as the
+author or speaker. A local file locator exposes only the final filename; a web
+locator keeps the scheme, host, port, and path while omitting credentials,
+query strings, and fragments. The same safe locator is included in the stable
+JSON projection. If the Source has no stored title, the human label falls back
+to this locator rather than the raw canonical URI.
+
+On the M1 PhD stress corpus (622 active sources and 263,363 exact fragments), a
+two-question process measured 56.887 s to prepare the cold scope, 72.647 s for
+the first fully audited completion, and 13.557 s for the second question in the
+same authorized session. Session Lens projected four journal events and 24
+evidence fragments in 0.062–0.064 s with a stable projection hash. These are
+operational measurements, not retrieval-quality or scholarly-validity claims;
+all phases used zero LLM calls or tokens.
 
 ## Failure semantics
 

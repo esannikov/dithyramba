@@ -149,6 +149,47 @@ def test_multi_role_question_remains_partial_until_both_roles_are_covered() -> N
     )
 
 
+def test_domain_and_role_anchors_must_cooccur_in_one_fragment() -> None:
+    requirement = EvidenceRequirement(
+        key="art_explainability_limit",
+        label="An explainability limit stated inside art research",
+        anchor_groups=(
+            ("artwork", "painting"),
+            ("explainability", "interpretability"),
+            ("black box", "limitation"),
+        ),
+    )
+    generic_transformer = _candidate(
+        fragment="fragment_generic_transformer",
+        source="source_transformer_handbook",
+        text="Transformer explainability remains limited by the black box problem.",
+    )
+    art_only = _candidate(
+        fragment="fragment_art_only",
+        source="source_art_history",
+        text="The artwork is interpreted through its historical context.",
+        rank=2,
+    )
+    scoped = _candidate(
+        fragment="fragment_scoped",
+        source="source_art_ai_study",
+        text=(
+            "For painting attribution, interpretability remains a limitation because "
+            "the classifier behaves as a black box."
+        ),
+        rank=3,
+    )
+    gate = EvidenceCoverageGate(_spec(requirement))
+
+    split = gate.evaluate((generic_transformer, art_only))
+    ready = gate.evaluate((generic_transformer, art_only, scoped))
+
+    assert split.decision is EvidenceGateDecision.INSUFFICIENT
+    assert split.requirements[0].status is RequirementCoverageStatus.MISSING
+    assert ready.decision is EvidenceGateDecision.READY
+    assert ready.requirements[0].matched_fragment_ids == ("fragment_scoped",)
+
+
 def test_duplicate_reprints_do_not_satisfy_independence_requirement() -> None:
     requirement = EvidenceRequirement(
         key="corroboration",

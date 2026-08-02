@@ -114,12 +114,12 @@ patent IDs, dates, quotations, and rare terms. It is also easy to audit.
 The route adds complexity only when needed:
 
 ```text
-FTS50
-  → controlled lexical repair
-  → Wide Gate
-  → FTS100 only if coverage is incomplete
-  → QueryCloud q1/q2 only if a named gap remains
-  → Wide Gate again
+raw FTS candidates
+  → remove explicit reference/index/table/topic noise
+  → EvidenceCoverageGate
+  → search inside up to three already found works only when coverage is incomplete
+  → EvidenceCoverageGate again
+  → answer-ready preparation or an explicit gap/blocked result
 ```
 
 This avoids embedding or reranking the whole corpus merely to answer a few
@@ -148,6 +148,27 @@ They can introduce a synonym, split evidence roles, or guard relation state.
 
 The original question remains unchanged. New candidates are reranked against
 that original question. Generated query text is never evidence.
+
+The agent-facing packet also says `admission_state: retrieved_candidates`.
+This is intentional: FTS can prove that a passage was retrieved from the
+permitted snapshot, but retrieval alone cannot prove that the passage supports
+the answer. The packet reports distinct sources, distinct SourceFamilies, and
+the largest number of selected fragments from one source or family so an agent
+can see source dominance before invoking `EvidenceCoverageGate`.
+These counts do not infer that differently encoded PDF and EPUB files are the
+same scholarly work. Cross-format editions must be declared in a pinned source
+identity manifest; otherwise a SourceFamily count can overstate independence.
+
+For an interactive answer, the agent calls `prepare_answer` with an explicit
+`EvidenceGateSpec`. Dithyramba removes only deterministic noise and tests the
+remaining exact fragments. If the broad result found a relevant book but not
+the passage named by the missing literal anchors, one bounded local FTS search
+runs inside at most three already found Sources. The Gate then runs again.
+
+`record_draft` requires this preparation and independently replays it. A
+`partial` or `insufficient` result cannot enter the session journal as a
+source-backed answer. This protects the answer route without claiming that the
+Gate understands or proves every sentence in the generated prose.
 
 ## Why provenance saves downstream context
 

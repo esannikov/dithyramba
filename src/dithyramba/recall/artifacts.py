@@ -6,6 +6,7 @@ import re
 import unicodedata
 from decimal import Decimal, InvalidOperation
 from enum import StrEnum
+from functools import cached_property
 from typing import Any, ClassVar, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -14,6 +15,7 @@ from dithyramba.contracts import (
     canonical_content_id,
     canonical_json_bytes,
     canonical_sha256_hex,
+    content_id,
     sha256_hex,
 )
 from dithyramba.ingest import (
@@ -92,6 +94,8 @@ class ReadReceipt(_FrozenContract):
         orders = [item.read_order for item in value]
         if len(set(fragment_ids)) != len(fragment_ids) or len(set(orders)) != len(orders):
             raise ArtifactContractError("ReadReceipt fragment IDs and orders must be unique")
+        if tuple(orders) == tuple(range(len(value))):
+            return value
         ordered = tuple(sorted(value, key=lambda item: item.read_order))
         if tuple(item.read_order for item in ordered) != tuple(range(len(ordered))):
             raise ArtifactContractError("ReadReceipt orders must be contiguous from zero")
@@ -105,15 +109,15 @@ class ReadReceipt(_FrozenContract):
             "items": [item.payload() for item in self.items],
         }
 
-    @property
+    @cached_property
     def receipt_hash(self) -> str:
-        return canonical_sha256_hex(self.semantic_payload())
+        return sha256_hex(self.canonical_bytes)
 
-    @property
+    @cached_property
     def read_receipt_id(self) -> str:
-        return canonical_content_id("read", self.semantic_payload())
+        return content_id("read", self.canonical_bytes)
 
-    @property
+    @cached_property
     def canonical_bytes(self) -> bytes:
         return canonical_json_bytes(self.semantic_payload())
 
@@ -672,13 +676,17 @@ class EvidencePacket(_FrozenContract):
             },
         }
 
-    @property
-    def packet_hash(self) -> str:
-        return canonical_sha256_hex(self.semantic_payload())
+    @cached_property
+    def semantic_bytes(self) -> bytes:
+        return canonical_json_bytes(self.semantic_payload())
 
-    @property
+    @cached_property
+    def packet_hash(self) -> str:
+        return sha256_hex(self.semantic_bytes)
+
+    @cached_property
     def evidence_packet_id(self) -> str:
-        return canonical_content_id("packet", self.semantic_payload())
+        return content_id("packet", self.semantic_bytes)
 
     def payload(self) -> dict[str, object]:
         return {
@@ -687,7 +695,7 @@ class EvidencePacket(_FrozenContract):
             "packet_hash": self.packet_hash,
         }
 
-    @property
+    @cached_property
     def canonical_bytes(self) -> bytes:
         return canonical_json_bytes(self.payload())
 

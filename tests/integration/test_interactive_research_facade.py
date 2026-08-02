@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import pytest
 from pydantic import ValidationError
@@ -19,6 +20,12 @@ from dithyramba.access import (
 )
 from dithyramba.collections import CollectionConfig, CollectionKind, build_collection_root
 from dithyramba.contracts import canonical_json_bytes, canonical_sha256_hex
+from dithyramba.evidence import (
+    EvidenceAnswerability,
+    EvidenceGateDecision,
+    EvidenceGateSpec,
+    EvidenceRequirement,
+)
 from dithyramba.ingest.service import IngestService
 from dithyramba.interactive import (
     AgentEvidencePacket,
@@ -32,6 +39,7 @@ from dithyramba.persistence import (
     LibraryRepository,
     ResearchSessionNotFoundError,
     ResearchSessionPersistenceError,
+    SQLiteRecallBackend,
     SQLiteResearchSessionRepository,
     initialize_library,
     open_library,
@@ -53,6 +61,7 @@ from dithyramba.persistence.sessions import (
     _validated_session,
 )
 from dithyramba.recall import (
+    CandidateNoiseReason,
     EvidencePacket,
     QueryRequest,
     RetrievalBudget,
@@ -130,7 +139,7 @@ def test_agent_turn_reopens_with_same_compact_context_and_exact_packet(tmp_path:
         LibraryConfig(name="Interactive research"), data_root=data_root
     ) as repository:
         library_id = repository.library_id
-        collection_id, snapshot_id, policy_id, _source_id = _prepare_library(repository, root)
+        collection_id, snapshot_id, policy_id, source_id = _prepare_library(repository, root)
         facade = AgentResearchFacade(
             repository,
             agent_id="agent:test",
@@ -157,6 +166,23 @@ def test_agent_turn_reopens_with_same_compact_context_and_exact_packet(tmp_path:
             retrieval=RetrievalBudget(max_candidates=10, max_source_fragments=3),
         )
         assert turn.evidence_packet.source_fragments
+        assert turn.evidence_packet.schema_id == AgentEvidencePacket.SCHEMA
+        assert len(turn.evidence_packet.source_references) == len(
+            turn.evidence_packet.source_fragments
+        )
+        assert turn.evidence_packet.admission_state == "retrieved_candidates"
+        assert turn.evidence_packet.distinct_source_count == 1
+        assert turn.evidence_packet.distinct_source_family_count == 1
+        assert turn.evidence_packet.max_fragments_per_source == len(
+            turn.evidence_packet.source_fragments
+        )
+        assert turn.evidence_packet.max_fragments_per_source_family == len(
+            turn.evidence_packet.source_fragments
+        )
+        source_reference = turn.evidence_packet.source_references[0]
+        assert source_reference.source_id == source_id
+        assert source_reference.canonical_uri.endswith("/craft.md")
+        assert source_reference.title
         assert not hasattr(turn.evidence_packet, "read_receipt")
         assert turn.evidence_packet.read_receipt_hash
         tampered_projection = turn.evidence_packet.model_dump(mode="json")
@@ -165,6 +191,87 @@ def test_agent_turn_reopens_with_same_compact_context_and_exact_packet(tmp_path:
         tampered_projection["processed_count"] = processed_count + 1
         with pytest.raises(ValidationError, match="projection_hash"):
             AgentEvidencePacket.model_validate_json(json.dumps(tampered_projection))
+
+        mismatched_sources = turn.evidence_packet.model_dump(mode="json")
+        source_references = mismatched_sources["source_references"]
+        assert isinstance(source_references, list)
+        source_references[0]["source_fragment_id"] = "fragment_" + "a" * 32
+        mismatched_semantic = turn.evidence_packet.semantic_payload()
+        semantic_sources = mismatched_semantic["source_references"]
+        assert isinstance(semantic_sources, list)
+        semantic_sources[0]["source_fragment_id"] = "fragment_" + "a" * 32
+        mismatched_sources["projection_hash"] = canonical_sha256_hex(mismatched_semantic)
+        with pytest.raises(ValidationError, match="source references"):
+            AgentEvidencePacket.model_validate_json(json.dumps(mismatched_sources))
+
+        mismatched_diagnostics = turn.evidence_packet.model_dump(mode="json")
+        mismatched_diagnostics["distinct_source_family_count"] = 2
+        diagnostics_semantic = turn.evidence_packet.semantic_payload()
+        candidate_diagnostics = diagnostics_semantic["candidate_diagnostics"]
+        assert isinstance(candidate_diagnostics, dict)
+        candidate_diagnostics["distinct_source_family_count"] = 2
+        mismatched_diagnostics["projection_hash"] = canonical_sha256_hex(diagnostics_semantic)
+        with pytest.raises(ValidationError, match="candidate diagnostics"):
+            AgentEvidencePacket.model_validate_json(json.dumps(mismatched_diagnostics))
+
+        source_reference_payload = turn.evidence_packet.model_dump(mode="json")
+        source_reference_payload["schema_id"] = AgentEvidencePacket.SOURCE_REFERENCE_SCHEMA
+        for key in (
+            "admission_state",
+            "distinct_source_count",
+            "distinct_source_family_count",
+            "max_fragments_per_source",
+            "max_fragments_per_source_family",
+        ):
+            source_reference_payload[key] = None
+        source_reference_semantic = turn.evidence_packet.semantic_payload()
+        source_reference_semantic["schema_id"] = AgentEvidencePacket.SOURCE_REFERENCE_SCHEMA
+        del source_reference_semantic["candidate_diagnostics"]
+        source_reference_payload["projection_hash"] = canonical_sha256_hex(
+            source_reference_semantic
+        )
+        restored_source_reference_packet = AgentEvidencePacket.model_validate_json(
+            json.dumps(source_reference_payload)
+        )
+        assert restored_source_reference_packet.schema_id.endswith("/1.1")
+        assert restored_source_reference_packet.admission_state is None
+
+        older_with_diagnostics = dict(source_reference_payload)
+        older_with_diagnostics["admission_state"] = "retrieved_candidates"
+        older_with_diagnostics["projection_hash"] = canonical_sha256_hex(source_reference_semantic)
+        with pytest.raises(ValidationError, match="older agent evidence"):
+            AgentEvidencePacket.model_validate_json(json.dumps(older_with_diagnostics))
+
+        admitted_without_gate = turn.evidence_packet.model_dump(mode="json")
+        admitted_without_gate["admission_state"] = None
+        admitted_semantic = turn.evidence_packet.semantic_payload()
+        admitted_candidate_diagnostics = admitted_semantic["candidate_diagnostics"]
+        assert isinstance(admitted_candidate_diagnostics, dict)
+        admitted_candidate_diagnostics["admission_state"] = None
+        admitted_without_gate["projection_hash"] = canonical_sha256_hex(admitted_semantic)
+        with pytest.raises(ValidationError, match="retrieved_candidates"):
+            AgentEvidencePacket.model_validate_json(json.dumps(admitted_without_gate))
+
+        legacy_with_sources = AgentEvidencePacket.create(
+            facade._recall_backend.load_evidence_packet(turn.evidence_packet.evidence_packet_id)
+        ).model_dump(mode="json")
+        legacy_with_sources["source_references"] = source_references
+        with pytest.raises(ValidationError, match="legacy agent evidence"):
+            AgentEvidencePacket.model_validate_json(json.dumps(legacy_with_sources))
+
+        with pytest.raises(AgentResearchError, match="invalid fragment"):
+            facade._source_references(cast(Any, (object(),)))
+        wrong_family = turn.evidence_packet.source_fragments[0].model_copy(
+            update={"source_family_id": "family_" + "a" * 32}
+        )
+        with pytest.raises(AgentResearchError, match="lineage drifted"):
+            facade._source_references((wrong_family,))
+        with pytest.raises(ResearchSessionPersistenceError, match="event ID"):
+            facade._sessions.load_recall_completion_for_evidence_event("bad")
+        assert (
+            facade._sessions.load_recall_completion_for_evidence_event("session_event_" + "a" * 32)
+            is None
+        )
 
         full_packet = facade._recall_backend.load_evidence_packet(
             turn.evidence_packet.evidence_packet_id
@@ -196,9 +303,28 @@ def test_agent_turn_reopens_with_same_compact_context_and_exact_packet(tmp_path:
             "evidence_packet",
             "source_fragment",
         }
+        preparation = facade.prepare_answer(
+            opened.session_id,
+            evidence_event_id=turn.evidence_event_id,
+            gate_spec=EvidenceGateSpec(
+                query_key="dialogue_power",
+                question="dialogue blocking power relation",
+                expected_answerability=EvidenceAnswerability.ANSWERABLE,
+                requirements=(
+                    EvidenceRequirement(
+                        key="exact_support",
+                        label="Exact dialogue blocking support",
+                        allowed_source_ids=(source_id,),
+                        anchor_groups=(("blocking",), ("power relation",)),
+                    ),
+                ),
+            ),
+        )
+        assert preparation.gate_result.decision is EvidenceGateDecision.READY
         facade.record_draft(
             opened.session_id,
             "Stage the change in status through movement; this remains a draft.",
+            preparation=preparation,
         )
         facade.record_gap(opened.session_id, "Need a counterexample with static blocking.")
         facade.record_gap(opened.session_id, "Need evidence about eyelines.")
@@ -226,7 +352,216 @@ def test_agent_turn_reopens_with_same_compact_context_and_exact_packet(tmp_path:
         ).context(opened.session_id)
         assert reopened.context_hash == final_hash
         assert reopened.state_hash == final.state_hash
-        assert reopened.evidence_references == final.evidence_references
+    assert reopened.evidence_references == final.evidence_references
+
+
+def test_answer_route_filters_noise_drills_into_found_source_and_blocks_gaps(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "corpus"
+    root.mkdir()
+    (root / "craft.md").write_text(
+        """# Dialogue craft
+
+Dialogue staging and power shape the scene. Dialogue staging keeps power visible.
+
+## Bibliography
+
+Smith, J. Dialogue Staging and Power. London, 2020.
+
+## Hidden technique
+
+The decisive tactic is triangulated eyeline control.
+""",
+        encoding="utf-8",
+    )
+    with initialize_library(
+        LibraryConfig(name="Answer preparation"), data_root=tmp_path / "data"
+    ) as repository:
+        collection_id, snapshot_id, policy_id, source_id = _prepare_library(repository, root)
+        facade = AgentResearchFacade(
+            repository,
+            agent_id="agent:answer_route",
+            profile_version=current_fts_runtime_profile().profile_version,
+            clock=_TickingClock(),
+        )
+        opened = facade.open(
+            brief=ResearchSessionBrief.create(
+                question="How does this work explain dialogue staging?",
+                intended_use="source-backed answer",
+                success_criteria=("retain exact support",),
+            ),
+            corpus_snapshot_id=snapshot_id,
+            access_policy_id=policy_id,
+            purpose="research",
+            collection_ids=(collection_id,),
+        )
+        turn = facade.recall(
+            opened.session_id,
+            "dialogue staging power",
+            command_id="command_source_drilldown_001",
+            retrieval=RetrievalBudget(max_candidates=10, max_source_fragments=3),
+        )
+        with pytest.raises(TypeError, match="exact EvidenceGateSpec"):
+            facade.prepare_answer(
+                opened.session_id,
+                evidence_event_id=turn.evidence_event_id,
+                gate_spec=cast(Any, object()),
+            )
+        with pytest.raises(AgentResearchError, match="session evidence event"):
+            facade.prepare_answer(
+                opened.session_id,
+                evidence_event_id="session_event_" + "0" * 32,
+                gate_spec=EvidenceGateSpec(
+                    query_key="missing_event",
+                    question="dialogue staging power",
+                    expected_answerability=EvidenceAnswerability.ANSWERABLE,
+                    requirements=(
+                        EvidenceRequirement(
+                            key="exact_technique",
+                            label="Exact technique",
+                            anchor_groups=(("eyeline control",),),
+                        ),
+                    ),
+                ),
+            )
+        with pytest.raises(AgentResearchError, match="question differs"):
+            facade.prepare_answer(
+                opened.session_id,
+                evidence_event_id=turn.evidence_event_id,
+                gate_spec=EvidenceGateSpec(
+                    query_key="wrong_question",
+                    question="a different question",
+                    expected_answerability=EvidenceAnswerability.ANSWERABLE,
+                    requirements=(
+                        EvidenceRequirement(
+                            key="exact_technique",
+                            label="Exact technique",
+                            anchor_groups=(("eyeline control",),),
+                        ),
+                    ),
+                ),
+            )
+        ready = facade.prepare_answer(
+            opened.session_id,
+            evidence_event_id=turn.evidence_event_id,
+            gate_spec=EvidenceGateSpec(
+                query_key="triangulated_eyeline",
+                question="dialogue staging power",
+                expected_answerability=EvidenceAnswerability.ANSWERABLE,
+                requirements=(
+                    EvidenceRequirement(
+                        key="exact_technique",
+                        label="Exact technique inside the found work",
+                        allowed_source_ids=(source_id,),
+                        anchor_groups=(("triangulated",), ("eyeline control",)),
+                    ),
+                ),
+            ),
+        )
+
+        assert ready.response_mode == "answer"
+        assert ready.gate_result.decision is EvidenceGateDecision.READY
+        assert ready.drilldown is not None
+        assert ready.drilldown.source_ids == (source_id,)
+        assert len(ready.candidates) == 1
+        assert ready.drilldown.selected_fragment_ids == (ready.candidates[0].source_fragment_id,)
+        assert any("triangulated eyeline control" in item.text for item in ready.candidates)
+        assert any(
+            CandidateNoiseReason.BIBLIOGRAPHY in item.reasons for item in ready.quality_assessments
+        )
+        with pytest.raises(TypeError, match="exact AgentAnswerPreparation"):
+            facade.record_draft(
+                opened.session_id,
+                "Invalid preparation type.",
+                preparation=cast(Any, object()),
+            )
+        with pytest.raises(AgentResearchError, match="another session"):
+            facade.record_draft(
+                "research_session_" + "0" * 32,
+                "Preparation from another session.",
+                preparation=ready,
+            )
+        context = facade.record_draft(
+            opened.session_id,
+            "The work names triangulated eyeline control as the decisive tactic.",
+            preparation=ready,
+        )
+        assert context.drafts[-1].text.startswith("The work names")
+
+        blocked = facade.prepare_answer(
+            opened.session_id,
+            evidence_event_id=turn.evidence_event_id,
+            gate_spec=EvidenceGateSpec(
+                query_key="absent_exact_mechanism",
+                question="dialogue staging power",
+                expected_answerability=EvidenceAnswerability.ANSWERABLE,
+                requirements=(
+                    EvidenceRequirement(
+                        key="absent_support",
+                        label="Missing exact mechanism",
+                        allowed_source_ids=(source_id,),
+                        anchor_groups=(("mechanism absent from this corpus",),),
+                    ),
+                ),
+            ),
+        )
+        assert blocked.response_mode == "blocked"
+        assert blocked.gate_result.decision is EvidenceGateDecision.INSUFFICIENT
+        with pytest.raises(AgentResearchError, match="did not admit"):
+            facade.record_draft(
+                opened.session_id,
+                "This unsupported answer must not enter the journal.",
+                preparation=blocked,
+            )
+
+
+def test_new_agent_turn_never_loads_the_corpus_wide_packet(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "corpus"
+    root.mkdir()
+    (root / "craft.md").write_text(
+        "# Dialogue evidence\n\nBlocking changes the power relation inside a dialogue scene.\n",
+        encoding="utf-8",
+    )
+    with initialize_library(
+        LibraryConfig(name="Compact interactive research"),
+        data_root=tmp_path / "data",
+    ) as repository:
+        collection_id, snapshot_id, policy_id, _source_id = _prepare_library(repository, root)
+        facade = AgentResearchFacade(
+            repository,
+            agent_id="agent:test",
+            profile_version=current_fts_runtime_profile().profile_version,
+            clock=_TickingClock(),
+        )
+        opened = facade.open(
+            brief=ResearchSessionBrief.create(
+                question="How should dialogue staging reveal power?",
+                intended_use="directorial decision",
+                success_criteria=("find exact craft support",),
+            ),
+            corpus_snapshot_id=snapshot_id,
+            access_policy_id=policy_id,
+            purpose="research",
+            collection_ids=(collection_id,),
+        )
+
+        def forbidden_full_load(_backend: object, _packet_id: str) -> None:
+            raise AssertionError("new interactive turns must use compact packet projections")
+
+        monkeypatch.setattr(SQLiteRecallBackend, "load_evidence_packet", forbidden_full_load)
+        turn = facade.recall(
+            opened.session_id,
+            "dialogue blocking power relation",
+            command_id="command_compact_packet_001",
+            retrieval=RetrievalBudget(max_candidates=10, max_source_fragments=3),
+        )
+
+        assert turn.evidence_packet.source_fragments
+        assert turn.evidence_packet.evidence_packet_hash
 
 
 def test_agent_facade_preserves_pre_read_source_exclusions(tmp_path: Path) -> None:
@@ -339,6 +674,43 @@ def test_agent_facade_reuses_and_explicitly_destroys_scope_session(
             command_id="command_cache_rebuild_001",
         )
         assert reads == 2
+
+
+def test_agent_facade_lru_closes_evicted_scope_session(tmp_path: Path) -> None:
+    root = tmp_path / "corpus"
+    root.mkdir()
+    (root / "craft.md").write_text(
+        "# Evidence\n\nA bounded cache must close an evicted authorized index.\n",
+        encoding="utf-8",
+    )
+    with initialize_library(
+        LibraryConfig(name="Bounded interactive cache"),
+        data_root=tmp_path / "data",
+    ) as repository:
+        collection_id, snapshot_id, policy_id, _source_id = _prepare_library(repository, root)
+        facade = AgentResearchFacade(
+            repository,
+            agent_id="agent:test",
+            profile_version=current_fts_runtime_profile().profile_version,
+            clock=_TickingClock(),
+            scope_session_capacity=1,
+        )
+        request = QueryRequest(
+            question="bounded authorized index",
+            library_id=repository.library_id,
+            collection_ids=(collection_id,),
+            corpus_snapshot_id=snapshot_id,
+            access_policy_id=policy_id,
+            purpose="research",
+        )
+
+        first = facade._scope_session("session:first", request)
+        second = facade._scope_session("session:second", request)
+
+        assert first.closed is True
+        assert second.closed is False
+        facade.close_scope_sessions()
+        assert second.closed is True
 
 
 def test_recall_command_retry_is_exact_and_rejects_changed_input(
@@ -652,6 +1024,7 @@ def test_interactive_contracts_and_facade_fail_closed(
 
 def test_command_receipt_helpers_and_corruption_fail_closed(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     assert _validated_command_id("command_helper_001") == "command_helper_001"
     for invalid in (cast(str, 1), "command-uncanonical", "command_" + "a" * 100):
@@ -1011,3 +1384,53 @@ def test_command_receipt_helpers_and_corruption_fail_closed(
         )
         with pytest.raises(ResearchSessionPersistenceError, match="start is invalid"):
             facade._sessions._load_command_start("command_invalid_start_001")
+
+        completion_row = connection.execute(
+            """
+            SELECT payload_json, payload_hash
+            FROM event_outbox
+            WHERE event_type = 'research_session.recall_command_completed'
+              AND aggregate_id = ?
+            """,
+            (completion.command_id,),
+        ).fetchone()
+        assert completion_row is not None
+        completion_json = str(completion_row[0])
+        completion_hash = str(completion_row[1])
+        insert_outbox(
+            event_id="event_duplicate_evidence_completion",
+            event_type="research_session.recall_command_completed",
+            command_id=completion.command_id,
+            payload_json=completion_json,
+            payload_hash=completion_hash,
+        )
+        with pytest.raises(ResearchSessionPersistenceError, match="more than one immutable"):
+            facade._sessions.load_recall_completion_for_evidence_event(completion.evidence_event_id)
+
+        class _BrokenConnection:
+            @staticmethod
+            def execute(*_args: object, **_kwargs: object) -> object:
+                raise sqlite3.DatabaseError("forced lookup failure")
+
+        class _RowsCursor:
+            @staticmethod
+            def fetchall() -> tuple[tuple[str, str], ...]:
+                return ((completion_json, completion_hash),)
+
+        class _RowsConnection:
+            @staticmethod
+            def execute(*_args: object, **_kwargs: object) -> _RowsCursor:
+                return _RowsCursor()
+
+        with monkeypatch.context() as scoped:
+            scoped.setattr(repository._store, "_connection", _BrokenConnection())
+            with pytest.raises(ResearchSessionPersistenceError, match="index is unreadable"):
+                facade._sessions.load_recall_completion_for_evidence_event(
+                    completion.evidence_event_id
+                )
+        with monkeypatch.context() as scoped:
+            scoped.setattr(repository._store, "_connection", _RowsConnection())
+            with pytest.raises(ResearchSessionPersistenceError, match="another evidence event"):
+                facade._sessions.load_recall_completion_for_evidence_event(
+                    "session_event_" + "c" * 32
+                )

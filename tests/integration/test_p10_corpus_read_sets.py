@@ -114,6 +114,12 @@ def test_batch_completion_rejects_inexact_inputs_before_touching_storage(
             context.backend.complete_recall_batch(
                 completions=((run_id, packet), (run_id, packet)),
             )
+        with pytest.raises(TypeError, match="requires a capability"):
+            context.backend.complete_scoped_recall_run(
+                processing_run_id=run_id,
+                packet=packet,
+                scope_capability=cast(Any, None),
+            )
 
         connection = context.repository._store.connection
         assert _table_count(connection, "evidence_packets") == 1
@@ -188,6 +194,82 @@ def test_two_queries_share_one_read_set_and_replay_adds_no_set_rows(
                 "read_receipt_corpus_sets",
             )
         )
+    finally:
+        context.repository.close()
+
+
+def test_sequential_scope_queries_reuse_full_corpus_validation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    context = _context(tmp_path, paragraph_count=24)
+    try:
+        counts = {"full": 0, "cached": 0, "projection": 0, "set_load": 0}
+        original_full = context.backend._validate_receipt_closure
+        original_cached = context.backend._validate_cached_receipt_closure
+        original_projection = context.backend._load_fragment_projections
+        original_set_load = context.backend._load_corpus_read_set_items
+
+        def tracked_full(*args: Any, **kwargs: Any) -> Any:
+            counts["full"] += 1
+            return original_full(*args, **kwargs)
+
+        def tracked_cached(*args: Any, **kwargs: Any) -> Any:
+            counts["cached"] += 1
+            return original_cached(*args, **kwargs)
+
+        def tracked_projection(*args: Any, **kwargs: Any) -> Any:
+            counts["projection"] += 1
+            return original_projection(*args, **kwargs)
+
+        def tracked_set_load(*args: Any, **kwargs: Any) -> Any:
+            counts["set_load"] += 1
+            return original_set_load(*args, **kwargs)
+
+        monkeypatch.setattr(context.backend, "_validate_receipt_closure", tracked_full)
+        monkeypatch.setattr(context.backend, "_validate_cached_receipt_closure", tracked_cached)
+        monkeypatch.setattr(context.backend, "_load_fragment_projections", tracked_projection)
+        monkeypatch.setattr(context.backend, "_load_corpus_read_set_items", tracked_set_load)
+
+        service = _service(context)
+        first_request = _request(context.request, "Munch expressive style")
+        second_request = _request(context.request, "Mars verified system")
+        with service.open_scope_session(first_request) as scope:
+            first = service.recall_in_session(first_request, scope)
+            after_first = dict(counts)
+            second = service.recall_in_session(second_request, scope)
+
+        assert after_first == {"full": 1, "cached": 0, "projection": 1, "set_load": 1}
+        assert counts == {"full": 1, "cached": 1, "projection": 2, "set_load": 1}
+        assert all(
+            first_item is second_item
+            for first_item, second_item in zip(
+                first.packet.read_receipt.items,
+                second.packet.read_receipt.items,
+                strict=True,
+            )
+        )
+        connection = context.repository._store.connection
+        assert _table_count(connection, "corpus_read_sets") == 1
+        assert _table_count(connection, "read_receipts") == 2
+        assert _table_count(connection, "read_receipt_corpus_sets") == 2
+        assert (
+            context.backend.load_evidence_packet(second.packet.evidence_packet_id).canonical_bytes
+            == second.packet.canonical_bytes
+        )
+    finally:
+        context.repository.close()
+
+
+def test_scoped_completion_cache_is_lru_bounded(tmp_path: Path) -> None:
+    context = _context(tmp_path, paragraph_count=4)
+    try:
+        service = _service(context)
+        for index in range(5):
+            request = _request(context.request, f"verified system {index}")
+            with service.open_scope_session(request) as scope:
+                service.recall_in_session(request, scope)
+        assert len(context.backend._validated_scopes) == 4
     finally:
         context.repository.close()
 

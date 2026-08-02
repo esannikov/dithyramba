@@ -7,14 +7,16 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated
-from urllib.parse import urlencode
+from urllib.parse import unquote, urlencode, urlparse
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import HTMLResponse, Response
 from jinja2 import Environment, PackageLoader, StrictUndefined, select_autoescape
+from pydantic import ValidationError
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from dithyramba.contracts import canonical_json_bytes, canonical_sha256_hex
+from dithyramba.interactive.models import AgentEvidencePacket
 from dithyramba.persistence import (
     LibraryRepository,
     ResearchSessionNotFoundError,
@@ -59,6 +61,7 @@ class _EvidenceView:
     fragment: EvidenceFragment
     chip: SourceChipResponse
     source_title: str
+    source_locator: str
     source_role: str
     address_label: str
     selection_url: str
@@ -242,24 +245,52 @@ def _project(
             )
             if len(packet_refs) != 1:
                 raise ViewerNotFoundError("session evidence event has no exact packet")
-            packet_projection = packets.load_packet(packet_refs[0].artifact_id)
+            packet_reference = packet_refs[0]
+            completion = sessions.load_recall_completion_for_evidence_event(event.event_id)
+            if completion is not None and completion.agent_evidence_json is not None:
+                try:
+                    agent_packet = AgentEvidencePacket.model_validate_json(
+                        completion.agent_evidence_json
+                    )
+                except ValidationError as error:
+                    raise ViewerNotFoundError(
+                        "session agent evidence projection is invalid"
+                    ) from error
+                if (
+                    completion.evidence_packet_id != packet_reference.artifact_id
+                    or completion.evidence_packet_hash != packet_reference.artifact_hash
+                    or agent_packet.evidence_packet_id != packet_reference.artifact_id
+                    or agent_packet.evidence_packet_hash != packet_reference.artifact_hash
+                ):
+                    raise ViewerNotFoundError("session evidence event has a stale compact packet")
+                agent_projection = packets.load_agent_packet(agent_packet)
+                source_fragments = agent_projection.packet.source_fragments
+                source_chips = agent_projection.source_chips
+            else:
+                # Pre-1.1 interactive events have no compact persisted projection.
+                # Preserve exact replay for those legacy journals only.
+                full_projection = packets.load_packet(packet_reference.artifact_id)
+                source_fragments = full_projection.packet.source_fragments
+                source_chips = full_projection.source_chips
             for fragment, chip in zip(
-                packet_projection.packet.source_fragments,
-                packet_projection.source_chips,
+                source_fragments,
+                source_chips,
                 strict=True,
             ):
                 source = repository.get_source(chip.source_id)
+                source_locator = _source_locator(source.canonical_uri)
                 item = _EvidenceView(
-                    packet_id=packet_projection.packet.evidence_packet_id,
+                    packet_id=packet_reference.artifact_id,
                     fragment=fragment,
                     chip=chip,
-                    source_title=source.title or source.canonical_uri,
+                    source_title=_source_title(source.title, source_locator),
+                    source_locator=source_locator,
                     source_role=_source_role(chip),
                     address_label=_address_label(fragment),
                     selection_url="/?"
                     + urlencode(
                         {
-                            "packet": packet_projection.packet.evidence_packet_id,
+                            "packet": packet_reference.artifact_id,
                             "fragment": fragment.source_fragment_id,
                         }
                     ),
@@ -310,6 +341,7 @@ def _project(
                         "text_sha256": evidence.fragment.text_sha256,
                         "rank": evidence.fragment.rank,
                         "source_title": evidence.source_title,
+                        "source_locator": evidence.source_locator,
                         "source_role": evidence.source_role,
                         "address": evidence.fragment.source_address.payload(),
                     }
@@ -382,6 +414,36 @@ def _source_role(chip: SourceChipResponse) -> str:
         "derivative": "похідна версія",
         "duplicate": "дублікат перевіреного джерела",
     }.get(chip.family_role, chip.family_role)
+
+
+def _source_title(title: str | None, safe_locator: str) -> str:
+    """Return a human label without falling back to a private canonical URI."""
+
+    return title or safe_locator
+
+
+def _source_locator(canonical_uri: str) -> str:
+    """Return a readable exact locator without exposing a full local path."""
+
+    parsed = urlparse(canonical_uri)
+    if parsed.scheme and parsed.scheme not in {"file", "http", "https"}:
+        return canonical_uri
+    if parsed.scheme in {"http", "https"}:
+        host = parsed.hostname or ""
+        try:
+            port = parsed.port
+        except ValueError:
+            port = None
+        authority = host if port is None else f"{host}:{port}"
+        path = unquote(parsed.path)
+        if authority:
+            return f"{parsed.scheme}://{authority}{path}"
+    path_name = Path(unquote(parsed.path)).name
+    if path_name:
+        return path_name
+    if parsed.netloc:
+        return parsed.netloc
+    return canonical_uri
 
 
 def _address_label(fragment: EvidenceFragment) -> str:

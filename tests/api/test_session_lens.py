@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import cast
 
@@ -17,22 +18,34 @@ from dithyramba.access import (
 )
 from dithyramba.api import create_session_lens_app
 from dithyramba.api.models import SourceChipResponse
+from dithyramba.api.services import PacketViewService
 from dithyramba.api.session_lens import (
     SessionLensWebConfig,
     _address_label,
     _event_copy,
     _Runtime,
+    _source_locator,
     _source_role,
+    _source_title,
 )
 from dithyramba.cli import app
 from dithyramba.collections import CollectionConfig, CollectionKind, build_collection_root
+from dithyramba.evidence import (
+    EvidenceAnswerability,
+    EvidenceGateSpec,
+    EvidenceRequirement,
+)
 from dithyramba.ingest import MarkdownSourceAddress
 from dithyramba.ingest.service import IngestService
 from dithyramba.interactive import AgentResearchFacade
 from dithyramba.library import LibraryConfig
 from dithyramba.persistence import initialize_library
+from dithyramba.persistence.sessions import (
+    RecallCommandCompletion,
+    SQLiteResearchSessionRepository,
+)
 from dithyramba.recall import EvidenceFragment, current_fts_runtime_profile
-from dithyramba.sessions import ResearchSessionBrief, SessionEventKind
+from dithyramba.sessions import ResearchSessionBrief, SessionEvent, SessionEventKind
 
 
 def _session_world(tmp_path: Path) -> tuple[str, Path, str, str, str]:
@@ -99,9 +112,27 @@ def _session_world(tmp_path: Path) -> tuple[str, Path, str, str, str]:
             "blocking changes power relation dialogue scene",
             command_id="command_session_lens_001",
         )
+        preparation = facade.prepare_answer(
+            opened.session_id,
+            evidence_event_id=turn.evidence_event_id,
+            gate_spec=EvidenceGateSpec(
+                query_key="session_lens_power",
+                question="blocking changes power relation dialogue scene",
+                expected_answerability=EvidenceAnswerability.ANSWERABLE,
+                requirements=(
+                    EvidenceRequirement(
+                        key="exact_support",
+                        label="Exact power relation support",
+                        allowed_source_ids=(outcome.source_id,),
+                        anchor_groups=(("blocking",), ("power relation",)),
+                    ),
+                ),
+            ),
+        )
         facade.record_draft(
             opened.session_id,
             "Movement can externalize a status change; retain this as a working synthesis.",
+            preparation=preparation,
         )
         facade.record_gap(opened.session_id, "Need a static-blocking counterexample.")
         facade.reject_path(
@@ -148,6 +179,9 @@ def test_session_lens_renders_human_journal_and_exact_source(tmp_path: Path) -> 
         assert "Відхилений шлях" in response.text
         assert "не автоматично" in response.text
         assert "прийнятий висновок" in response.text
+        assert "craft.md" in response.text
+        assert "Джерело:" in selected.text
+        assert "Хто це стверджує:" not in selected.text
         assert 'aria-current="true"' in selected.text
         assert response.headers["content-security-policy"].startswith("default-src 'self'")
 
@@ -164,6 +198,7 @@ def test_session_lens_projection_is_stable_compact_and_get_only(tmp_path: Path) 
         assert first.headers["etag"] == second.headers["etag"]
         assert first.json()["schema"] == "dithyramba.session_lens_projection/1.0"
         assert first.json()["projection_hash"] in first.headers["etag"]
+        assert first.json()["journal"][1]["evidence"][0]["source_locator"] == "craft.md"
         assert "Blocking changes the power relation" not in first.text
         assert styles.status_code == 200
         assert "@media (max-width: 55rem)" in styles.text
@@ -192,6 +227,129 @@ def test_session_lens_projection_is_stable_compact_and_get_only(tmp_path: Path) 
             == 404
         )
         assert fragment_id.startswith("fragment_")
+
+
+@pytest.mark.parametrize(
+    ("canonical_uri", "expected"),
+    [
+        ("file:///research/corpus/Exact%20Source.pdf", "Exact Source.pdf"),
+        (
+            "https://reader:secret@example.org:8443/archive/item-42?token=private#page=5",
+            "https://example.org:8443/archive/item-42",
+        ),
+        ("https://example.org:invalid/archive/item-42", "https://example.org/archive/item-42"),
+        ("https://example.org", "https://example.org"),
+        ("https:///archive/item-42", "item-42"),
+        ("file://", "file://"),
+        ("urn:isbn:9780000000000", "urn:isbn:9780000000000"),
+    ],
+)
+def test_source_locator_is_readable_without_a_full_local_path(
+    canonical_uri: str,
+    expected: str,
+) -> None:
+    assert _source_locator(canonical_uri) == expected
+
+
+@pytest.mark.parametrize(
+    ("title", "safe_locator", "expected"),
+    [
+        ("The Visible Source", "Source.pdf", "The Visible Source"),
+        (None, "Source.pdf", "Source.pdf"),
+    ],
+)
+def test_source_title_never_falls_back_to_a_private_uri(
+    title: str | None,
+    safe_locator: str,
+    expected: str,
+) -> None:
+    assert _source_title(title, safe_locator) == expected
+
+
+def test_session_lens_uses_compact_agent_packet_for_modern_turns(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client, _packet_id, _fragment_id = _client(tmp_path)
+
+    def reject_full_load(
+        _service: PacketViewService,
+        _packet_id: str,
+    ) -> object:
+        raise AssertionError("modern Session Lens must not expand the full ReadReceipt")
+
+    monkeypatch.setattr(PacketViewService, "load_packet", reject_full_load)
+    with client:
+        response = client.get("/")
+        assert response.status_code == 200
+        assert "Blocking changes the power relation" in response.text
+
+
+def test_session_lens_preserves_legacy_fallback(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client, _packet_id, _fragment_id = _client(tmp_path)
+    monkeypatch.setattr(
+        "dithyramba.persistence.sessions.SQLiteResearchSessionRepository."
+        "load_recall_completion_for_evidence_event",
+        lambda _repository, _event_id: None,
+    )
+    with client:
+        response = client.get("/")
+        assert response.status_code == 200
+        assert "Blocking changes the power relation" in response.text
+
+
+def test_session_lens_rejects_evidence_event_without_one_packet(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client, _packet_id, _fragment_id = _client(tmp_path)
+    original = SQLiteResearchSessionRepository.list_events
+
+    def without_packet(
+        repository: SQLiteResearchSessionRepository,
+        session_id: str,
+    ) -> tuple[SessionEvent, ...]:
+        return tuple(
+            event.model_copy(update={"artifact_refs": ()})
+            if event.kind is SessionEventKind.EVIDENCE_ATTACHED
+            else event
+            for event in original(repository, session_id)
+        )
+
+    monkeypatch.setattr(SQLiteResearchSessionRepository, "list_events", without_packet)
+    with client:
+        assert client.get("/").status_code == 404
+
+
+@pytest.mark.parametrize("failure", ["invalid_json", "stale_binding"])
+def test_session_lens_rejects_invalid_compact_completion(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    failure: str,
+) -> None:
+    client, _packet_id, _fragment_id = _client(tmp_path)
+    original = SQLiteResearchSessionRepository.load_recall_completion_for_evidence_event
+
+    def replacement(
+        repository: SQLiteResearchSessionRepository,
+        event_id: str,
+    ) -> RecallCommandCompletion | None:
+        completion = original(repository, event_id)
+        assert completion is not None
+        if failure == "invalid_json":
+            return replace(completion, agent_evidence_json="{}")
+        return replace(completion, evidence_packet_hash="b" * 64)
+
+    monkeypatch.setattr(
+        "dithyramba.persistence.sessions.SQLiteResearchSessionRepository."
+        "load_recall_completion_for_evidence_event",
+        replacement,
+    )
+    with client:
+        assert client.get("/").status_code == 404
 
 
 def test_session_lens_rejects_a_missing_session_at_startup(tmp_path: Path) -> None:

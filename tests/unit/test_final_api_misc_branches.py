@@ -27,7 +27,7 @@ from dithyramba.collections import CollectionConfig, CollectionKind, build_colle
 from dithyramba.ingest.service import IngestService
 from dithyramba.library import LibraryConfig
 from dithyramba.persistence import LibraryRepository, SQLiteRecallBackend, initialize_library
-from dithyramba.persistence.errors import SourceVersionNotFoundError
+from dithyramba.persistence.errors import SourceNotFoundError, SourceVersionNotFoundError
 from dithyramba.provenance import (
     IngestInputOutcome,
     SourceFragmentRecord,
@@ -138,11 +138,10 @@ class _PacketRepositoryStub:
             raise self.source_version
         return self.source_version
 
-    def list_source_fragments(
-        self,
-        _source_version_id: str,
-    ) -> tuple[SourceFragmentRecord, ...]:
-        return self.fragment_metadata
+    def get_source_fragment(self, _source_fragment_id: str) -> SourceFragmentRecord:
+        if len(self.fragment_metadata) != 1:
+            raise SourceNotFoundError("missing")
+        return self.fragment_metadata[0]
 
     def get_source(self, _source_id: str) -> SourceRecord:
         return self.source

@@ -108,7 +108,9 @@ and in-memory FTS index are reused inside the process for later questions in the
 same exact scope; closing or eviction destroys that cache. Every question still
 persists an ordinary request, run, receipt, and packet. The same narrow facade is
 available through local stdio MCP, while Session Lens exposes a read-only human
-journal with exact source inspection.
+journal with exact source inspection. Agent packets include a readable source
+title/URI beside every selected fragment, while their full corpus-read audit
+manifest stays local and reopenable by ID/hash.
 
 ### Durable record and rebuildable aids
 
@@ -169,7 +171,7 @@ or worker-memory guards.
 | CLI | Library setup, ingest, snapshot, FTS recall, packet inspection and replay, review, backup and restore | default public path |
 | `EvidencePacket/1.0` | persisted, source-closed retrieval result | versioned preview contract |
 | Loopback HTTP service | local programmatic access to one pinned Library | implemented; not remotely exposed |
-| stdio MCP | bounded `open_session`, `recall`, context, draft, gap, and rejected-path tools over the Python facade | implemented on the 0.2 development branch; no acceptance or promotion tools |
+| stdio MCP | bounded session, recall, answer preparation, gated draft, gap, and rejected-path tools over the Python facade | implemented on the 0.2 development branch; no acceptance or promotion tools |
 | Reading Room | read-only inspection of one Library, snapshot, policy, and scope | implemented preview |
 | Session Lens | brief, chronological research journal, exact packet-backed passages, drafts, gaps, and rejected paths | implemented GET-only 0.2 projection |
 | Research Atlas / Lens | case-specific questions, hypotheses, timeline, and exact sources | implemented projection surface |
@@ -186,15 +188,31 @@ lexical repair, an optional two-query QueryCloud, and
 intermediate artifacts are not yet persisted for cold exact replay.
 
 ```text
-FTS50 → bounded repair → coverage check
-      → FTS100 only when needed
-      → optional q1/q2 only for a named gap
-      → matched proof or explicit gap
+raw FTS candidates
+  → strict bibliography / index / table / topic-noise guards
+  → EvidenceCoverageGate
+  → conditional search inside up to three already found Sources
+  → EvidenceCoverageGate again
+  → inclusion-minimal exact fragments for a ready answer
+  → answer-ready preparation or explicit blocked/gap state
 ```
 
 Generated query variants are discovery aids, never evidence. A rank score says
 that a passage may be relevant; only exact passage content can satisfy an
 explicit evidence requirement. Human acceptance remains a separate decision.
+Agent-facing packets therefore expose `admission_state: retrieved_candidates`
+plus compact source-diversity diagnostics; they never relabel retrieval hits as
+verified support before the Gate. The interactive route now exposes
+`prepare_answer`; `record_draft` requires that exact preparation to replay as
+`ready`, so a raw packet cannot enter the journal as a source-backed answer.
+The gate proves declared evidence-role coverage, not semantic entailment of the
+final prose or human acceptance.
+The original retrieval and local-search receipts remain immutable; only the
+agent-facing ready projection is compacted. Subject-domain and evidence-role
+anchors that must describe the same claim are required to co-occur inside one
+requirement and one fragment. Optional post-generation
+`ClaimEvidenceEntailmentGate` and `PropositionCoverageGate` checks remain a
+separate disclosed boundary for final prose.
 The optional `semantic` dependency set has a larger native dependency surface
 and is not part of the core package-acceptance gate.
 
@@ -246,6 +264,8 @@ because their source rights and project boundaries differ.
 | Public synthetic | 12 multilingual fragments and queries; 1,000 generated fragments with 20 probes | Current staging replay returned 12/12 expected multilingual sources at top 10; the 1,000-fragment pipeline selected the exact expected fragment with one stable packet hash and zero provider calls. |
 | Mars working corpus | 2,051 sources; 53,747 retrieval units; about 103.8M characters; 72 bilingual cases | The current model-free route with bounded flat expansion and exact proof admission placed the exact fragment in the top 10 for 42/51 positive cases (82.4%) and the correct source for 49/51 (96.1%). The complete replay was byte-identical and used zero generative calls or tokens. |
 | Mars multi-session cache | 2,047 Library sources; 53,747 normalized units; 6 three-turn research sessions plus 1 isolated repair session | One authorized read and one FTS build served all three questions in each session. Warm turns averaged 38.76 s versus 50.90 s for first turns (23.85% lower); 17/17 comparable top-10 lists were unchanged, retries and cold reopen were 6/6 exact, and model tokens were zero. A one-case relation repair was rejected from production because only 1/2 variants recovered the miss. |
+| M1 PhD interactive stress corpus | 622 active sources; 263,363 exact fragments; about 243.1M codepoints | Cold scope preparation took 56.887 s and the first fully audited completion 72.647 s; a second question in the same explicit session took 13.557 s. Session Lens projected 24 exact evidence fragments in 0.062–0.064 s. All runtime stages used zero LLM calls or tokens; these timings do not establish scholarly relevance. |
+| M1 PhD scholarly holdout | 24 frozen questions; 72 predeclared queries; corrected scope of 615 sources / 259,165 fragments | The zero-model local run finished in 1,219.752 s. Conservative agent audit found direct support in 20/72 top-three positions (27.8%) and useful evidence in 61/120 top-five positions (50.8%). Cleaning seven author-side or duplicated SourceFamilies improved scope integrity and speed but did not improve relevance. These are development labels, not independent human validation. |
 | Mars IdeaTrace-24 | 24 frozen evidence packets: 6 direct, 6 multi-source, 6 contested, 6 unsupported traps | With retrieval held constant, one gate-directed repair improved complete evidence closure from 6/18 to 16/18, complete answers from 21/24 to 23/24, and answer-status correctness from 22/24 to 24/24. Safe abstention remained 6/6; one semantic overclaim and one exact-quote mismatch remained blocked. |
 | Parisian Ten structured records | 28,006 records from 40 files and 7 source families; 56 bilingual queries | Prepared memory packets delivered the complete evidence set in 56/56 queries. At the same per-query evidence budget, raw FTS delivered all required records in 43/56, hybrid search in 42/56, and E5 in 37/56. |
 | Van Gogh equal-source A/B | 18 Markdown files; 4 tasks | Compact packets returned 16/16 exact quotations and 13/13 required facets versus 3/7 and 2/13 for direct search. A later claim-level audit still marked only 5/14 claims directly supported and only 1/4 answers ready for promotion without revision. |
@@ -342,9 +362,9 @@ uv build
 ./scripts/acceptance.sh --quick
 ```
 
-For this update, the canonical local gate passed 2,627 tests with two
+For this update, the canonical local gate passed 2,678 tests with two
 host-dependent browser skips. Strict typing, zero terminology findings,
-95.03% branch-aware combined coverage, and the dependency audit also passed.
+95.02% branch-aware combined coverage, and the dependency audit also passed.
 Distribution closure verifies every schema migration through v13, the Lens
 assets, and that the wheel is built from the sdist and imports from an isolated
 non-editable environment.
