@@ -53,7 +53,8 @@ all-knowing service.
 | `meaning`, `relations`, `structure`, `research` | Typed interpretive objects and source-bound research structures |
 | `review` | Append-only human acceptance, revision, rejection, and deferral |
 | `connectors` | Compact source-closed packets for downstream tools and agents |
-| `reading_room`, `atlas`, `api` | Human and local programmatic views over one pinned Library and scope |
+| `reading_room`, `atlas`, `api` | Human and local programmatic views over one pinned Library and scope, including GET-only Session Lens |
+| `mcp_stdio` | Thin local stdio JSON-RPC transport over `AgentResearchFacade`; no evidence, review, or promotion logic |
 | `tooling` | Contributor checks and terminology validation; not a research runtime service |
 
 Several internal names retain early contract labels such as `VS0` or phase

@@ -1,7 +1,8 @@
 # Dithyramba reference
 
-This reference describes the `0.1.0rc1` pre-alpha source preview. The command
-itself is authoritative for exact options and defaults:
+This reference describes the `0.1.0rc1` package base plus the current pre-alpha
+`0.2` development candidate. The command itself is authoritative for exact
+options and defaults:
 
 ```bash
 uv run dithyramba <command> --help

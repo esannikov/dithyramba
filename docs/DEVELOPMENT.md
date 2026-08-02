@@ -1,7 +1,9 @@
 # Development
 
-Dithyramba `0.1.0rc1` is a pre-alpha source preview. This guide covers work from
-a repository checkout; it does not define a public compatibility promise.
+Dithyramba package metadata is `0.1.0rc1`; the current branch is the pre-alpha
+`0.2` development candidate with schema v13 interactive sessions. This guide
+covers work from a repository checkout; it does not define a public
+compatibility promise.
 
 ## Supported development target
 

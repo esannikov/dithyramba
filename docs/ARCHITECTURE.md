@@ -6,6 +6,13 @@ and recording human decisions.
 
 ![Dithyramba memory architecture](assets/dithyramba-memory-map.svg)
 
+The figure separates two cooperating planes. The durable evidence core turns
+read-only source bytes into exact packets and scoped human decisions. The
+interactive session loop lets an agent continue an investigation from compact
+state and packet references without creating a second truth store. Rebuildable
+caches, transports, and visual views may disappear; the source, packet, event,
+and review records remain.
+
 ## The smallest durable unit
 
 The authoritative atom is a `SourceFragment`: an exact passage that belongs to
@@ -192,11 +199,11 @@ deterministic but not navigationally coherent. The replacement is smaller:
 local scope, FTS-first neighbourhood, no required embedding model, and no
 global ontology claim.
 
-## Interactive research sessions (0.2 development)
+## Interactive research sessions (0.2 development candidate)
 
-The next release line adds a continuing investigation around the stable evidence
-route. It does not store a chat transcript as source truth and does not create a
-second semantic layer.
+The 0.2 development candidate adds a continuing investigation around the stable
+evidence route. It does not store a chat transcript as source truth and does not
+create a second semantic layer.
 
 ```text
 ResearchSessionBrief
@@ -215,7 +222,7 @@ open, but they cannot support a claim unless they link to an existing exact
 evidence artifact.
 
 The Session Spine, durable SQLite store, least-context Python facade, thin stdio
-MCP transport, and GET-only Session Lens are implemented locally. Migration
+MCP transport, and GET-only Session Lens are implemented. Migration
 0013 persists the immutable session receipt and typed hash-chained events,
 validates exact artifact closure, and rebuilds compact state after a cold reopen.
 The facade and MCP return compact journal state separately from the current

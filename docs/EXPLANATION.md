@@ -19,6 +19,36 @@ That chain is why the system is a memory rather than a search preset. It keeps
 the source, the relation between source and conclusion, the context in which
 the relation was accepted, and the history needed to replay or challenge it.
 
+## How it reduces context-window pressure
+
+Dithyramba does not enlarge a model's context window. It changes what must enter
+that window. A first local pass reads the permitted corpus and stores exact,
+addressable evidence. A continuing session then sends the agent only:
+
+- the bounded research brief;
+- a compact projection of recent questions, drafts, gaps, and rejected paths;
+- the exact passages selected for the current turn;
+- immutable IDs and hashes for the larger local audit record.
+
+The full corpus, full FTS candidate union, materialized read receipt, and entire
+conversation remain outside the prompt. A session-scoped FTS cache can reuse the
+same authorized read-set for later questions, but it is disposable and grants no
+new authority.
+
+```text
+agent question
+  → stdio MCP
+  → AgentResearchFacade
+  → exact session scope + local recall
+  → EvidencePacket
+  → compact evidence for the turn
+  → packet reference appended to the session journal
+  → human inspection in Session Lens
+```
+
+Drafts and chat events explain the path of inquiry. They are not evidence unless
+the ordinary source, packet, gate, and human-review path supports them.
+
 ## The smallest useful unit
 
 The authoritative atom is not an embedding and not a generated summary. It is

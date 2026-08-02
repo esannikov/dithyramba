@@ -33,6 +33,10 @@ history belong in dated evaluation reports, not in the product changelog.
 
 ### Changed
 
+- Rebuilt the public architecture figure and product documentation around the
+  two-plane 0.2 design: durable evidence core plus bounded interactive session
+  loop. Updated the clean-install and wheel-closure checks to require schema
+  v13 and the packaged research-session migration.
 - A six-session Mars screen measured a 23.85% mean warm-turn reduction while
   preserving 17/17 comparable top-10 result lists, 6/6 exact retries, and 6/6
   cold reopens with zero model tokens. Automatic relation-aware repair remains

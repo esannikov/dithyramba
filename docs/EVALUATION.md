@@ -1,7 +1,8 @@
 # Evaluation evidence and limits
 
-This page records what Dithyramba has actually been exercised on as of the
-`0.1.0rc1` source preview. It separates three different claims:
+This page records what Dithyramba has actually been exercised on for the
+`0.1.0rc1` package base and current `0.2` development candidate. It separates
+three different claims:
 
 1. **Public reproducibility:** checks anyone can run from this repository.
 2. **Internal development evidence:** corpus-specific tests whose sources or
@@ -69,9 +70,10 @@ than a held-out benchmark.
 The reports record units and characters, but not a trustworthy aggregate page
 or original-document count. No page estimate is inferred here.
 
-### Mars interactive memory v0.3
+### Mars multi-session screen (0.2 development)
 
-The 0.3 session-cache screen reused the same frozen normalized Library: 2,047
+The internal protocol revision 0.3 reused the same frozen normalized Library:
+2,047
 admitted Library sources and 53,747 retrieval units. It ran six realistic
 three-turn investigations—environment, transport, habitat, human factors,
 society, and unsupported controls—plus one isolated three-query relation-repair
@@ -355,18 +357,16 @@ the exact proof was already present deeper in a bounded union.
 
 ## Engineering verification
 
-The current public update collects 2,591 engineering cases. In its canonical
-local gate:
+The current 0.2 development candidate collects 2,627 engineering tests. In its
+canonical local gate:
 
-- all 2,591 passed, including both real-Chromium browser cases, with zero
-  skips;
-- exact combined line/branch coverage was `95.0053%` at a strict `95.00%` gate;
-- statement coverage was `96.1902%`; branch coverage was `91.2494%`;
-- terminology, format, lint, and strict typing across 260 files passed;
+- 2,627 passed with two host-dependent browser skips;
+- branch-aware combined coverage was `95.03%` at a strict `95.00%` gate;
+- terminology, format, lint, and strict typing passed;
 - the dependency audit found no known vulnerabilities;
 - a separate sdist-to-wheel closure installed non-editably in isolated Python
-  3.11.12, imported from temporary `site-packages`, and included the schema-v12
-  migration;
+  3.11.12, imported from temporary `site-packages`, and included migrations
+  through schema v13;
 - the deterministic 1,000-fragment replay remains the rights-safe public
   research-path fixture.
 

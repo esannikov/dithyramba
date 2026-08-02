@@ -1,8 +1,10 @@
 # How to use Dithyramba
 
 This guide builds one local, replayable evidence memory from source files with
-the persisted FTS-only CLI route in the `0.1.0rc1` pre-alpha source preview.
-Replace the example identifiers with the values printed by each command.
+the persisted FTS-only CLI route. Package metadata remains `0.1.0rc1`; the
+current `0.2` development candidate also adds durable research sessions, local
+stdio MCP, and Session Lens. Replace the example identifiers with the values
+printed by each command.
 
 To verify a fresh checkout, follow the separate
 [clean-install acceptance protocol](ACCEPTANCE.md).

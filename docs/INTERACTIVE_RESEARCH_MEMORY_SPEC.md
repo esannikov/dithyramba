@@ -1,9 +1,10 @@
 # Interactive research memory 0.2
 
 Status: Session Spine, durable store, scoped cache, least-context agent
-transport, stdio MCP, and GET-only Session Lens implemented locally
+transport, stdio MCP, and GET-only Session Lens implemented in the 0.2
+development candidate
 
-Base: `0.1.0rc1` plus the proposition-level answer work in PR #5
+Base: `0.1.0rc1` plus proposition-level answer governance and schema v13
 
 Implemented slices: session contracts, deterministic replay, SQLite persistence,
 idempotent recall commands, compact evidence projection, reusable process-local

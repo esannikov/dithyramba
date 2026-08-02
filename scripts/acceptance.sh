@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 EXPECTED_UV="0.6.14"
 EXPECTED_PYTHON="3.11.12"
-EXPECTED_SCHEMA="12"
-EXPECTED_SCHEMA_FINGERPRINT="d82a6934d6516fcfc0aa30718ae915e3332d29c50c471fd4b14f0559a392def3"
+EXPECTED_SCHEMA="13"
+EXPECTED_SCHEMA_FINGERPRINT="efb45032749685cee156640647ed179449c1e8396fb543d449809015ab3e1c6c"
 MODE="full"
 
 if [[ "${1:-}" == "--quick" ]]; then

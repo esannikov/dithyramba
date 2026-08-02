@@ -16,6 +16,26 @@ continue an investigation from compact state and exact artifact references.
 Session notes, drafts, and rejected paths remain journal material. They do not
 become evidence or accepted memory merely because an agent recorded them.
 
+## Interactive research memory
+
+The product has one evidence core and two adapters around it:
+
+- an agent uses the local stdio MCP adapter to open a bounded session, recall
+  exact evidence, and record drafts, gaps, or rejected paths;
+- a human uses Session Lens to inspect the brief, chronological journal, named
+  sources, and exact passages without mutating the Library.
+
+The first recall in a live process may build a session-scoped authorized FTS
+cache. Later questions in the same exact scope may reuse it. The cache is not
+memory authority: it is destroyed on process exit, close, or eviction and can be
+rebuilt from the immutable source and policy record. Every question still gets
+its own durable request, receipt, packet, and journal event.
+
+This is the product's context-window strategy. The agent receives a small
+session state and selected evidence packet rather than the complete corpus or
+chat transcript. Full audit artifacts stay local and addressable by immutable
+ID and hash.
+
 ## Primary operator
 
 The primary operator is a researcher in the broad sense: scientist, historian,

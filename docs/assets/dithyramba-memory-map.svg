@@ -1,173 +1,211 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1120" viewBox="0 0 1800 1120" role="img" aria-labelledby="title description">
-  <title id="title">Dithyramba research-memory architecture</title>
-  <desc id="description">Academic architecture figure separating the stable persisted evidence path, the authorization control plane, optional evidence sufficiency and public reasoning, durable records, and rebuildable discovery aids.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1320" viewBox="0 0 1800 1320" role="img" aria-labelledby="title description">
+  <title id="title">Dithyramba 0.2 research-memory architecture</title>
+  <desc id="description">Scientific architecture figure showing the durable source-to-evidence core, the bounded interactive session loop for agents and researchers, rebuildable discovery aids, optional interpretation paths, and the separate human-review boundary.</desc>
   <defs>
     <marker id="arrow-stable" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
-      <path d="M0,0 L10,5 L0,10 Z" fill="#243746"/>
+      <path d="M0,0 L10,5 L0,10 Z" fill="#263844"/>
     </marker>
-    <marker id="arrow-adaptive" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
-      <path d="M0,0 L10,5 L0,10 Z" fill="#a95032"/>
+    <marker id="arrow-session" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#3f687c"/>
     </marker>
     <marker id="arrow-derived" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
       <path d="M0,0 L10,5 L0,10 Z" fill="#7b8790"/>
     </marker>
+    <marker id="arrow-experimental" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#a95032"/>
+    </marker>
     <style>
       .ui { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; fill: #17202a; }
       .serif { font-family: Georgia, "Times New Roman", serif; fill: #17202a; }
-      .mono { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; fill: #243746; }
+      .mono { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; fill: #263844; }
       .figure { font-size: 13px; font-weight: 760; letter-spacing: 1.8px; fill: #5e6b73; }
       .title { font-size: 42px; font-weight: 700; letter-spacing: -.7px; }
       .subtitle { font-size: 18px; fill: #44515a; }
       .lane { font-size: 13px; font-weight: 760; letter-spacing: 1.6px; }
-      .node-title { font-size: 21px; font-weight: 710; }
-      .contract { font-size: 14px; font-weight: 650; }
-      .copy { font-size: 15px; fill: #34424c; }
-      .small { font-size: 13px; fill: #5a6670; }
-      .edge-label { font-size: 12px; font-weight: 650; fill: #52616b; letter-spacing: .3px; }
-      .stable-edge { fill: none; stroke: #243746; stroke-width: 2.2; marker-end: url(#arrow-stable); }
-      .adaptive-edge { fill: none; stroke: #a95032; stroke-width: 2.2; stroke-dasharray: 9 7; marker-end: url(#arrow-adaptive); }
+      .node-title { font-size: 20px; font-weight: 710; }
+      .contract { font-size: 13px; font-weight: 650; }
+      .copy { font-size: 14px; fill: #34424c; }
+      .small { font-size: 12.5px; fill: #5a6670; }
+      .edge-label { font-size: 11.5px; font-weight: 650; fill: #52616b; letter-spacing: .25px; }
+      .stable-edge { fill: none; stroke: #263844; stroke-width: 2.2; marker-end: url(#arrow-stable); }
+      .session-edge { fill: none; stroke: #3f687c; stroke-width: 2.1; marker-end: url(#arrow-session); }
       .derived-edge { fill: none; stroke: #7b8790; stroke-width: 1.8; stroke-dasharray: 4 5; marker-end: url(#arrow-derived); }
-      .guide { fill: none; stroke: #cbd2d6; stroke-width: 1.4; }
+      .experimental-edge { fill: none; stroke: #a95032; stroke-width: 2; stroke-dasharray: 8 6; marker-end: url(#arrow-experimental); }
+      .guide { fill: none; stroke: #cbd2d6; stroke-width: 1.35; }
     </style>
   </defs>
 
-  <rect width="1800" height="1120" fill="#f1f0ec"/>
-  <rect x="34" y="30" width="1732" height="1060" rx="6" fill="#fffefd" stroke="#c9c9c3" stroke-width="1.5"/>
+  <rect width="1800" height="1320" fill="#f1f0ec"/>
+  <rect x="34" y="30" width="1732" height="1260" rx="6" fill="#fffefd" stroke="#c9c9c3" stroke-width="1.5"/>
 
   <g class="ui">
-    <text x="72" y="72" class="figure">FIG. 1 · SYSTEM ARCHITECTURE · v0.1.0rc1</text>
-    <text x="72" y="122" class="title serif">Dithyramba research-memory architecture</text>
-    <text x="72" y="154" class="subtitle">A source-bound evidence record for researchers and agents; retrieval aids remain replaceable.</text>
+    <text x="72" y="72" class="figure">FIG. 1 · SYSTEM ARCHITECTURE · 0.2 DEVELOPMENT CANDIDATE</text>
+    <text x="72" y="122" class="title serif">Dithyramba research memory</text>
+    <text x="72" y="154" class="subtitle">Durable evidence below every answer; compact session continuity around the same source-bound core.</text>
     <line x1="72" y1="178" x2="1728" y2="178" class="guide"/>
 
-    <text x="72" y="224" class="lane" fill="#2f6b71">CONTROL PLANE</text>
-    <rect x="730" y="204" width="320" height="116" rx="4" fill="#f3f7f7" stroke="#2f6b71" stroke-width="1.8"/>
-    <text x="750" y="237" class="node-title">Explicit retrieval scope</text>
-    <text x="750" y="264" class="contract mono">Library · Collection</text>
-    <text x="750" y="286" class="contract mono">CorpusSnapshot · AccessPolicy</text>
-    <text x="750" y="308" class="small">compiled before any fragment is materialized</text>
-    <text x="1024" y="237" text-anchor="end" class="contract mono">[D]</text>
+    <text x="72" y="219" class="lane" fill="#2f6b71">CONTROL PLANE · COMPILED BEFORE READING</text>
+    <rect x="72" y="238" width="1656" height="88" rx="4" fill="#f3f7f7" stroke="#2f6b71" stroke-width="1.7"/>
+    <text x="96" y="271" class="node-title">Explicit research scope</text>
+    <text x="96" y="302" class="contract mono">Library · Collection set · CorpusSnapshot · AccessPolicy · purpose · exclusions</text>
+    <line x1="930" y1="252" x2="930" y2="312" class="guide"/>
+    <text x="958" y="274" class="copy">authorization precedes reading</text>
+    <text x="958" y="301" class="copy">one immutable scope binds recall, session, packet, and review</text>
+    <text x="1700" y="271" text-anchor="end" class="contract mono">[D]</text>
 
-    <rect x="1115" y="204" width="635" height="116" rx="4" fill="#fafafa" stroke="#9aa4aa" stroke-width="1.4"/>
-    <text x="1137" y="235" class="lane" fill="#596770">INVARIANTS</text>
-    <text x="1137" y="263" class="copy">I. authorization precedes reading</text>
-    <text x="1465" y="263" class="copy">II. ranking ≠ evidence sufficiency</text>
-    <text x="1137" y="291" class="copy">III. exact passages remain addressable</text>
-    <text x="1465" y="291" class="copy">IV. human review is append-only</text>
+    <text x="72" y="370" class="lane" fill="#263844">I · DURABLE EVIDENCE CORE</text>
 
-    <text x="72" y="361" class="lane" fill="#243746">STABLE PATH TO PERSISTED EVIDENCE</text>
+    <rect x="66" y="392" width="255" height="190" rx="4" fill="#fbf7f2" stroke="#775a43" stroke-width="1.8"/>
+    <text x="86" y="426" class="figure" fill="#775a43">01 · SOURCE</text>
+    <text x="297" y="426" text-anchor="end" class="contract mono">[S]</text>
+    <text x="86" y="461" class="node-title">Read-only corpus</text>
+    <text x="86" y="493" class="copy">Markdown · text · PDF</text>
+    <text x="86" y="520" class="copy">operator-owned files</text>
+    <line x1="86" y1="539" x2="301" y2="539" class="guide"/>
+    <text x="86" y="562" class="small">input bytes are never rewritten</text>
 
-    <rect x="50" y="382" width="260" height="212" rx="4" fill="#fbf7f2" stroke="#775a43" stroke-width="1.8"/>
-    <text x="70" y="417" class="figure" fill="#775a43">01 · INPUT</text>
-    <text x="286" y="417" text-anchor="end" class="contract mono">[S]</text>
-    <text x="70" y="454" class="node-title">Read-only corpus</text>
-    <text x="70" y="487" class="copy">Markdown · text · PDF</text>
-    <text x="70" y="516" class="copy">operator-owned source files</text>
-    <line x1="70" y1="539" x2="290" y2="539" class="guide"/>
-    <text x="70" y="566" class="small">input bytes are never rewritten</text>
+    <rect x="360" y="392" width="300" height="190" rx="4" fill="#fbf7f2" stroke="#775a43" stroke-width="1.8"/>
+    <text x="380" y="426" class="figure" fill="#775a43">02 · SOURCE IDENTITY</text>
+    <text x="636" y="426" text-anchor="end" class="contract mono">[D]</text>
+    <text x="380" y="461" class="node-title">Immutable fragments</text>
+    <text x="380" y="493" class="contract mono">SourceVersion(bytes, sha256)</text>
+    <text x="380" y="520" class="contract mono">SourceFragment(exact span)</text>
+    <text x="380" y="547" class="contract mono">SourceAddress(locator)</text>
+    <text x="380" y="571" class="small">authoritative memory atom</text>
 
-    <rect x="365" y="382" width="300" height="212" rx="4" fill="#fbf7f2" stroke="#775a43" stroke-width="1.8"/>
-    <text x="385" y="417" class="figure" fill="#775a43">02 · SOURCE IDENTITY</text>
-    <text x="641" y="417" text-anchor="end" class="contract mono">[D]</text>
-    <text x="385" y="454" class="node-title">Immutable identity</text>
-    <text x="385" y="487" class="contract mono">SourceVersion(bytes, sha256)</text>
-    <text x="385" y="516" class="contract mono">SourceFragment(exact span)</text>
-    <text x="385" y="545" class="contract mono">SourceAddress(locator)</text>
-    <text x="385" y="576" class="small">authoritative memory atom</text>
+    <rect x="700" y="392" width="310" height="190" rx="4" fill="#f1f6f8" stroke="#3f687c" stroke-width="1.8"/>
+    <text x="720" y="426" class="figure" fill="#3f687c">03 · GOVERNED RECALL</text>
+    <text x="986" y="426" text-anchor="end" class="contract mono">[R]</text>
+    <text x="720" y="461" class="node-title">Bounded discovery</text>
+    <text x="720" y="493" class="contract mono">permitted := snapshot ∩ policy</text>
+    <text x="720" y="520" class="copy">SQLite FTS5 → candidates</text>
+    <text x="720" y="547" class="copy">exact text admits evidence</text>
+    <text x="720" y="571" class="small">ranking can locate; it cannot prove</text>
 
-    <rect x="730" y="382" width="320" height="212" rx="4" fill="#f1f6f8" stroke="#3f687c" stroke-width="1.8"/>
-    <text x="750" y="417" class="figure" fill="#3f687c">03 · GOVERNED RECALL</text>
-    <text x="1026" y="417" text-anchor="end" class="contract mono">[R]</text>
-    <text x="750" y="454" class="node-title">Bounded discovery</text>
-    <text x="750" y="487" class="contract mono">permitted := snapshot ∩ policy</text>
-    <text x="750" y="516" class="copy">SQLite FTS5 → top-k candidates</text>
-    <text x="750" y="545" class="copy">optional reranking stays advisory</text>
-    <text x="750" y="576" class="small">no model is required for the default route</text>
+    <rect x="1050" y="392" width="310" height="190" rx="4" fill="#f2f8f4" stroke="#2f7556" stroke-width="1.8"/>
+    <text x="1070" y="426" class="figure" fill="#2f7556">04 · EVIDENCE RECORD</text>
+    <text x="1336" y="426" text-anchor="end" class="contract mono">[D]</text>
+    <text x="1070" y="461" class="node-title">EvidencePacket/1.0</text>
+    <text x="1070" y="493" class="copy">exact excerpts + addresses</text>
+    <text x="1070" y="520" class="copy">access + retrieval receipts</text>
+    <text x="1070" y="547" class="contract mono">SHA256(canonical bytes)</text>
+    <text x="1070" y="571" class="small">persisted · inspectable · replayable</text>
 
-    <rect x="1115" y="382" width="290" height="212" rx="4" fill="#f2f8f4" stroke="#2f7556" stroke-width="1.8"/>
-    <text x="1135" y="417" class="figure" fill="#2f7556">04 · EVIDENCE RECORD</text>
-    <text x="1381" y="417" text-anchor="end" class="contract mono">[D]</text>
-    <text x="1135" y="454" class="node-title">EvidencePacket/1.0</text>
-    <text x="1135" y="487" class="copy">exact excerpts + addresses</text>
-    <text x="1135" y="516" class="copy">access + retrieval receipts</text>
-    <text x="1135" y="545" class="contract mono">hash := SHA256(canonical bytes)</text>
-    <text x="1135" y="576" class="small">persisted · inspectable · cold-replayable</text>
+    <rect x="1400" y="392" width="328" height="190" rx="4" fill="#f7f3f8" stroke="#725582" stroke-width="1.8"/>
+    <text x="1420" y="426" class="figure" fill="#725582">05 · REVIEWED MEMORY</text>
+    <text x="1704" y="426" text-anchor="end" class="contract mono">[D]</text>
+    <text x="1420" y="461" class="node-title">Human decision</text>
+    <text x="1420" y="493" class="contract mono">ReviewDecision</text>
+    <text x="1420" y="520" class="copy">accept · revise · reject · defer</text>
+    <text x="1420" y="547" class="copy">typed objects retain source links</text>
+    <text x="1420" y="571" class="small">agent transport exposes no promotion tool</text>
 
-    <rect x="1470" y="382" width="280" height="212" rx="4" fill="#f7f3f8" stroke="#725582" stroke-width="1.8"/>
-    <text x="1490" y="417" class="figure" fill="#725582">05 · REVIEWED MEMORY</text>
-    <text x="1726" y="417" text-anchor="end" class="contract mono">[D]</text>
-    <text x="1490" y="454" class="node-title">Human decision</text>
-    <text x="1490" y="487" class="contract mono">ReviewDecision</text>
-    <text x="1490" y="516" class="copy">accept · revise · reject · defer</text>
-    <text x="1490" y="545" class="copy">typed objects retain source links</text>
-    <text x="1490" y="576" class="small">a later run cannot overwrite judgment</text>
+    <path d="M329 487 H352" class="stable-edge"/>
+    <text x="340" y="471" text-anchor="middle" class="edge-label">hash</text>
+    <path d="M668 487 H692" class="stable-edge"/>
+    <text x="680" y="471" text-anchor="middle" class="edge-label">read</text>
+    <path d="M1018 487 H1042" class="stable-edge"/>
+    <text x="1030" y="471" text-anchor="middle" class="edge-label">record</text>
+    <path d="M1368 487 H1392" class="stable-edge"/>
+    <text x="1380" y="471" text-anchor="middle" class="edge-label">decide</text>
+    <path d="M855 334 V384" class="stable-edge"/>
+    <text x="872" y="365" class="edge-label">compile</text>
 
-    <path d="M318 488 H357" class="stable-edge"/>
-    <text x="337" y="471" text-anchor="middle" class="edge-label">hash</text>
-    <path d="M673 488 H722" class="stable-edge"/>
-    <text x="698" y="471" text-anchor="middle" class="edge-label">read</text>
-    <path d="M1058 488 H1107" class="stable-edge"/>
-    <text x="1082" y="471" text-anchor="middle" class="edge-label">record</text>
-    <path d="M1413 488 H1462" class="stable-edge"/>
-    <text x="1437" y="471" text-anchor="middle" class="edge-label">decide</text>
-    <path d="M890 328 V374" class="stable-edge"/>
-    <text x="908" y="355" class="edge-label">compile</text>
+    <rect x="700" y="618" width="310" height="94" rx="4" fill="#f5f7f8" stroke="#7d919c" stroke-width="1.5"/>
+    <text x="720" y="648" class="figure" fill="#3f687c">SESSION-SCOPED CACHE [R]</text>
+    <text x="720" y="675" class="copy">authorized read-set + in-memory FTS</text>
+    <text x="720" y="699" class="small">build once · reuse in scope · destroy on close/eviction</text>
+    <path d="M855 618 V590" class="session-edge"/>
 
-    <rect x="1470" y="618" width="130" height="50" rx="4" fill="#fff" stroke="#725582" stroke-width="1.4"/>
-    <text x="1535" y="642" text-anchor="middle" class="contract mono">Lens [R]</text>
-    <text x="1535" y="660" text-anchor="middle" class="small">human inspection</text>
-    <rect x="1620" y="618" width="130" height="50" rx="4" fill="#fff" stroke="#725582" stroke-width="1.4"/>
-    <text x="1685" y="642" text-anchor="middle" class="contract mono">Connector [R]</text>
-    <text x="1685" y="660" text-anchor="middle" class="small">agent packet</text>
-    <path d="M1535 594 V610" class="derived-edge"/>
-    <path d="M1685 594 V610" class="derived-edge"/>
+    <text x="72" y="760" class="lane" fill="#3f687c">II · INTERACTIVE SESSION LOOP · SAME EVIDENCE CORE</text>
 
-    <text x="72" y="716" class="lane" fill="#a95032">OPTIONAL EVIDENCE SUFFICIENCY + PUBLIC REASONING · EXPERIMENTAL</text>
+    <rect x="66" y="782" width="230" height="184" rx="4" fill="#f7f8f9" stroke="#7d919c" stroke-width="1.5"/>
+    <text x="86" y="816" class="figure" fill="#526b78">A · CLIENT</text>
+    <text x="86" y="851" class="node-title">Research agent</text>
+    <text x="86" y="883" class="copy">question · draft · gap</text>
+    <text x="86" y="910" class="copy">rejected route</text>
+    <line x1="86" y1="930" x2="276" y2="930" class="guide"/>
+    <text x="86" y="953" class="small">receives bounded context only</text>
 
-    <rect x="730" y="740" width="320" height="142" rx="4" fill="#fffaf6" stroke="#a95032" stroke-width="1.6" stroke-dasharray="7 5"/>
-    <text x="750" y="774" class="node-title">Candidate expansion</text>
-    <text x="1026" y="774" text-anchor="end" class="contract mono">[E]</text>
-    <text x="750" y="805" class="copy">bounded lexical variants</text>
-    <text x="750" y="831" class="copy">local FTS50 → FTS100 when needed</text>
-    <text x="750" y="857" class="small">QueryCloud q1/q2 only after a named gap</text>
+    <rect x="330" y="782" width="230" height="184" rx="4" fill="#f1f6f8" stroke="#3f687c" stroke-width="1.6"/>
+    <text x="350" y="816" class="figure" fill="#3f687c">B · ADAPTER [R]</text>
+    <text x="350" y="851" class="node-title">stdio MCP</text>
+    <text x="350" y="883" class="copy">six bounded tools</text>
+    <text x="350" y="910" class="copy">JSON-RPC transport only</text>
+    <line x1="350" y1="930" x2="540" y2="930" class="guide"/>
+    <text x="350" y="953" class="small">no business or review logic</text>
 
-    <rect x="1115" y="740" width="290" height="142" rx="4" fill="#fffaf6" stroke="#a95032" stroke-width="1.6" stroke-dasharray="7 5"/>
-    <text x="1135" y="774" class="node-title">Evidence coverage</text>
-    <text x="1381" y="774" text-anchor="end" class="contract mono">[E]</text>
-    <text x="1135" y="805" class="contract mono">EvidenceCoverageGate</text>
-    <text x="1135" y="831" class="copy">frozen proof requirements</text>
-    <text x="1135" y="857" class="small">exact text → matched / partial / gap</text>
+    <rect x="595" y="782" width="280" height="184" rx="4" fill="#f1f6f8" stroke="#3f687c" stroke-width="1.6"/>
+    <text x="615" y="816" class="figure" fill="#3f687c">C · ORCHESTRATION</text>
+    <text x="615" y="851" class="node-title">AgentResearchFacade</text>
+    <text x="615" y="883" class="copy">least-context actions</text>
+    <text x="615" y="910" class="copy">idempotent command receipts</text>
+    <line x1="615" y1="930" x2="855" y2="930" class="guide"/>
+    <text x="615" y="953" class="small">delegates to existing core services</text>
 
-    <rect x="1470" y="740" width="280" height="142" rx="4" fill="#fffaf6" stroke="#a95032" stroke-width="1.6" stroke-dasharray="7 5"/>
-    <text x="1490" y="774" class="node-title">Public reasoning</text>
-    <text x="1726" y="774" text-anchor="end" class="contract mono">[E]</text>
-    <text x="1490" y="805" class="contract mono">IdeaTrace/1.0</text>
-    <text x="1490" y="831" class="copy">ReasoningClosureGate → review</text>
-    <text x="1490" y="857" class="small">public steps only · no private CoT · no promotion</text>
+    <rect x="920" y="782" width="440" height="184" rx="4" fill="#f2f8f4" stroke="#2f7556" stroke-width="1.8"/>
+    <text x="940" y="816" class="figure" fill="#2f7556">D · SESSION SPINE [D]</text>
+    <text x="940" y="851" class="node-title">ResearchSession + SessionEvents</text>
+    <text x="940" y="883" class="contract mono">brief · question · packet ref · draft · gap · rejected path</text>
+    <text x="940" y="910" class="copy">append-only hash chain; compact state is rebuilt</text>
+    <line x1="940" y1="930" x2="1340" y2="930" class="guide"/>
+    <text x="940" y="953" class="small">journal material remains non-evidence until the ordinary review route</text>
 
-    <path d="M890 602 V732" class="adaptive-edge"/>
-    <text x="907" y="684" class="edge-label" fill="#a95032">opt in</text>
-    <path d="M1058 811 H1107" class="adaptive-edge"/>
-    <path d="M1413 811 H1462" class="adaptive-edge"/>
-    <rect x="50" y="930" width="680" height="92" rx="4" fill="#f3f8f5" stroke="#7da18c" stroke-width="1.3"/>
-    <text x="70" y="962" class="lane" fill="#2f7556">DURABLE, SOURCE-BOUND RECORD</text>
-    <text x="70" y="992" class="copy">[S] source of record · [D] identities · scope · packets · reviews</text>
+    <rect x="1400" y="782" width="328" height="184" rx="4" fill="#f7f3f8" stroke="#725582" stroke-width="1.6"/>
+    <text x="1420" y="816" class="figure" fill="#725582">E · HUMAN VIEW [R]</text>
+    <text x="1420" y="851" class="node-title">Session Lens</text>
+    <text x="1420" y="883" class="copy">brief + journal + exact passages</text>
+    <text x="1420" y="910" class="copy">GET-only inspection</text>
+    <line x1="1420" y1="930" x2="1708" y2="930" class="guide"/>
+    <text x="1420" y="953" class="small">viewing never accepts or mutates memory</text>
 
-    <rect x="760" y="930" width="600" height="92" rx="4" fill="#f5f7f8" stroke="#91a3ad" stroke-width="1.3"/>
-    <text x="780" y="962" class="lane" fill="#3f687c">REBUILDABLE AIDS AND OUTPUTS</text>
-    <text x="780" y="992" class="copy">[R] FTS/ranks · embeddings · graph · Lens · Connector</text>
+    <path d="M304 872 H322" class="session-edge"/>
+    <path d="M568 872 H587" class="session-edge"/>
+    <path d="M883 846 H912" class="session-edge"/>
+    <text x="897" y="831" text-anchor="middle" class="edge-label">append</text>
+    <path d="M920 910 H883" class="derived-edge"/>
+    <text x="901" y="932" text-anchor="middle" class="edge-label">context</text>
+    <path d="M1368 872 H1392" class="derived-edge"/>
+    <text x="1380" y="856" text-anchor="middle" class="edge-label">project</text>
+    <path d="M735 774 V720 H855" class="session-edge"/>
+    <text x="749" y="741" class="edge-label">recall in exact scope</text>
+    <path d="M1205 590 V774" class="stable-edge"/>
+    <text x="1222" y="690" class="edge-label">append exact packet reference</text>
 
-    <rect x="1390" y="930" width="360" height="92" rx="4" fill="#fff8f4" stroke="#c98972" stroke-width="1.3"/>
-    <text x="1410" y="962" class="lane" fill="#a95032">EXPERIMENTAL, VOLATILE</text>
-    <text x="1410" y="992" class="copy">[E] QueryCloud · ontology · IdeaTrace</text>
+    <text x="72" y="1020" class="lane" fill="#a95032">III · OPTIONAL CANDIDATE AND INTERPRETATION PATHS</text>
+    <rect x="66" y="1042" width="510" height="132" rx="4" fill="#fffaf6" stroke="#a95032" stroke-width="1.5" stroke-dasharray="7 5"/>
+    <text x="86" y="1075" class="node-title">Evidence sufficiency [E]</text>
+    <text x="552" y="1075" text-anchor="end" class="contract mono">EvidenceCoverageGate</text>
+    <text x="86" y="1106" class="copy">frozen proof roles → matched · partial · explicit gap</text>
+    <text x="86" y="1134" class="small">generated query variants may discover; only exact passages may support</text>
+    <text x="86" y="1158" class="small">deterministic gate · provider-free · no automatic promotion</text>
 
-    <line x1="72" y1="1050" x2="1728" y2="1050" class="guide"/>
-    <line x1="86" y1="1073" x2="130" y2="1073" stroke="#243746" stroke-width="2.2"/>
-    <text x="142" y="1078" class="small">stable execution path</text>
-    <line x1="330" y1="1073" x2="374" y2="1073" stroke="#a95032" stroke-width="2.2" stroke-dasharray="8 6"/>
-    <text x="386" y="1078" class="small">optional experimental path</text>
-    <line x1="626" y1="1073" x2="670" y2="1073" stroke="#7b8790" stroke-width="1.8" stroke-dasharray="4 5"/>
-    <text x="682" y="1078" class="small">derived output</text>
-    <text x="1728" y="1078" text-anchor="end" class="small">Rank locates a candidate; exact content and scoped review determine what enters memory.</text>
+    <rect x="610" y="1042" width="510" height="132" rx="4" fill="#fffaf6" stroke="#a95032" stroke-width="1.5" stroke-dasharray="7 5"/>
+    <text x="630" y="1075" class="node-title">Public synthesis [E]</text>
+    <text x="1096" y="1075" text-anchor="end" class="contract mono">IdeaTrace · AnswerProjection</text>
+    <text x="630" y="1106" class="copy">typed public steps and exact source-traceable answer spans</text>
+    <text x="630" y="1134" class="small">closure can make an artifact review-eligible, never accepted</text>
+    <text x="630" y="1158" class="small">no private chain-of-thought is stored or requested</text>
+
+    <rect x="1154" y="1042" width="574" height="132" rx="4" fill="#fffaf6" stroke="#a95032" stroke-width="1.5" stroke-dasharray="7 5"/>
+    <text x="1174" y="1075" class="node-title">Orientation projections [E]</text>
+    <text x="1704" y="1075" text-anchor="end" class="contract mono">Concept Lens · graph · Atlas</text>
+    <text x="1174" y="1106" class="copy">candidate concepts and typed links remain navigational views</text>
+    <text x="1174" y="1134" class="small">co-occurrence, rank, or visual proximity is never proof</text>
+    <text x="1174" y="1158" class="small">all promotable claims return to exact evidence and human review</text>
+
+    <path d="M584 1108 H602" class="experimental-edge"/>
+    <path d="M1128 1108 H1146" class="experimental-edge"/>
+
+    <line x1="72" y1="1211" x2="1728" y2="1211" class="guide"/>
+    <rect x="72" y="1232" width="18" height="18" fill="#fbf7f2" stroke="#775a43"/>
+    <text x="101" y="1246" class="small">[S] operator source of record</text>
+    <rect x="326" y="1232" width="18" height="18" fill="#f2f8f4" stroke="#2f7556"/>
+    <text x="355" y="1246" class="small">[D] durable, content-addressed record</text>
+    <rect x="700" y="1232" width="18" height="18" fill="#f1f6f8" stroke="#3f687c"/>
+    <text x="729" y="1246" class="small">[R] rebuildable cache, ranking, adapter, or view</text>
+    <rect x="1124" y="1232" width="18" height="18" fill="#fffaf6" stroke="#a95032" stroke-dasharray="4 3"/>
+    <text x="1153" y="1246" class="small">[E] experimental candidate path</text>
+    <text x="1728" y="1271" text-anchor="end" class="small">Core invariant: conversation can request evidence; it cannot become evidence by recording itself.</text>
   </g>
 </svg>

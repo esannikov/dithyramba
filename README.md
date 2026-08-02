@@ -1,10 +1,10 @@
 <p align="center">
   <a href="docs/assets/dithyramba-memory-map.svg">
-    <img src="docs/assets/dithyramba-memory-map.svg" alt="Dithyramba architecture: a stable source-to-evidence path, explicit scope control, an optional evidence-sufficiency path, and separate durable, rebuildable, and experimental state" width="100%">
+    <img src="docs/assets/dithyramba-memory-map.svg" alt="Dithyramba architecture: a durable source-to-evidence core, a bounded interactive session loop for agents and researchers, and separate rebuildable and experimental paths" width="100%">
   </a>
 </p>
 
-<p align="center"><sub>Open the figure for full-size contract names. [S] source of record · [D] durable · [R] rebuildable · [E] experimental.</sub></p>
+<p align="center"><sub>Open the figure for the full two-plane architecture. [S] source of record · [D] durable · [R] rebuildable · [E] experimental.</sub></p>
 
 # Dithyramba
 
@@ -16,16 +16,14 @@ on their behalf—who return to the same body of sources over time. It turns a
 local corpus into versioned, addressable evidence packets that can be inspected,
 replayed, challenged, and reused without asking a model to reread everything.
 
-> **Current status:** `0.1.0rc1` is a substantial pre-alpha source preview. The
-> local FTS evidence route is persisted and replayable. Conditional QueryCloud,
-> candidate ontology, and evidence-grounded synthesis remain experimental.
-> Schema v12 now persists public reasoning traces, proposition-level answer
-> projections, and their deterministic or semantic receipts without promoting
-> them into accepted memory. The 0.2 development branch also implements durable
-> multi-turn research sessions, one process-local authorized FTS cache per exact
-> session scope, a thin stdio MCP server, and a GET-only Session Lens. Clean-checkout distribution and installation
-> remain mandatory release gates; commit-bound results are reported by
-> continuous integration.
+> **Current status:** package metadata remains `0.1.0rc1`; this branch is the
+> pre-alpha `0.2` development candidate. The source-to-evidence core is local,
+> persisted, and replayable. Schema v13 adds durable multi-turn research
+> sessions around that same core, with a process-local authorized FTS cache,
+> thin stdio MCP transport, compact agent context, and a GET-only Session Lens.
+> QueryCloud, candidate ontology, and evidence-grounded synthesis remain
+> experimental and cannot promote themselves into accepted memory.
+> Clean-checkout distribution and installation remain release gates.
 
 ## Why it exists
 
@@ -100,6 +98,8 @@ Schema v10 stores the shared protected fragment manifest once as a
 content-addressed `CorpusReadSet`, while every question still receives its own
 request, packet, receipt, and review identity. This changes storage and repeated
 read work, not the meaning of the public packet contracts.
+
+### Continue across many agent turns
 
 For continuing agent work, `AgentResearchFacade` binds a `ResearchSessionBrief`
 to one frozen snapshot and records questions, exact packet references, drafts,
@@ -342,10 +342,9 @@ uv build
 ./scripts/acceptance.sh --quick
 ```
 
-For this update, the canonical gate passed all 2,591 collected tests, including
-the two real-Chromium browser cases, with zero skips. Strict typing across 260
-files, zero terminology findings, 95.0053% exact combined line/branch coverage,
-and the dependency audit also passed.
+For this update, the canonical local gate passed 2,627 tests with two
+host-dependent browser skips. Strict typing, zero terminology findings,
+95.03% branch-aware combined coverage, and the dependency audit also passed.
 Distribution closure verifies every schema migration through v13, the Lens
 assets, and that the wheel is built from the sdist and imports from an isolated
 non-editable environment.

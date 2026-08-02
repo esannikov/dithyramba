@@ -1,5 +1,11 @@
 # Dithyramba 0.1.0rc1
 
+> Historical release note. It describes the `0.1.0rc1` package boundary and
+> its original verification receipt. The current `0.2` development candidate
+> adds schema-v13 research sessions, scoped cache reuse, stdio MCP, and Session
+> Lens; see the [changelog](../CHANGELOG.md),
+> [architecture](ARCHITECTURE.md), and [0.2 roadmap](ROADMAP_0.2.md).
+
 This release candidate makes two experimental paths smaller and more explicit:
 orientation before a good question, and inspectable synthesis after evidence
 has been checked.

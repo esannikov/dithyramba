@@ -88,6 +88,12 @@ remains present below the main view.
 ## Interaction
 
 - Reading Room is GET-only and performs no domain mutation.
+- Session Lens is GET-only and separates chronological journal material from
+  exact packet-backed evidence. A draft, gap, or rejected path never receives
+  evidence styling merely because it appears in the session.
+- Agent session context, MCP tool names, cache counters, and command receipts
+  belong under progressive technical disclosure; the primary human view begins
+  with the Brief, the research path, named sources, and exact passages.
 - Navigation, filters, pagination, and selection have shareable query parameters.
 - Keyboard focus uses a visible 2-pixel blue ring with 3-pixel offset.
 - Links and controls have at least 44 by 44 pixel touch targets on coarse pointers.
