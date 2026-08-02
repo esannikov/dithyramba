@@ -207,7 +207,7 @@ def test_session_lens_projection_is_stable_compact_and_get_only(tmp_path: Path) 
 @pytest.mark.parametrize(
     ("canonical_uri", "expected"),
     [
-        ("file:///Users/researcher/corpus/Exact%20Source.pdf", "Exact Source.pdf"),
+        ("file:///research/corpus/Exact%20Source.pdf", "Exact Source.pdf"),
         ("https://example.org/archive/item-42", "item-42"),
         ("https://example.org", "example.org"),
         ("urn:isbn:9780000000000", "urn:isbn:9780000000000"),
