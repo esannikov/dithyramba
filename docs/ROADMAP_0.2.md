@@ -43,7 +43,7 @@ Status: complete
   outside the agent facade;
 - [x] add command idempotency and partial-turn reconciliation through atomic
   question/completion receipts in the existing append-only outbox;
-- [x] pass the full repository gate after the PhD-scale session and Lens repair: 2,643
+- [x] pass the full repository gate after the PhD-scale session and Lens repair: 2,647
   passed, 2 host/browser skips, branch-aware coverage 95.01%, Ruff and strict
   MyPy green;
 - [x] reuse one process-local authorized read-set and FTS index for questions

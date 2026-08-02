@@ -24,6 +24,7 @@ from dithyramba.api.session_lens import (
     _address_label,
     _event_copy,
     _Runtime,
+    _source_locator,
     _source_role,
 )
 from dithyramba.cli import app
@@ -154,6 +155,9 @@ def test_session_lens_renders_human_journal_and_exact_source(tmp_path: Path) -> 
         assert "Відхилений шлях" in response.text
         assert "не автоматично" in response.text
         assert "прийнятий висновок" in response.text
+        assert "craft.md" in response.text
+        assert "Джерело:" in selected.text
+        assert "Хто це стверджує:" not in selected.text
         assert 'aria-current="true"' in selected.text
         assert response.headers["content-security-policy"].startswith("default-src 'self'")
 
@@ -198,6 +202,22 @@ def test_session_lens_projection_is_stable_compact_and_get_only(tmp_path: Path) 
             == 404
         )
         assert fragment_id.startswith("fragment_")
+
+
+@pytest.mark.parametrize(
+    ("canonical_uri", "expected"),
+    [
+        ("file:///Users/researcher/corpus/Exact%20Source.pdf", "Exact Source.pdf"),
+        ("https://example.org/archive/item-42", "item-42"),
+        ("https://example.org", "example.org"),
+        ("urn:isbn:9780000000000", "urn:isbn:9780000000000"),
+    ],
+)
+def test_source_locator_is_readable_without_a_full_local_path(
+    canonical_uri: str,
+    expected: str,
+) -> None:
+    assert _source_locator(canonical_uri) == expected
 
 
 def test_session_lens_uses_compact_agent_packet_for_modern_turns(

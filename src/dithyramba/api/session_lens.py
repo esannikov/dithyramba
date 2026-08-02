@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated
-from urllib.parse import urlencode
+from urllib.parse import unquote, urlencode, urlparse
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import HTMLResponse, Response
@@ -61,6 +61,7 @@ class _EvidenceView:
     fragment: EvidenceFragment
     chip: SourceChipResponse
     source_title: str
+    source_locator: str
     source_role: str
     address_label: str
     selection_url: str
@@ -282,6 +283,7 @@ def _project(
                     fragment=fragment,
                     chip=chip,
                     source_title=source.title or source.canonical_uri,
+                    source_locator=_source_locator(source.canonical_uri),
                     source_role=_source_role(chip),
                     address_label=_address_label(fragment),
                     selection_url="/?"
@@ -410,6 +412,20 @@ def _source_role(chip: SourceChipResponse) -> str:
         "derivative": "похідна версія",
         "duplicate": "дублікат перевіреного джерела",
     }.get(chip.family_role, chip.family_role)
+
+
+def _source_locator(canonical_uri: str) -> str:
+    """Return a readable exact locator without exposing a full local path."""
+
+    parsed = urlparse(canonical_uri)
+    if parsed.scheme and parsed.scheme not in {"file", "http", "https"}:
+        return canonical_uri
+    path_name = Path(unquote(parsed.path)).name
+    if path_name:
+        return path_name
+    if parsed.netloc:
+        return parsed.netloc
+    return canonical_uri
 
 
 def _address_label(fragment: EvidenceFragment) -> str:

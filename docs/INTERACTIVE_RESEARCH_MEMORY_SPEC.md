@@ -10,7 +10,7 @@ Implemented slices: session contracts, deterministic replay, SQLite persistence,
 idempotent recall commands, compact evidence projection, reusable process-local
 scope capability, stdio MCP lifecycle/tools, and human journal projection
 
-Verification: 2,643 tests passed, 2 host/browser tests skipped, branch-aware
+Verification: 2,647 tests passed, 2 host/browser tests skipped, branch-aware
 coverage 95.01%, Ruff and strict MyPy passed, with no new runtime dependency
 
 ## Product objective
@@ -163,6 +163,11 @@ Modern events reopen their already persisted compact agent packet, validate its
 binding to the durable evidence packet, and resolve each selected fragment by a
 direct metadata lookup. They do not expand the corpus-wide `ReadReceipt` merely
 to draw a page. Legacy development events keep the strict full-packet fallback.
+
+Each visible evidence item separates the source title, a human-safe exact
+file/URI locator, and the fragment address. A title is not presented as the
+author or speaker, and the locator exposes only the final file/URI component,
+not a full local filesystem path.
 
 On the M1 PhD stress corpus (622 active sources and 263,363 exact fragments), a
 two-question process measured 56.887 s to prepare the cold scope, 72.647 s for

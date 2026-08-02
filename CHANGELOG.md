@@ -49,6 +49,10 @@ history belong in dated evaluation reports, not in the product changelog.
   fragments on later questions. Modern Session Lens events reopen compact
   command receipts and direct fragment metadata instead of reconstructing a
   corpus-wide `ReadReceipt` to render a page.
+- Session Lens now distinguishes the source title from the exact file/URI
+  locator. It no longer labels a book or file title as the person who asserted
+  the passage, and it never exposes a full local filesystem path in the human
+  view.
 
 - Simplified the research route to local FTS, bounded lexical expansion,
   conditional QueryCloud, exact proof admission, and deterministic evidence

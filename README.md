@@ -345,7 +345,7 @@ uv build
 ./scripts/acceptance.sh --quick
 ```
 
-For this update, the canonical local gate passed 2,643 tests with two
+For this update, the canonical local gate passed 2,647 tests with two
 host-dependent browser skips. Strict typing, zero terminology findings,
 95.01% branch-aware combined coverage, and the dependency audit also passed.
 Distribution closure verifies every schema migration through v13, the Lens

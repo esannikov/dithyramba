@@ -100,7 +100,7 @@ FINISH: Responsive, keyboard-readable, progressive technical disclosure, and exp
                         >
                           <span>{{ evidence.source_role }} · ранг {{ evidence.fragment.rank }}</span>
                           <strong>{{ evidence.source_title }}</strong>
-                          <small>{{ evidence.address_label }}</small>
+                          <small>{{ evidence.source_locator }} · {{ evidence.address_label }}</small>
                         </a>
                       {% endfor %}
                     </div>
@@ -130,9 +130,10 @@ FINISH: Responsive, keyboard-readable, progressive technical disclosure, and exp
         {% if selected %}
           <p class="inspector-status">Точна опора · не прийнята автоматично</p>
           <h2 id="source-title">{{ selected.source_title }}</h2>
-          <p class="source-role">Хто це стверджує: <strong>{{ selected.source_title }}</strong></p>
+          <p class="source-role">Джерело: <strong>{{ selected.source_title }}</strong></p>
           <dl class="source-facts">
             <div><dt>Роль</dt><dd>{{ selected.source_role }}</dd></div>
+            <div><dt>Точний файл / URI</dt><dd>{{ selected.source_locator }}</dd></div>
             <div><dt>Адреса</dt><dd>{{ selected.address_label }}</dd></div>
           </dl>
           <blockquote>{{ selected.fragment.text }}</blockquote>
