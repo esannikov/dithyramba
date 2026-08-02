@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import cast
 
@@ -17,6 +18,7 @@ from dithyramba.access import (
 )
 from dithyramba.api import create_session_lens_app
 from dithyramba.api.models import SourceChipResponse
+from dithyramba.api.services import PacketViewService
 from dithyramba.api.session_lens import (
     SessionLensWebConfig,
     _address_label,
@@ -31,8 +33,12 @@ from dithyramba.ingest.service import IngestService
 from dithyramba.interactive import AgentResearchFacade
 from dithyramba.library import LibraryConfig
 from dithyramba.persistence import initialize_library
+from dithyramba.persistence.sessions import (
+    RecallCommandCompletion,
+    SQLiteResearchSessionRepository,
+)
 from dithyramba.recall import EvidenceFragment, current_fts_runtime_profile
-from dithyramba.sessions import ResearchSessionBrief, SessionEventKind
+from dithyramba.sessions import ResearchSessionBrief, SessionEvent, SessionEventKind
 
 
 def _session_world(tmp_path: Path) -> tuple[str, Path, str, str, str]:
@@ -192,6 +198,92 @@ def test_session_lens_projection_is_stable_compact_and_get_only(tmp_path: Path) 
             == 404
         )
         assert fragment_id.startswith("fragment_")
+
+
+def test_session_lens_uses_compact_agent_packet_for_modern_turns(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client, _packet_id, _fragment_id = _client(tmp_path)
+
+    def reject_full_load(
+        _service: PacketViewService,
+        _packet_id: str,
+    ) -> object:
+        raise AssertionError("modern Session Lens must not expand the full ReadReceipt")
+
+    monkeypatch.setattr(PacketViewService, "load_packet", reject_full_load)
+    with client:
+        response = client.get("/")
+        assert response.status_code == 200
+        assert "Blocking changes the power relation" in response.text
+
+
+def test_session_lens_preserves_legacy_fallback(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client, _packet_id, _fragment_id = _client(tmp_path)
+    monkeypatch.setattr(
+        "dithyramba.persistence.sessions.SQLiteResearchSessionRepository."
+        "load_recall_completion_for_evidence_event",
+        lambda _repository, _event_id: None,
+    )
+    with client:
+        response = client.get("/")
+        assert response.status_code == 200
+        assert "Blocking changes the power relation" in response.text
+
+
+def test_session_lens_rejects_evidence_event_without_one_packet(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client, _packet_id, _fragment_id = _client(tmp_path)
+    original = SQLiteResearchSessionRepository.list_events
+
+    def without_packet(
+        repository: SQLiteResearchSessionRepository,
+        session_id: str,
+    ) -> tuple[SessionEvent, ...]:
+        return tuple(
+            event.model_copy(update={"artifact_refs": ()})
+            if event.kind is SessionEventKind.EVIDENCE_ATTACHED
+            else event
+            for event in original(repository, session_id)
+        )
+
+    monkeypatch.setattr(SQLiteResearchSessionRepository, "list_events", without_packet)
+    with client:
+        assert client.get("/").status_code == 404
+
+
+@pytest.mark.parametrize("failure", ["invalid_json", "stale_binding"])
+def test_session_lens_rejects_invalid_compact_completion(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    failure: str,
+) -> None:
+    client, _packet_id, _fragment_id = _client(tmp_path)
+    original = SQLiteResearchSessionRepository.load_recall_completion_for_evidence_event
+
+    def replacement(
+        repository: SQLiteResearchSessionRepository,
+        event_id: str,
+    ) -> RecallCommandCompletion | None:
+        completion = original(repository, event_id)
+        assert completion is not None
+        if failure == "invalid_json":
+            return replace(completion, agent_evidence_json="{}")
+        return replace(completion, evidence_packet_hash="b" * 64)
+
+    monkeypatch.setattr(
+        "dithyramba.persistence.sessions.SQLiteResearchSessionRepository."
+        "load_recall_completion_for_evidence_event",
+        replacement,
+    )
+    with client:
+        assert client.get("/").status_code == 404
 
 
 def test_session_lens_rejects_a_missing_session_at_startup(tmp_path: Path) -> None:

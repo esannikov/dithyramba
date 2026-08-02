@@ -43,12 +43,16 @@ Status: complete
   outside the agent facade;
 - [x] add command idempotency and partial-turn reconciliation through atomic
   question/completion receipts in the existing append-only outbox;
-- [x] pass the full repository gate after the session-cache, MCP, and Lens slice: 2,627
-  passed, 2 host/browser skips, branch-aware coverage 95.03%, Ruff and strict
+- [x] pass the full repository gate after the PhD-scale session and Lens repair: 2,643
+  passed, 2 host/browser skips, branch-aware coverage 95.01%, Ruff and strict
   MyPy green;
 - [x] reuse one process-local authorized read-set and FTS index for questions
   inside the same exact session scope;
 - [x] add a thin local stdio MCP adapter over the Python facade.
+- [x] expose human-readable source title/URI references beside every selected
+  fragment in `AgentEvidencePacket/1.1`, while retaining 1.0 replay support;
+- [x] validate the full immutable scope closure once per explicit live session
+  and revalidate selected stored fragments on each later completion;
 
 Exit condition: one agent can continue a session after restart without receiving
 the entire transcript or corpus.
@@ -61,6 +65,8 @@ Status: projection slice complete; mutation and review remain on existing human 
   paths into GET-only Session Lens;
 - [x] keep source names and exact text primary while hiding internal IDs under
   progressive technical disclosure;
+- [x] reopen modern Lens events from compact command receipts and direct
+  fragment metadata instead of reconstructing a corpus-wide `ReadReceipt`;
 - project pending candidate and human decision status into Lens after the
   existing review route is bound to a session;
 - reuse the existing meaning review sessions and append-only decisions;
@@ -92,6 +98,9 @@ laundering or silent corpus mutation.
   reopens, and 17/17 unchanged comparable top-10 result lists;
 - [x] measure warm-turn latency: 38.76 s versus 50.90 s first-turn mean, a
   23.85% reduction with zero model tokens;
+- [x] run the M1 PhD scale diagnostic: 622 sources / 263,363 fragments, second
+  same-session completion 13.557 s, and 24-fragment Lens projection
+  0.062–0.064 s with zero model tokens;
 - measure supported-answer rate, exact-source recovery, review burden, repeated
   search reduction, context size, and continuation after restart;
 - compare session memory against raw-file agent search under the same task set;

@@ -1798,6 +1798,46 @@ class LibraryRepository(AbstractContextManager["LibraryRepository"]):
             raise PersistenceIntegrityError("SourceFragment ordinals are not contiguous")
         return tuple(records)
 
+    def get_source_fragment(self, source_fragment_id: str) -> SourceFragmentRecord:
+        """Load exact fragment metadata without materializing its source version.
+
+        Fragment text remains behind the authorized read gate. This method is
+        intentionally metadata-only and keeps packet/view projections O(1) per
+        selected fragment instead of scanning every fragment in a large source.
+        """
+
+        row = self._store.connection.execute(
+            """
+            SELECT sf.source_fragment_id, sf.source_version_id, sf.ordinal,
+                   sf.fragment_kind, sf.text_sha256, sf.source_address_json,
+                   sf.address_hash
+            FROM source_fragments AS sf
+            JOIN source_versions AS sv
+              ON sv.source_version_id = sf.source_version_id
+            JOIN sources AS s ON s.source_id = sv.source_id
+            WHERE sf.source_fragment_id = ? AND s.library_id = ?
+            """,
+            (source_fragment_id, self.library_id),
+        ).fetchone()
+        if row is None:
+            raise SourceNotFoundError(
+                f"SourceFragment does not exist in Library {self.library_id}: {source_fragment_id}"
+            )
+        address_json = str(row[5])
+        address = _load_canonical_object(address_json, "SourceAddress")
+        address_hash = _validated_sha256(str(row[6]), "SourceAddress hash")
+        if canonical_sha256_hex(address) != address_hash:
+            raise PersistenceIntegrityError("persisted SourceAddress hash mismatch")
+        return SourceFragmentRecord(
+            source_fragment_id=str(row[0]),
+            source_version_id=str(row[1]),
+            ordinal=int(row[2]),
+            fragment_kind=str(row[3]),
+            text_sha256=_validated_sha256(str(row[4]), "fragment text hash"),
+            source_address_json=address_json,
+            address_hash=address_hash,
+        )
+
     def freeze_snapshot(self, collection_ids: Iterable[str]) -> CorpusSnapshot:
         """Freeze the exact current heads for a validated Collection scope.
 

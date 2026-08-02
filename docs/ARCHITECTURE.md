@@ -226,10 +226,12 @@ MCP transport, and GET-only Session Lens are implemented. Migration
 0013 persists the immutable session receipt and typed hash-chained events,
 validates exact artifact closure, and rebuilds compact state after a cold reopen.
 The facade and MCP return compact journal state separately from the current
-exact evidence projection and do not expose acceptance, operator decisions, or
-closure. Session Lens renders the brief, chronological journal, gaps, drafts,
-rejected paths, and exact packet-backed passages without becoming another truth
-store. See
+exact evidence projection. `AgentEvidencePacket/1.1` pairs every selected exact
+fragment with a human-readable source title/URI and immutable source identity;
+it still omits the materialized corpus-wide read manifest. Neither surface
+exposes acceptance, operator decisions, or closure. Session Lens renders the
+brief, chronological journal, gaps, drafts, rejected paths, and exact
+packet-backed passages without becoming another truth store. See
 [the 0.2 specification](INTERACTIVE_RESEARCH_MEMORY_SPEC.md) and
 [roadmap](ROADMAP_0.2.md).
 
@@ -249,12 +251,16 @@ The cache is an expendable capability, not durable memory:
 - it stores no new source authority or ranking truth;
 - every question still receives an independent `QueryRequest`, ProcessingRun,
   `ReadReceipt`, `EvidencePacket`, and session event;
+- the first completion fully validates the immutable shared read set; later
+  questions may reuse only the explicit process-local scope capability and
+  revalidate every selected fragment before commit;
 - a restart simply rebuilds it from the immutable source and policy record.
 
-The Mars multi-session screen measured a 23.85% mean warm-turn reduction on
-53,747 normalized fragments. The remaining time is dominated by assembling and
-transactionally storing the full audit packet, so the cache is not described as
-instant query response.
+The M1 PhD stress corpus measured 56.887 s to prepare 263,363 permitted
+fragments, 72.647 s for the first strict completion, and 13.557 s for a second
+question in the same session. This does not make cold startup instant; it makes
+repeated work proportional to the bounded query and selected proof instead of
+revalidating the full corpus closure on every turn.
 
 ### Agent and human adapters
 
@@ -268,6 +274,12 @@ The MCP server implements protocol lifecycle, `tools/list`, and `tools/call`
 without duplicating research logic. It exposes `open_session`, `recall`,
 `session_context`, `record_draft`, `record_gap`, and `reject_path`. It does not
 expose candidate acceptance, human decisions, promotion, or closure.
+
+Modern Session Lens events reuse the compact command receipt and direct
+fragment metadata lookup. Full packet reconstruction remains available for
+audit and as a legacy fallback, but it is no longer part of ordinary page
+rendering. On the same M1 corpus, a 24-fragment session projection measured
+0.062–0.064 s with a stable hash and zero model calls.
 
 ## Storage model
 

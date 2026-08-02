@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import ClassVar, Self, TypeVar
+from typing import ClassVar, Literal, Self, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, model_validator
 
@@ -209,10 +209,24 @@ class AgentSessionContext(_InteractiveModel):
         )
 
 
+class AgentSourceReference(_InteractiveModel):
+    """Human-readable source identity paired with one selected fragment."""
+
+    source_fragment_id: str
+    source_version_id: str
+    source_id: str
+    source_family_id: str
+    root_source_id: str
+    family_role: Literal["root", "derivative", "duplicate"]
+    title: str | None
+    canonical_uri: str
+
+
 class AgentEvidencePacket(_InteractiveModel):
     """Least-context projection of a full, locally retained EvidencePacket."""
 
-    SCHEMA: ClassVar[str] = "dithyramba.agent_evidence_packet/1.0"
+    SCHEMA: ClassVar[str] = "dithyramba.agent_evidence_packet/1.1"
+    LEGACY_SCHEMA: ClassVar[str] = "dithyramba.agent_evidence_packet/1.0"
 
     schema_id: str
     projection_hash: str = Field(pattern=_HASH_PATTERN)
@@ -224,6 +238,7 @@ class AgentEvidencePacket(_InteractiveModel):
     corpus_snapshot_hash: str = Field(pattern=_HASH_PATTERN)
     result_status: PacketResultStatus
     source_fragments: tuple[EvidenceFragment, ...]
+    source_references: tuple[AgentSourceReference, ...] = ()
     coverage_report_id: str
     coverage_report_hash: str = Field(pattern=_HASH_PATTERN)
     processed_count: int = Field(ge=0)
@@ -249,8 +264,8 @@ class AgentEvidencePacket(_InteractiveModel):
 
     @model_validator(mode="after")
     def validate_identity(self) -> Self:
-        if self.schema_id != self.SCHEMA:
-            raise ValueError(f"schema_id must be {self.SCHEMA}")
+        if self.schema_id not in (self.SCHEMA, self.LEGACY_SCHEMA):
+            raise ValueError(f"schema_id must be {self.SCHEMA} or {self.LEGACY_SCHEMA}")
         if self.projection_hash != canonical_sha256_hex(self.semantic_payload()):
             raise ValueError("projection_hash does not match the agent evidence packet")
         has_evidence = bool(self.source_fragments)
@@ -258,10 +273,21 @@ class AgentEvidencePacket(_InteractiveModel):
             raise ValueError("result_status must match projected source fragments")
         if self.retrieval_selected_count != len(self.source_fragments):
             raise ValueError("retrieval_selected_count must match projected fragments")
+        if self.schema_id == self.LEGACY_SCHEMA:
+            if self.source_references:
+                raise ValueError("legacy agent evidence cannot contain source references")
+        elif tuple(
+            (item.source_fragment_id, item.source_version_id, item.source_family_id)
+            for item in self.source_references
+        ) != tuple(
+            (item.source_fragment_id, item.source_version_id, item.source_family_id)
+            for item in self.source_fragments
+        ):
+            raise ValueError("source references must exactly match projected fragments")
         return self
 
     def semantic_payload(self) -> dict[str, object]:
-        return {
+        payload: dict[str, object] = {
             "schema_id": self.schema_id,
             "evidence_packet_id": self.evidence_packet_id,
             "evidence_packet_hash": self.evidence_packet_hash,
@@ -293,13 +319,25 @@ class AgentEvidencePacket(_InteractiveModel):
                 "retrieval_receipt_hash": self.retrieval_receipt_hash,
             },
         }
+        if self.schema_id == self.SCHEMA:
+            payload["source_references"] = [
+                item.model_dump(mode="json") for item in self.source_references
+            ]
+        return payload
 
     @classmethod
-    def create(cls, packet: EvidencePacket) -> AgentEvidencePacket:
+    def create(
+        cls,
+        packet: EvidencePacket,
+        *,
+        source_references: tuple[AgentSourceReference, ...] | None = None,
+    ) -> AgentEvidencePacket:
         if type(packet) is not EvidencePacket:
             raise TypeError("AgentEvidencePacket requires an exact EvidencePacket")
+        selected_schema = cls.LEGACY_SCHEMA if source_references is None else cls.SCHEMA
+        selected_references = source_references or ()
         semantic: dict[str, object] = {
-            "schema_id": cls.SCHEMA,
+            "schema_id": selected_schema,
             "evidence_packet_id": packet.evidence_packet_id,
             "evidence_packet_hash": packet.packet_hash,
             "query_request_id": packet.query_request_id,
@@ -330,8 +368,12 @@ class AgentEvidencePacket(_InteractiveModel):
                 "retrieval_receipt_hash": packet.retrieval_receipt.receipt_hash,
             },
         }
+        if selected_schema == cls.SCHEMA:
+            semantic["source_references"] = [
+                item.model_dump(mode="json") for item in selected_references
+            ]
         return cls(
-            schema_id=cls.SCHEMA,
+            schema_id=selected_schema,
             projection_hash=canonical_sha256_hex(semantic),
             evidence_packet_id=packet.evidence_packet_id,
             evidence_packet_hash=packet.packet_hash,
@@ -341,6 +383,7 @@ class AgentEvidencePacket(_InteractiveModel):
             corpus_snapshot_hash=packet.corpus_snapshot_hash,
             result_status=packet.result_status,
             source_fragments=packet.source_fragments,
+            source_references=selected_references,
             coverage_report_id=packet.coverage_report.coverage_report_id,
             coverage_report_hash=packet.coverage_report.report_hash,
             processed_count=packet.coverage_report.processed_count,

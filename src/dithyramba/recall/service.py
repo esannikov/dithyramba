@@ -157,6 +157,7 @@ class RecallScopeSession:
         self._prepared = prepared
         self._fts_session = fts_session
         self._search_count = 0
+        self._completion_capability = object()
 
     @property
     def closed(self) -> bool:
@@ -297,6 +298,19 @@ class _AtomicRecallBatchBackend(Protocol):
         *,
         completions: tuple[tuple[str, EvidencePacket], ...],
     ) -> tuple[tuple[ProcessingRunRecord, EvidencePacket], ...]: ...
+
+
+@runtime_checkable
+class _ScopedRecallCompletionBackend(Protocol):
+    """Optional backend seam for reusing one fully validated scope in-process."""
+
+    def complete_scoped_recall_run(
+        self,
+        *,
+        processing_run_id: str,
+        packet: EvidencePacket,
+        scope_capability: object,
+    ) -> tuple[ProcessingRunRecord, EvidencePacket]: ...
 
 
 class RecallService:
@@ -677,10 +691,19 @@ class RecallService:
                         "replay did not reproduce the original EvidencePacket"
                     )
                 try:
-                    completion = self._backend.complete_recall_run(
-                        processing_run_id=lifecycle.processing_run_id,
-                        packet=packet,
-                    )
+                    if scope_session is not None and isinstance(
+                        self._backend, _ScopedRecallCompletionBackend
+                    ):
+                        completion = self._backend.complete_scoped_recall_run(
+                            processing_run_id=lifecycle.processing_run_id,
+                            packet=packet,
+                            scope_capability=scope_session._completion_capability,
+                        )
+                    else:
+                        completion = self._backend.complete_recall_run(
+                            processing_run_id=lifecycle.processing_run_id,
+                            packet=packet,
+                        )
                 except Exception as error:
                     raise RecallPersistenceError(
                         "recall artifacts could not be atomically persisted"

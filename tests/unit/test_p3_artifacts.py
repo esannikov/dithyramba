@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from pydantic import ValidationError
@@ -660,6 +660,21 @@ def test_empty_packet_returns_no_evidence_without_invented_text() -> None:
     )
     assert packet.source_fragments == ()
     assert packet.semantic_payload()["result_status"] == "no_evidence"
+
+
+def test_packet_and_receipt_validators_reject_noncanonical_dependency_objects() -> None:
+    with pytest.raises(ArtifactContractError, match="RetrievalTraceItem"):
+        RetrievalReceipt._trace(cast(Any, (object(),)))
+    with pytest.raises(ArtifactContractError, match="RecallOmission"):
+        RecallCoverageReport._omissions(cast(Any, (object(),)))
+    with pytest.raises(ArtifactContractError, match="RecallCoverageReport"):
+        EvidencePacket._coverage_report(cast(Any, object()))
+    with pytest.raises(ArtifactContractError, match="ReadReceipt"):
+        EvidencePacket._read_receipt(cast(Any, object()))
+    with pytest.raises(ArtifactContractError, match="AccessReceipt"):
+        EvidencePacket._access_receipt(cast(Any, object()))
+    with pytest.raises(ArtifactContractError, match="RetrievalReceipt"):
+        EvidencePacket._retrieval_receipt(cast(Any, object()))
 
 
 def test_empty_corpus_no_evidence_packet_has_closed_zero_counts_and_canonical_bytes() -> None:

@@ -5,6 +5,7 @@ from .models import (
     AgentEvidencePacket,
     AgentResearchTurn,
     AgentSessionContext,
+    AgentSourceReference,
     SessionContextBudget,
     SessionContextOmissions,
 )
@@ -16,6 +17,7 @@ __all__ = [
     "AgentResearchFacade",
     "AgentResearchTurn",
     "AgentSessionContext",
+    "AgentSourceReference",
     "SessionContextBudget",
     "SessionContextOmissions",
 ]

@@ -16,6 +16,8 @@ history belong in dated evaluation reports, not in the product changelog.
   with six bounded research tools and no human acceptance or promotion tool.
 - GET-only Session Lens for briefs, chronological questions, packet-backed
   evidence, drafts, gaps, rejected paths, and exact source inspection.
+- `AgentEvidencePacket/1.1` human-readable source references beside every exact
+  selected fragment, with replay support for 1.0 development receipts.
 
 - `AnswerProjection/1.0` and `PropositionCoverageGate`: an optional
   display-governance layer that partitions the exact final answer into facts,
@@ -42,6 +44,11 @@ history belong in dated evaluation reports, not in the product changelog.
   cold reopens with zero model tokens. Automatic relation-aware repair remains
   out of production after a one-case challenger repaired only one of two query
   variants.
+- Large-scope session completion now validates the shared immutable corpus
+  closure once per explicit live scope and revalidates selected stored
+  fragments on later questions. Modern Session Lens events reopen compact
+  command receipts and direct fragment metadata instead of reconstructing a
+  corpus-wide `ReadReceipt` to render a page.
 
 - Simplified the research route to local FTS, bounded lexical expansion,
   conditional QueryCloud, exact proof admission, and deterministic evidence

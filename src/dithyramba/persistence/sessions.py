@@ -37,6 +37,7 @@ from .repository import LibraryRepository, _insert_outbox_event
 _COMMAND_STARTED = "research_session.recall_command_started"
 _COMMAND_COMPLETED = "research_session.recall_command_completed"
 _COMMAND_ID_PATTERN = re.compile(r"^command_[a-z0-9]+(?:_[a-z0-9]+)*$")
+_EVENT_ID_PATTERN = re.compile(r"^session_event_[0-9a-f]{32}$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -402,22 +403,56 @@ class SQLiteResearchSessionRepository:
         )
         if payload is None:
             return None
+        return _completion_from_payload(payload)
+
+    def load_recall_completion_for_evidence_event(
+        self,
+        evidence_event_id: str,
+    ) -> RecallCommandCompletion | None:
+        """Resolve the compact command receipt attached to one evidence event.
+
+        Modern interactive turns persist the exact agent projection in the
+        outbox receipt. Session Lens can therefore show selected evidence
+        without reconstructing the corpus-wide ReadReceipt for every event.
+        """
+
+        if (
+            type(evidence_event_id) is not str
+            or _EVENT_ID_PATTERN.fullmatch(evidence_event_id) is None
+        ):
+            raise ResearchSessionPersistenceError("evidence event ID is invalid")
         try:
-            return RecallCommandCompletion(
-                command_id=_payload_text(payload, "command_id"),
-                command_hash=_payload_text(payload, "command_hash"),
-                question_event_id=_payload_text(payload, "question_event_id"),
-                evidence_event_id=_payload_text(payload, "evidence_event_id"),
-                evidence_packet_id=_payload_text(payload, "evidence_packet_id"),
-                evidence_packet_hash=_payload_text(payload, "evidence_packet_hash"),
-                agent_evidence_json=_payload_optional_text(payload, "agent_evidence_json"),
-                context_json=_payload_text(payload, "context_json"),
-                turn_hash=_payload_text(payload, "turn_hash"),
-            )
-        except (TypeError, ValueError) as exc:
+            rows = self._repository._store.connection.execute(
+                """
+                SELECT payload_json, payload_hash
+                FROM event_outbox
+                WHERE event_type = ? AND aggregate_type = 'recall_command'
+                  AND json_extract(payload_json, '$.evidence_event_id') = ?
+                ORDER BY occurred_at, event_id
+                """,
+                (_COMMAND_COMPLETED, evidence_event_id),
+            ).fetchall()
+        except sqlite3.DatabaseError as exc:
             raise ResearchSessionPersistenceError(
-                "persisted recall command completion is invalid"
+                "recall command completion index is unreadable"
             ) from exc
+        if not rows:
+            return None
+        if len(rows) != 1:
+            raise ResearchSessionPersistenceError(
+                "evidence event has more than one immutable recall completion"
+            )
+        payload = _validated_outbox_payload(
+            str(rows[0][0]),
+            str(rows[0][1]),
+            label="recall command completion",
+        )
+        completion = _completion_from_payload(payload)
+        if completion.evidence_event_id != evidence_event_id:
+            raise ResearchSessionPersistenceError(
+                "recall command completion resolves another evidence event"
+            )
+        return completion
 
     def _load_command_start(
         self,
@@ -476,22 +511,11 @@ class SQLiteResearchSessionRepository:
             raise ResearchSessionPersistenceError(
                 "recall command has more than one immutable receipt"
             )
-        raw_json = str(rows[0][0])
-        try:
-            value = json.loads(raw_json)
-        except json.JSONDecodeError as exc:
-            raise ResearchSessionPersistenceError(
-                "recall command receipt is not valid JSON"
-            ) from exc
-        if (
-            not isinstance(value, dict)
-            or canonical_json_bytes(value).decode("utf-8") != raw_json
-            or canonical_sha256_hex(value) != str(rows[0][1])
-        ):
-            raise ResearchSessionPersistenceError(
-                "recall command receipt is not canonical or its hash drifted"
-            )
-        return value
+        return _validated_outbox_payload(
+            str(rows[0][0]),
+            str(rows[0][1]),
+            label="recall command receipt",
+        )
 
     def _insert_event(
         self,
@@ -606,12 +630,12 @@ class SQLiteResearchSessionRepository:
                 continue
             if reference.artifact_kind is SessionArtifactKind.EVIDENCE_PACKET:
                 try:
-                    packet = recall.load_evidence_packet(reference.artifact_id)
-                    request = recall.load_query_request(packet.query_request_id)
+                    binding = recall.load_evidence_packet_binding(reference.artifact_id)
+                    request = binding.query_request
                 except (PersistenceError, ValueError, sqlite3.DatabaseError) as exc:
                     raise _artifact_error(reference) from exc
                 if (
-                    packet.packet_hash != reference.artifact_hash
+                    binding.packet_hash != reference.artifact_hash
                     or request.library_id != session.library_id
                     or request.corpus_snapshot_id != session.corpus_snapshot_id
                     or request.access_policy_id != session.access_policy_id
@@ -794,6 +818,44 @@ def _canonical_json_text(value: str, label: str) -> str:
     if canonical_json_bytes(decoded).decode("utf-8") != value:
         raise ResearchSessionPersistenceError(f"{label} must be canonical JSON")
     return value
+
+
+def _validated_outbox_payload(
+    raw_json: str,
+    payload_hash: str,
+    *,
+    label: str,
+) -> dict[str, object]:
+    try:
+        value = json.loads(raw_json)
+    except json.JSONDecodeError as exc:
+        raise ResearchSessionPersistenceError(f"{label} is not valid JSON") from exc
+    if (
+        not isinstance(value, dict)
+        or canonical_json_bytes(value).decode("utf-8") != raw_json
+        or canonical_sha256_hex(value) != payload_hash
+    ):
+        raise ResearchSessionPersistenceError(f"{label} is not canonical or its hash drifted")
+    return value
+
+
+def _completion_from_payload(payload: dict[str, object]) -> RecallCommandCompletion:
+    try:
+        return RecallCommandCompletion(
+            command_id=_payload_text(payload, "command_id"),
+            command_hash=_payload_text(payload, "command_hash"),
+            question_event_id=_payload_text(payload, "question_event_id"),
+            evidence_event_id=_payload_text(payload, "evidence_event_id"),
+            evidence_packet_id=_payload_text(payload, "evidence_packet_id"),
+            evidence_packet_hash=_payload_text(payload, "evidence_packet_hash"),
+            agent_evidence_json=_payload_optional_text(payload, "agent_evidence_json"),
+            context_json=_payload_text(payload, "context_json"),
+            turn_hash=_payload_text(payload, "turn_hash"),
+        )
+    except (TypeError, ValueError) as exc:
+        raise ResearchSessionPersistenceError(
+            "persisted recall command completion is invalid"
+        ) from exc
 
 
 def _require_same_command(

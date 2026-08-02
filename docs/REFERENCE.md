@@ -187,6 +187,19 @@ not create a compatibility promise beyond the declared `0.1.x` preview.
 | `ResearchSession` | `dithyramba.research_session/1.0` | immutable Library/snapshot/policy scope |
 | `SessionEvent` | `dithyramba.session_event/1.0` | typed append-only research-journal step |
 
+Interactive transport adds two compact, derived schemas rather than changing
+the durable `EvidencePacket/1.0`:
+
+| View | Schema | Boundary |
+|---|---|---|
+| `AgentSessionContext` | `dithyramba.agent_session_context/1.0` | bounded recent journal state plus explicit omission counts |
+| `AgentEvidencePacket` | `dithyramba.agent_evidence_packet/1.1` | selected exact fragments, readable source references, coverage, and IDs/hashes of the full audit receipts |
+
+`AgentEvidencePacket/1.0` remains readable for development-session replay. It
+lacks the 1.1 source-reference list but preserves the selected exact fragments
+and provenance hashes. The full materialized `ReadReceipt` stays local in both
+versions and is reopened only through the strict audit route.
+
 Schema v10 added an internal append-only `CorpusReadSet`: one exact protected
 fragment manifest can be shared by several recall requests over the same
 Library, snapshot, policy, Collections, and purpose. Public `ReadReceipt/1.0`

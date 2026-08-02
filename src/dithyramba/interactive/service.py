@@ -15,6 +15,7 @@ from dithyramba.persistence import (
 from dithyramba.persistence.recall import SQLiteRecallBackend
 from dithyramba.persistence.sessions import RecallCommandCompletion
 from dithyramba.recall import (
+    EvidenceFragment,
     QueryRequest,
     RecallScopeSession,
     RecallScopeSessionStats,
@@ -37,6 +38,7 @@ from .models import (
     AgentEvidencePacket,
     AgentResearchTurn,
     AgentSessionContext,
+    AgentSourceReference,
     SessionContextBudget,
 )
 
@@ -198,7 +200,10 @@ class AgentResearchFacade:
             state=state,
             budget=self._context_budget,
         )
-        agent_evidence = AgentEvidencePacket.create(packet)
+        agent_evidence = AgentEvidencePacket.create(
+            packet,
+            source_references=self._source_references(packet.source_fragments),
+        )
         turn = AgentResearchTurn.create(
             command_id=command_id,
             question_event_id=start.question_event.event_id,
@@ -369,6 +374,35 @@ class AgentResearchFacade:
         if turn.turn_hash != completion.turn_hash:
             raise AgentResearchError("completed recall turn hash drifted")
         return turn
+
+    def _source_references(
+        self,
+        fragments: tuple[EvidenceFragment, ...],
+    ) -> tuple[AgentSourceReference, ...]:
+        references: list[AgentSourceReference] = []
+        for fragment in fragments:
+            if type(fragment) is not EvidenceFragment:
+                raise AgentResearchError("agent evidence contains an invalid fragment")
+            source_version = self._repository.get_source_version(fragment.source_version_id)
+            source = self._repository.get_source(source_version.source_id)
+            if (
+                fragment.source_family_id is not None
+                and fragment.source_family_id != source.source_family_id
+            ):
+                raise AgentResearchError("agent evidence source lineage drifted")
+            references.append(
+                AgentSourceReference(
+                    source_fragment_id=fragment.source_fragment_id,
+                    source_version_id=fragment.source_version_id,
+                    source_id=source.source_id,
+                    source_family_id=source.source_family_id,
+                    root_source_id=source.root_source_id,
+                    family_role=source.family_role.value,
+                    title=source.title,
+                    canonical_uri=source.canonical_uri,
+                )
+            )
+        return tuple(references)
 
     def _timestamp(self) -> str:
         value = self._clock()

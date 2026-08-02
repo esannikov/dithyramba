@@ -12,9 +12,11 @@ from urllib.parse import urlencode
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import HTMLResponse, Response
 from jinja2 import Environment, PackageLoader, StrictUndefined, select_autoescape
+from pydantic import ValidationError
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from dithyramba.contracts import canonical_json_bytes, canonical_sha256_hex
+from dithyramba.interactive.models import AgentEvidencePacket
 from dithyramba.persistence import (
     LibraryRepository,
     ResearchSessionNotFoundError,
@@ -242,15 +244,41 @@ def _project(
             )
             if len(packet_refs) != 1:
                 raise ViewerNotFoundError("session evidence event has no exact packet")
-            packet_projection = packets.load_packet(packet_refs[0].artifact_id)
+            packet_reference = packet_refs[0]
+            completion = sessions.load_recall_completion_for_evidence_event(event.event_id)
+            if completion is not None and completion.agent_evidence_json is not None:
+                try:
+                    agent_packet = AgentEvidencePacket.model_validate_json(
+                        completion.agent_evidence_json
+                    )
+                except ValidationError as error:
+                    raise ViewerNotFoundError(
+                        "session agent evidence projection is invalid"
+                    ) from error
+                if (
+                    completion.evidence_packet_id != packet_reference.artifact_id
+                    or completion.evidence_packet_hash != packet_reference.artifact_hash
+                    or agent_packet.evidence_packet_id != packet_reference.artifact_id
+                    or agent_packet.evidence_packet_hash != packet_reference.artifact_hash
+                ):
+                    raise ViewerNotFoundError("session evidence event has a stale compact packet")
+                agent_projection = packets.load_agent_packet(agent_packet)
+                source_fragments = agent_projection.packet.source_fragments
+                source_chips = agent_projection.source_chips
+            else:
+                # Pre-1.1 interactive events have no compact persisted projection.
+                # Preserve exact replay for those legacy journals only.
+                full_projection = packets.load_packet(packet_reference.artifact_id)
+                source_fragments = full_projection.packet.source_fragments
+                source_chips = full_projection.source_chips
             for fragment, chip in zip(
-                packet_projection.packet.source_fragments,
-                packet_projection.source_chips,
+                source_fragments,
+                source_chips,
                 strict=True,
             ):
                 source = repository.get_source(chip.source_id)
                 item = _EvidenceView(
-                    packet_id=packet_projection.packet.evidence_packet_id,
+                    packet_id=packet_reference.artifact_id,
                     fragment=fragment,
                     chip=chip,
                     source_title=source.title or source.canonical_uri,
@@ -259,7 +287,7 @@ def _project(
                     selection_url="/?"
                     + urlencode(
                         {
-                            "packet": packet_projection.packet.evidence_packet_id,
+                            "packet": packet_reference.artifact_id,
                             "fragment": fragment.source_fragment_id,
                         }
                     ),

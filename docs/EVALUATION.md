@@ -357,11 +357,11 @@ the exact proof was already present deeper in a bounded union.
 
 ## Engineering verification
 
-The current 0.2 development candidate collects 2,627 engineering tests. In its
+The current 0.2 development candidate collects 2,645 engineering tests. In its
 canonical local gate:
 
-- 2,627 passed with two host-dependent browser skips;
-- branch-aware combined coverage was `95.03%` at a strict `95.00%` gate;
+- 2,643 passed with two host-dependent browser skips;
+- branch-aware combined coverage was `95.01%` at a strict `95.00%` gate;
 - terminology, format, lint, and strict typing passed;
 - the dependency audit found no known vulnerabilities;
 - a separate sdist-to-wheel closure installed non-editably in isolated Python
