@@ -340,6 +340,7 @@ def _project(
                         "text_sha256": evidence.fragment.text_sha256,
                         "rank": evidence.fragment.rank,
                         "source_title": evidence.source_title,
+                        "source_locator": evidence.source_locator,
                         "source_role": evidence.source_role,
                         "address": evidence.fragment.source_address.payload(),
                     }
@@ -420,6 +421,16 @@ def _source_locator(canonical_uri: str) -> str:
     parsed = urlparse(canonical_uri)
     if parsed.scheme and parsed.scheme not in {"file", "http", "https"}:
         return canonical_uri
+    if parsed.scheme in {"http", "https"}:
+        host = parsed.hostname or ""
+        try:
+            port = parsed.port
+        except ValueError:
+            port = None
+        authority = host if port is None else f"{host}:{port}"
+        path = unquote(parsed.path)
+        if authority:
+            return f"{parsed.scheme}://{authority}{path}"
     path_name = Path(unquote(parsed.path)).name
     if path_name:
         return path_name

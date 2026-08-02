@@ -166,8 +166,10 @@ to draw a page. Legacy development events keep the strict full-packet fallback.
 
 Each visible evidence item separates the source title, a human-safe exact
 file/URI locator, and the fragment address. A title is not presented as the
-author or speaker, and the locator exposes only the final file/URI component,
-not a full local filesystem path.
+author or speaker. A local file locator exposes only the final filename; a web
+locator keeps the scheme, host, port, and path while omitting credentials,
+query strings, and fragments. The same safe locator is included in the stable
+JSON projection.
 
 On the M1 PhD stress corpus (622 active sources and 263,363 exact fragments), a
 two-question process measured 56.887 s to prepare the cold scope, 72.647 s for

@@ -52,7 +52,9 @@ history belong in dated evaluation reports, not in the product changelog.
 - Session Lens now distinguishes the source title from the exact file/URI
   locator. It no longer labels a book or file title as the person who asserted
   the passage, and it never exposes a full local filesystem path in the human
-  view.
+  view. The same safe locator is now present in the stable JSON projection;
+  web locators retain their host and path while credentials, query strings,
+  and fragments stay hidden.
 
 - Simplified the research route to local FTS, bounded lexical expansion,
   conditional QueryCloud, exact proof admission, and deterministic evidence

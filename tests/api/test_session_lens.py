@@ -174,6 +174,7 @@ def test_session_lens_projection_is_stable_compact_and_get_only(tmp_path: Path) 
         assert first.headers["etag"] == second.headers["etag"]
         assert first.json()["schema"] == "dithyramba.session_lens_projection/1.0"
         assert first.json()["projection_hash"] in first.headers["etag"]
+        assert first.json()["journal"][1]["evidence"][0]["source_locator"] == "craft.md"
         assert "Blocking changes the power relation" not in first.text
         assert styles.status_code == 200
         assert "@media (max-width: 55rem)" in styles.text
@@ -208,8 +209,14 @@ def test_session_lens_projection_is_stable_compact_and_get_only(tmp_path: Path) 
     ("canonical_uri", "expected"),
     [
         ("file:///research/corpus/Exact%20Source.pdf", "Exact Source.pdf"),
-        ("https://example.org/archive/item-42", "item-42"),
-        ("https://example.org", "example.org"),
+        (
+            "https://reader:secret@example.org:8443/archive/item-42?token=private#page=5",
+            "https://example.org:8443/archive/item-42",
+        ),
+        ("https://example.org:invalid/archive/item-42", "https://example.org/archive/item-42"),
+        ("https://example.org", "https://example.org"),
+        ("https:///archive/item-42", "item-42"),
+        ("file://", "file://"),
         ("urn:isbn:9780000000000", "urn:isbn:9780000000000"),
     ],
 )
