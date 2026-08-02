@@ -54,7 +54,8 @@ history belong in dated evaluation reports, not in the product changelog.
   the passage, and it never exposes a full local filesystem path in the human
   view. The same safe locator is now present in the stable JSON projection;
   web locators retain their host and path while credentials, query strings,
-  and fragments stay hidden.
+  and fragments stay hidden. A source without a stored title falls back to
+  this safe locator instead of exposing its raw canonical URI.
 
 - Simplified the research route to local FTS, bounded lexical expansion,
   conditional QueryCloud, exact proof admission, and deterministic evidence

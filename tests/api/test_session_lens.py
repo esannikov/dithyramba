@@ -26,6 +26,7 @@ from dithyramba.api.session_lens import (
     _Runtime,
     _source_locator,
     _source_role,
+    _source_title,
 )
 from dithyramba.cli import app
 from dithyramba.collections import CollectionConfig, CollectionKind, build_collection_root
@@ -225,6 +226,21 @@ def test_source_locator_is_readable_without_a_full_local_path(
     expected: str,
 ) -> None:
     assert _source_locator(canonical_uri) == expected
+
+
+@pytest.mark.parametrize(
+    ("title", "safe_locator", "expected"),
+    [
+        ("The Visible Source", "Source.pdf", "The Visible Source"),
+        (None, "Source.pdf", "Source.pdf"),
+    ],
+)
+def test_source_title_never_falls_back_to_a_private_uri(
+    title: str | None,
+    safe_locator: str,
+    expected: str,
+) -> None:
+    assert _source_title(title, safe_locator) == expected
 
 
 def test_session_lens_uses_compact_agent_packet_for_modern_turns(

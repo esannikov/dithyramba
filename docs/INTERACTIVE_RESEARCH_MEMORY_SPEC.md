@@ -169,7 +169,8 @@ file/URI locator, and the fragment address. A title is not presented as the
 author or speaker. A local file locator exposes only the final filename; a web
 locator keeps the scheme, host, port, and path while omitting credentials,
 query strings, and fragments. The same safe locator is included in the stable
-JSON projection.
+JSON projection. If the Source has no stored title, the human label falls back
+to this locator rather than the raw canonical URI.
 
 On the M1 PhD stress corpus (622 active sources and 263,363 exact fragments), a
 two-question process measured 56.887 s to prepare the cold scope, 72.647 s for

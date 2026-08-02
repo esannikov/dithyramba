@@ -278,12 +278,13 @@ def _project(
                 strict=True,
             ):
                 source = repository.get_source(chip.source_id)
+                source_locator = _source_locator(source.canonical_uri)
                 item = _EvidenceView(
                     packet_id=packet_reference.artifact_id,
                     fragment=fragment,
                     chip=chip,
-                    source_title=source.title or source.canonical_uri,
-                    source_locator=_source_locator(source.canonical_uri),
+                    source_title=_source_title(source.title, source_locator),
+                    source_locator=source_locator,
                     source_role=_source_role(chip),
                     address_label=_address_label(fragment),
                     selection_url="/?"
@@ -413,6 +414,12 @@ def _source_role(chip: SourceChipResponse) -> str:
         "derivative": "похідна версія",
         "duplicate": "дублікат перевіреного джерела",
     }.get(chip.family_role, chip.family_role)
+
+
+def _source_title(title: str | None, safe_locator: str) -> str:
+    """Return a human label without falling back to a private canonical URI."""
+
+    return title or safe_locator
 
 
 def _source_locator(canonical_uri: str) -> str:
