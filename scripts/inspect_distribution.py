@@ -277,8 +277,7 @@ def _assert_runtime_closure(package: dict[str, bytes]) -> None:
     }
     if packaged_sql != {V1_SCHEMA}:
         raise RuntimeError(
-            "distribution SQL differs from the one-baseline v1 contract: "
-            f"{sorted(packaged_sql)!r}"
+            f"distribution SQL differs from the one-baseline v1 contract: {sorted(packaged_sql)!r}"
         )
 
 
