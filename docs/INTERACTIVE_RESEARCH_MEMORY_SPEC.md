@@ -8,7 +8,9 @@ Status: Session Spine, durable store, scoped cache, least-context agent
 transport, human-readable source references, stdio MCP, and compact GET-only
 Session Lens implemented in the 0.2 development candidate
 
-Base: `0.1.0rc1` plus proposition-level answer governance and schema v13
+Historical base: `0.1.0rc1` plus proposition-level answer governance and the
+then-current schema-v13 migration. The clean v1 package collapses retained
+tables into one reviewed baseline.
 
 Implemented slices: session contracts, deterministic replay, SQLite persistence,
 idempotent recall commands, compact evidence projection, reusable process-local

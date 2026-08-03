@@ -393,13 +393,77 @@ interactive `EvidenceCoverageGate` binding. Reviewed cross-format source
 identity and human calibration remain open; the engineering checks below do
 not substitute for that research-quality review.
 
+## M1 PhD clean v1 rebuild
+
+The old M1 Libraries and rebuildable caches were removed under explicit owner
+authorization. The source corpus remained read-only. A new v1 Library was then
+built from 829 supported physical PDF, Markdown, and text inputs distributed
+across five Collections.
+
+| Measure | Result |
+|---|---:|
+| Collection entries discovered / processed | 849 / 836 |
+| Unique sources / versions / families | 816 / 816 / 816 |
+| Exact source fragments | 276,165 |
+| Cold ingest | 2,882.42 s (48:02) |
+| Unchanged five-Collection repeat | 39.62 s |
+| New versions / fragments on repeat | 0 / 0 |
+| Corpus omissions | 8 no-text, 4 encrypted, 1 invalid PDF signature |
+| Doctor | schema 1, FTS5 available, no external service, `ok` |
+| Model calls / tokens | 0 / 0 |
+
+The rebuild exposed five general ingest defects rather than one corpus-specific
+special case. Recoverable NUL glyphs and invalid zero-area boxes no longer fail
+an otherwise readable PDF. The active parser profile is persisted as part of
+source representation identity. The same source bytes parsed under a different
+profile now create a separate immutable version instead of silently resolving
+to an older representation. The bounded large-document worker admitted a
+568-page book and a valid 1,698-page encyclopedia while retaining the 180-second,
+512 MiB file, 20-million-character, and 2,560 MiB worker limits.
+
+The same Library then served 30 philosophy-of-art and art-history questions.
+Each question used its original lexical query plus one deterministic branch per
+evidence requirement: 90 local searches and 2,700 candidate assessments in
+total.
+
+| Measure | Result |
+|---|---:|
+| Total / cold scope | 1,986.217 s / 62.128 s |
+| Median question | 58.574 s |
+| Source cards / unique works | 240 / 139 |
+| Literal Gate-support / related-reading cards | 60 / 180 |
+| Human-report file, locator, and bibliography QA | 240/240 |
+| Gate decisions | 30/30 `ready` |
+| Model calls / tokens | 0 / 0 |
+
+`Ready` here proves only that the selected passages contain the declared
+literal topic and evidence-role anchors. It does not prove source truth,
+semantic entailment of an answer, or equal usefulness of all 240 cards.
+
+One control question also exposed a scope-design problem: in a mixed all-scope,
+the first six results were the researcher's own drafts. They were relevant as
+author context but methodologically unsuitable as independent confirmation.
+The existing snapshot and policy boundary was sufficient to separate 662
+independent evidence sources from 174 author-context sources. On the evidence
+scope the drafts disappeared from the leading results, and packet
+`packet_ee753ce17d21783b346e41b40c2c31b5` replayed with the same packet SHA-256
+`ee753ce17d21783b346e41b40c2c31b5c66bc54d7f0c4cc4ef79ac0d597dff0b`.
+
+An isolated parser comparison did not change the v1 dependency set.
+Firecrawl's Rust `pdf-inspector` was roughly 15–18 times faster on three
+text-native PDFs (34, 176, and 1,698 pages) and correctly identified one true
+scan as OCR-required. It nevertheless returned zero text for a 568-page source
+from which the current `pdfplumber` route extracted 566 pages. The candidate is
+therefore recorded only as a possible future fast-first subprocess with an
+automatic fallback and paired completeness gate.
+
 ## Engineering verification
 
-The current v1 candidate collects 1,910 engineering tests. In its
+The current v1 candidate collects 1,948 engineering tests. In its
 canonical local gate:
 
-- 1,908 passed with two host-dependent browser skips;
-- branch-aware combined coverage was `95.15%` at a strict `95.00%` gate;
+- 1,946 passed with two host-dependent skips;
+- branch-aware combined coverage was `95.26%` at a strict `95.00%` gate;
 - terminology, format, lint, and strict typing passed;
 - the dependency audit found no known vulnerabilities;
 - a separate sdist-to-wheel closure installed non-editably in isolated Python

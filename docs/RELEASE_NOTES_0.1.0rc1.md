@@ -1,10 +1,11 @@
 # Dithyramba 0.1.0rc1
 
 > Historical release note. It describes the `0.1.0rc1` package boundary and
-> its original verification receipt. The current `0.2` development candidate
-> adds schema-v13 research sessions, scoped cache reuse, stdio MCP, and Session
-> Lens; see the [changelog](../CHANGELOG.md),
-> [architecture](ARCHITECTURE.md), and [0.2 roadmap](ROADMAP_0.2.md).
+> its original migration-era verification receipt. The current v1 candidate
+> packages the retained tables in one clean schema baseline and adds scoped
+> cache reuse, stdio MCP, and Session Lens; see the
+> [changelog](../CHANGELOG.md), [architecture](ARCHITECTURE.md), and
+> [v1 cleanup roadmap](V1_ROADMAP.md).
 
 This release candidate makes two experimental paths smaller and more explicit:
 orientation before a good question, and inspectable synthesis after evidence
@@ -41,19 +42,19 @@ hypothesis, question, or framing. The deterministic
 `PropositionCoverageGate` applies a role-specific closure rule instead of
 forcing the whole paragraph to equal one verified claim.
 
-Schema v12 stores the projection and its semantic judgment receipt as
-append-only canonical JSON. Research Atlas may expose a sparse subset of those
+The migration-era schema v12 stored the projection and its semantic judgment
+receipt as append-only canonical JSON; the clean v1 baseline retains those
+tables without replaying historical migrations. Research Atlas may expose a sparse subset of those
 source-traceable phrases: clicking one in Lens activates its named evidence and
 opens the exact bound passage. Unbound framing stays visually plain.
 
 ### Storage stays small
 
-Schema v11 adds two append-only tables containing canonical JSON:
+The migration-era v11/v12 sequence added four append-only tables containing
+canonical JSON; the clean v1 package includes them in its single baseline:
 
 - `idea_traces`;
 - `reasoning_closure_results`.
-
-Schema v12 adds:
 
 - `answer_projections`;
 - `answer_projection_receipts`.
@@ -76,8 +77,10 @@ uncertain, or rejected evidence exits non-zero with an explicit decision.
 
 ## Compatibility notes
 
-- Existing Libraries require the checksummed migrations through v12 before
-  normal open.
+- At the time of this historical release, existing Libraries required the
+  checksummed migrations through v12. The clean v1 candidate does not convert
+  pre-v1 Libraries in place; it fails closed and requires an explicit rebuild
+  or separately reviewed importer.
 - The optional dependency name changes from `cartography` to `ontology`.
 - Stable FTS recall, `EvidencePacket/1.0`, and existing review decisions remain
   unchanged.

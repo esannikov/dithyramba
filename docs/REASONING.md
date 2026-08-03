@@ -74,13 +74,13 @@ accepted memory.
 
 ## Minimal storage
 
-Schema v11 adds two append-only SQLite tables:
+The clean v1 schema baseline includes four append-only SQLite tables. They were
+introduced historically through schema v11/v12, but a new v1 Library does not
+replay that migration chain:
 
 - `idea_traces` stores one canonical, content-addressed candidate JSON;
 - `reasoning_closure_results` stores its canonical deterministic closure
   receipt.
-
-Schema v12 adds two more append-only tables:
 
 - `answer_projections` stores the exact role-labelled final prose;
 - `answer_projection_receipts` stores the bound semantic-role judgment.

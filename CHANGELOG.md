@@ -23,7 +23,7 @@ history belong in dated evaluation reports, not in the product changelog.
 - `AnswerProjection/1.0` and `PropositionCoverageGate`: an optional
   display-governance layer that partitions the exact final answer into facts,
   bounded syntheses, disclosed hypotheses, research questions, and framing.
-- Schema v12 append-only `answer_projections` and
+- The clean v1 schema baseline includes append-only `answer_projections` and
   `answer_projection_receipts`, with canonical reopen, corruption checks,
   Library isolation, and audit events.
 - Sparse `AtlasTraceSpan` bindings for Research Atlas answers and hypotheses.
@@ -41,9 +41,9 @@ history belong in dated evaluation reports, not in the product changelog.
   and rejected-candidate receipts. Candidate hygiene also detects wrapped
   numbered bibliographies and raw PDF contents pages more reliably.
 - Rebuilt the public architecture figure and product documentation around the
-  two-plane 0.2 design: durable evidence core plus bounded interactive session
-  loop. Updated the clean-install and wheel-closure checks to require schema
-  v13 and the packaged research-session migration.
+  durable evidence core plus bounded interactive session loop. Updated the
+  clean-install and wheel-closure checks to require the single packaged v1
+  schema baseline and retained research-session tables.
 - A six-session Mars screen measured a 23.85% mean warm-turn reduction while
   preserving 17/17 comparable top-10 result lists, 6/6 exact retries, and 6/6
   cold reopens with zero model tokens. Automatic relation-aware repair remains
@@ -61,6 +61,24 @@ history belong in dated evaluation reports, not in the product changelog.
   web locators retain their host and path while credentials, query strings,
   and fragments stay hidden. A source without a stored title falls back to
   this safe locator instead of exposing its raw canonical URI.
+
+- Hardened PDF ingest against recoverable NUL glyphs and invalid zero-area
+  boxes. Parser profile is now part of immutable source-representation
+  identity, so the same bytes under a different profile cannot silently reuse
+  stale fragments.
+- Advanced the bounded `large-document` profile to
+  `index/large-document/1.3`: valid sources up to 2,000 pages are admitted while
+  existing time, file-size, character, and worker-memory guards remain active.
+- Completed a clean M1 rebuild of 816 real PhD sources / 276,165 fragments.
+  Cold ingest took 2,882.42 seconds; an unchanged five-Collection repeat took
+  39.62 seconds with zero new versions or fragments. A 30-question local run
+  used zero model calls/tokens and passed 240/240 human-report source-card
+  checks. These are engineering and provenance results, not scholarly-accuracy
+  claims.
+- Documented separate independent-evidence and author-context scopes after a
+  mixed-scope control placed the researcher's own drafts in the first six
+  results. The existing snapshot/policy boundary resolved this without a new
+  runtime subsystem.
 
 - Simplified the research route to local FTS, bounded lexical expansion,
   conditional QueryCloud, exact proof admission, and deterministic evidence

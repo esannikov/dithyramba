@@ -39,7 +39,7 @@ The cleanup does not weaken these invariants:
 
 ## Implementation status
 
-### 2026-08-03 — V1.1 to V1.4 complete locally
+### 2026-08-03 — V1.1 to V1.5 complete on code and real corpus
 
 The incremental-ingest fast path is implemented on branch
 `codex/v1-clean-core`. Repeated input now reuses an existing SourceVersion
@@ -100,6 +100,16 @@ dependency audit. A separate fresh-corpus acceptance created 400 unseen sources
 and 2,800 fragments, reused all 400 unchanged sources, and recovered the
 expected top-one document, exact source address, and byte-exact replay for
 30/30 frozen questions. It used zero model calls and zero model tokens.
+
+The final clean M1 rebuild used the exact head `57fab4e` and one new schema-v1
+Library. It processed 836 Collection memberships into 816 unique sources and
+276,165 fragments in 2,882.42 seconds. Repeating all five unchanged Collections
+took 39.62 seconds and created zero new versions or fragments. Thirty
+philosophy-of-art and art-history questions completed in 1,986.217 seconds
+without model calls or tokens; all 240 displayed source cards passed file,
+locator, bibliography, and human-report privacy checks. One frozen independent
+evidence packet replayed with the same packet hash. These results close the
+real-corpus engineering gate, not scholarly validity.
 
 ## Current excess
 
@@ -196,13 +206,21 @@ clean-install protocol around the one stable route.
 
 Acceptance:
 
-1. Linux and macOS clean installs pass from sdist and wheel.
-2. Full Ruff, strict mypy, pytest, dependency audit, PDF, MCP, Lens,
+1. [x] Linux and macOS clean installs pass from sdist and wheel.
+2. [x] Full Ruff, strict mypy, pytest, dependency audit, PDF, MCP, Lens,
    and Chromium gates pass.
-3. Test coverage remains at least 95% without excluding retained runtime code.
+3. [x] Test coverage remains at least 95% without excluding retained runtime code.
 4. [x] A fresh 300–800-source corpus completes ingest, incremental update, 30
    frozen questions, exact replay, and source inspection.
-5. Engineering checks and human relevance judgments are reported separately.
+5. [x] Engineering checks and human relevance judgments are reported separately.
+
+Current exact verification: `1,946 passed`, `2 skipped`, coverage `95.26%`;
+Linux quality/sdist-to-wheel, macOS/PDF, and Chromium CI passed on `57fab4e`.
+
+An optional `pdf-inspector` fast-first route is explicitly post-v1. It may be
+opened only with automatic fallback, retained source coordinates, and paired
+completeness tests: the isolated candidate was much faster on three text-native
+PDFs but lost all text from one 568-page book handled by the current parser.
 
 ## Release measurements
 
