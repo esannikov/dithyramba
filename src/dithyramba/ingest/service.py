@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+from dataclasses import replace
 from pathlib import Path, PurePosixPath
 
 from dithyramba._version import __version__
@@ -265,7 +266,10 @@ class IngestService:
                     root_source_id=reusable.root_source_id,
                     fragment_count=reusable.fragment_count,
                 )
-            parsed = parse_source(source, self._limits, pdf_temp_root=self._pdf_temp_root)
+            parsed = replace(
+                parse_source(source, self._limits, pdf_temp_root=self._pdf_temp_root),
+                parser_profile=self._profile_version,
+            )
             try:
                 validate_source_unchanged(root, source, self._limits)
             except IngestError as exc:

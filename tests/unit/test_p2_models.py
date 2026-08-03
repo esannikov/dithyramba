@@ -13,6 +13,7 @@ from hypothesis import strategies as st
 
 from dithyramba.contracts import canonical_json_bytes, canonical_sha256_hex, sha256_hex
 from dithyramba.ingest.models import (
+    LARGE_DOCUMENT_PARSER_PROFILE,
     PARSER_PROFILE,
     SOURCE_ADDRESS_SCHEMA,
     FileIdentity,
@@ -26,6 +27,7 @@ from dithyramba.ingest.models import (
     PdfSourceAddress,
     SourceBytes,
     format_pdf_point,
+    parser_profile,
 )
 
 _CANONICAL_POINT = re.compile(r"^-?(?:0|[1-9][0-9]*)\.[0-9]{3}$")
@@ -109,6 +111,19 @@ def test_parser_limits_defaults_are_the_frozen_vs0_profile() -> None:
         max_extracted_codepoints=2_000_000,
         timeout_seconds=30,
         max_rss_mib=512,
+    )
+
+
+def test_large_document_profile_is_versioned_and_explicitly_bounded() -> None:
+    profile, limits = parser_profile("large-document")
+
+    assert profile == LARGE_DOCUMENT_PARSER_PROFILE
+    assert limits == ParserLimits(
+        max_file_bytes=512 * 1024 * 1024,
+        max_pdf_pages=1_500,
+        max_extracted_codepoints=20_000_000,
+        timeout_seconds=180,
+        max_rss_mib=1_536,
     )
 
 

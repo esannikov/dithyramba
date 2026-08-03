@@ -15,7 +15,7 @@ import pytest
 from dithyramba.collections import CollectionConfig, CollectionKind, build_collection_root
 from dithyramba.contracts import sha256_hex
 from dithyramba.ingest.errors import SourceChangedDuringIngestError
-from dithyramba.ingest.models import ParseResult, ParserLimits, SourceBytes
+from dithyramba.ingest.models import PARSER_PROFILE, ParseResult, ParserLimits, SourceBytes
 from dithyramba.ingest.parsers import parse_source
 from dithyramba.ingest.reader import read_source_bytes
 from dithyramba.ingest.service import IngestService
@@ -99,7 +99,7 @@ def test_add_unchanged_change_and_revert_preserve_immutable_history(tmp_path: Pa
         clock=fixed_clock,
     ) as repository:
         collection = _collection(repository, source_root)
-        service = IngestService(repository)
+        service = IngestService(repository, profile_version="index/test-reuse/1.0")
 
         added = service.ingest_collection(collection.config.collection_id)
         first = added.outcomes[0]
@@ -298,14 +298,14 @@ def test_unchanged_fast_path_rejects_invalid_repository_boundaries(tmp_path: Pat
                 collection_id=collection.config.collection_id,
                 collection_root_id=root_id,
                 source=cast(Any, object()),
-                parser_profile="index/1.0",
+                parser_profile=PARSER_PROFILE,
             )
         with pytest.raises(TypeError, match="identity_declaration"):
             call(
                 collection_id=collection.config.collection_id,
                 collection_root_id=root_id,
                 source=source,
-                parser_profile="index/1.0",
+                parser_profile=PARSER_PROFILE,
                 identity_declaration=cast(Any, object()),
             )
         with pytest.raises(CollectionNotFoundError):
@@ -313,14 +313,14 @@ def test_unchanged_fast_path_rejects_invalid_repository_boundaries(tmp_path: Pat
                 collection_id="collection_absent",
                 collection_root_id=root_id,
                 source=source,
-                parser_profile="index/1.0",
+                parser_profile=PARSER_PROFILE,
             )
         with pytest.raises(PersistenceIntegrityError, match="does not belong"):
             call(
                 collection_id=collection.config.collection_id,
                 collection_root_id="root_absent",
                 source=source,
-                parser_profile="index/1.0",
+                parser_profile=PARSER_PROFILE,
             )
 
         connection = repository._store.connection
@@ -333,7 +333,7 @@ def test_unchanged_fast_path_rejects_invalid_repository_boundaries(tmp_path: Pat
                 collection_id=collection.config.collection_id,
                 collection_root_id=root_id,
                 source=source,
-                parser_profile="index/1.0",
+                parser_profile=PARSER_PROFILE,
             )
         connection.execute(
             "UPDATE collection_roots SET resolved_path = ? WHERE collection_root_id = ?",
@@ -344,7 +344,7 @@ def test_unchanged_fast_path_rejects_invalid_repository_boundaries(tmp_path: Pat
                 collection_id=collection.config.collection_id,
                 collection_root_id=root_id,
                 source=replace(source, canonical_uri=(tmp_path / "other.md").as_uri()),
-                parser_profile="index/1.0",
+                parser_profile=PARSER_PROFILE,
             )
 
 
@@ -377,7 +377,7 @@ def test_unchanged_fast_path_rejects_corrupt_logical_state(tmp_path: Path) -> No
                 collection_id=collection.config.collection_id,
                 collection_root_id=root_id,
                 source=source,
-                parser_profile="index/1.0",
+                parser_profile=PARSER_PROFILE,
             )
         connection.execute(
             "UPDATE sources SET media_type = 'text/markdown' WHERE source_id = ?",
@@ -392,7 +392,7 @@ def test_unchanged_fast_path_rejects_corrupt_logical_state(tmp_path: Path) -> No
                 collection_id=collection.config.collection_id,
                 collection_root_id=root_id,
                 source=source,
-                parser_profile="index/1.0",
+                parser_profile=PARSER_PROFILE,
             )
 
 
