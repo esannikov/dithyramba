@@ -70,8 +70,8 @@ research agents. Typical uses include:
    exact `SourceFragments` with stable `SourceAddresses`.
 3. **Compile scope first.** A `CorpusSnapshot` and default-deny `AccessPolicy`
    decide what a query may read before retrieval begins.
-4. **Discover locally.** SQLite FTS5 finds a bounded candidate set. Optional
-   reranking may reorder candidates but never certifies truth.
+4. **Discover locally.** SQLite FTS5 finds a bounded candidate set. Deterministic
+   lexical repair may add query variants, but candidate rank never certifies truth.
 5. **Return inspectable evidence.** The stable route persists an
    `EvidencePacket/1.0` with exact passages and receipts, or records that no
    evidence was found.
@@ -117,7 +117,7 @@ manifest stays local and reopenable by ID/hash.
 | Durable, authoritative record | Rebuildable aid or view |
 |---|---|
 | source bytes and hashes | FTS index |
-| source versions, fragments, and addresses | optional embeddings |
+| source versions, fragments, and addresses | process-local FTS index |
 | Library, Collection, Snapshot, and policy identity | candidate rankings |
 | evidence packets and read receipts | graph projections |
 | shared, content-addressed corpus read sets | model and candidate caches |
@@ -213,8 +213,9 @@ anchors that must describe the same claim are required to co-occur inside one
 requirement and one fragment. Optional post-generation
 `ClaimEvidenceEntailmentGate` and `PropositionCoverageGate` checks remain a
 separate disclosed boundary for final prose.
-The optional `semantic` dependency set has a larger native dependency surface
-and is not part of the core package-acceptance gate.
+The v1 package deliberately contains no embedding model, reranker, vector store,
+or model-provisioning command. Historical comparisons remain evaluation evidence,
+not an installable runtime path.
 
 Evidence-grounded reasoning is a separate post-answer path. It stores only
 public statements, named operations, premise links, concise warrants, gaps, and

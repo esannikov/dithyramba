@@ -39,7 +39,7 @@ The cleanup does not weaken these invariants:
 
 ## Implementation status
 
-### 2026-08-03 — V1.1 complete locally
+### 2026-08-03 — V1.1 to V1.3 complete locally
 
 The incremental-ingest fast path is implemented on branch
 `codex/v1-clean-core`. Repeated input now reuses an existing SourceVersion
@@ -48,9 +48,28 @@ membership, lineage, fragment, and physical Blob checks. Changed bytes still
 invoke the parser. A profile mismatch also invokes the parser. Corrupt Blob or
 logical state fails closed.
 
-Verification: `2691 passed`, `2 skipped`, branch-aware coverage `95.01%`;
+V1.2 required no speculative rewrite. On the 615-source, 259,165-fragment PhD
+scope, the existing process-local scope session built one authorized FTS index
+and reused it for all later queries. The measured core median was `7.109 s`;
+warm public-facade recalls were `13.908 s` and `13.666 s`, or `1.93–1.96×`
+core. The separate `56.581 s` scope build and `72.776 s` first public recall are
+the intentional one-time full receipt audit, not warm-query latency.
+
+V1.3 removes the inactive semantic, hybrid, vector, reranker, model-provisioning,
+and expanded-reranking runtime together with its CLI and optional dependency.
+The default dependency lock no longer contains `sentence-transformers`,
+Transformers, Torch, Hugging Face model tooling, or their CUDA dependency tree.
+Runtime Python fell from 153 files / 65,226 physical lines to 136 files / 52,145
+lines. The paired obsolete test surface was removed with the runtime rather than
+left as misleading product evidence.
+
+Verification after V1.3: `1946 passed`, `2 skipped`, branch-aware coverage
+`95.26%`; Ruff format/lint and strict mypy passed. Model calls/tokens remained
+`0/0`.
+
+Earlier V1.1 verification: `2691 passed`, `2 skipped`, coverage `95.01%`;
 Ruff format/lint, strict mypy, terminology, and dependency audit passed. This
-closes V1.1. V1.2 public-route profiling and V1.3 runtime removal remain open.
+closed V1.1 before runtime removal.
 
 ## Current excess
 
@@ -105,10 +124,10 @@ the core route. Remove duplicate packet reconstruction and projection work.
 
 Acceptance:
 
-1. The same 259,165-fragment scope is built once per live session.
-2. Warm public recall is no more than twice the measured core-route wall time.
-3. Full audit receipts remain available by immutable ID and hash.
-4. Compact events never exceed their reference bound or lose packet closure.
+1. [x] The same 259,165-fragment scope is built once per live session.
+2. [x] Warm public recall is no more than twice the measured core-route wall time.
+3. [x] Full audit receipts remain available by immutable ID and hash.
+4. [x] Compact events never exceed their reference bound or lose packet closure.
 
 ### V1.3 — Runtime diet
 
@@ -117,12 +136,12 @@ execution from the default package. Consolidate human views around Session Lens.
 
 Acceptance:
 
-1. Default install contains no model runtime or model provisioning code path.
-2. Default `pyproject.toml` has no embedding/reranking dependency extra.
-3. No CLI, MCP, HTTP, or public import advertises a removed route.
-4. Historical evaluation reports remain in Git history or a clearly labelled
+1. [x] Default install contains no model runtime or model provisioning code path.
+2. [x] Default `pyproject.toml` has no embedding/reranking dependency extra.
+3. [x] No CLI, MCP, HTTP, or public import advertises a removed route.
+4. [x] Historical evaluation reports remain in Git history or a clearly labelled
    archive, never in the user workflow.
-5. The stable route and clean-install acceptance remain green.
+5. [x] The stable route remains green; clean-install acceptance is repeated in V1.5.
 
 ### V1.4 — Clean schema boundary
 

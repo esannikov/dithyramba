@@ -54,9 +54,9 @@ A `CorpusSnapshot` freezes which source versions participate. An `AccessPolicy`
 is compiled before fragment text is selected. The stable recall route uses local
 SQLite FTS5 to produce a bounded candidate list.
 
-Optional embeddings, rerankers, aliases, neighbouring fragments, or derived
-queries may improve discovery. They are replaceable ranking aids and cannot
-grant access or certify evidence.
+Aliases, neighbouring fragments, and bounded derived queries may improve
+discovery. They are deterministic, replaceable aids and cannot grant access or
+certify evidence. V1 contains no embedding model, reranker, or vector store.
 
 ### 3. Evidence
 

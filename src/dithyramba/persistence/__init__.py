@@ -43,7 +43,6 @@ from .errors import (
     SourceNotFoundError,
     SourceVersionNotFoundError,
 )
-from .hybrid import SQLiteHybridStore
 from .meaning import SQLiteMeaningRepository
 from .models import (
     AccessPolicyRecord,
@@ -65,7 +64,6 @@ from .repository import (
     list_libraries,
     open_library,
 )
-from .semantic import SemanticSpanVectorBundle, SQLiteSemanticSpanStore
 from .sessions import SQLiteResearchSessionRepository
 from .structure import SQLiteStructureRepository
 
@@ -108,15 +106,12 @@ __all__ = [
     "ResearchSessionNotFoundError",
     "ResearchSessionPersistenceError",
     "SQLiteAnswerProjectionRepository",
-    "SQLiteHybridStore",
     "SQLiteMeaningRepository",
     "SQLiteReasoningRepository",
     "SQLiteRecallBackend",
     "SQLiteRelationRepository",
     "SQLiteResearchSessionRepository",
-    "SQLiteSemanticSpanStore",
     "SQLiteStructureRepository",
-    "SemanticSpanVectorBundle",
     "SessionArtifactNotFoundError",
     "SourceFamilyRole",
     "SourceFragmentRecord",

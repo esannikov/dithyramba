@@ -37,10 +37,10 @@ closure, but it is not evidence of package bloat.
 | append-only review | yes | human promotion boundary |
 | backup and restore | yes | local durability |
 
-## Retired runtime candidate
+## Retired runtime removed in V1.3
 
-The following semantic/hybrid/model family is not used by the best tested
-default route:
+The following semantic/hybrid/model family was not used by the best tested
+default route and has now been removed from the package:
 
 - `recall/hybrid_*`;
 - `recall/semantic_*`;
@@ -52,11 +52,14 @@ default route:
 - the `sentence-transformers` optional dependency group;
 - SQL tables created only for retired semantic/hybrid execution.
 
-This family currently accounts for 9,847 runtime lines and 10,079 directly
-paired test lines. Seventeen source/test modules import its public symbols.
-Those imports, package exports, CLI commands, migration compatibility, and
-documentation must be removed as one audited slice. Deleting files before that
-closure would create a package that looks smaller but is not safely installable.
+The audited slice removed 13,081 runtime lines and its directly paired obsolete
+tests. Runtime size moved from 153 files / 65,226 physical lines to 136 files /
+52,145 lines. Public imports, the `model provision` command, the semantic extra,
+and the associated model dependency tree disappeared together. The retained
+route passed 1,946 tests with 95.26% branch-aware coverage after the deletion.
+
+Historical SQL tables are addressed separately in V1.4 because changing the
+schema boundary requires a new-Library test and an explicit legacy strategy.
 
 ## Optional or consolidating surfaces
 
@@ -83,7 +86,7 @@ For every retired family:
 
 ## Next measured slice
 
-Profile the public interactive route against the core route on one frozen
-scope. The target is process-local scope construction once per session and
-warm public recall no more than twice core recall. Only after that result is
-green does runtime deletion begin.
+Build one clean v1 schema baseline for new Libraries, prove that it creates no
+retired semantic/vector tables, and verify that old Libraries remain untouched.
+Then consolidate the human views behind one Lens entrypoint and run the complete
+sdist/wheel clean-install protocol.

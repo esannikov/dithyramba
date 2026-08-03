@@ -38,9 +38,6 @@ Repository = "https://github.com/esannikov/dithyramba"
 Issues = "https://github.com/esannikov/dithyramba/issues"
 
 [project.optional-dependencies]
-semantic = [
-  "sentence-transformers==5.6.0",
-]
 ontology = [
   "numpy>=2.0,<3",
   "scikit-learn>=1.8,<2",

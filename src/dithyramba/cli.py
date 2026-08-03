@@ -76,16 +76,13 @@ from dithyramba.reasoning import (
     ReasoningClosureGate,
 )
 from dithyramba.recall import (
-    MULTILINGUAL_E5_SMALL_PROFILE,
     FtsError,
-    HybridContractError,
     QueryRequest,
     RecallError,
     RecallResult,
     RecallService,
     RetrievalBudget,
     current_fts_runtime_profile,
-    provision_model,
 )
 from dithyramba.review import (
     ReviewAction,
@@ -100,9 +97,6 @@ from dithyramba.store import StoreError
 _P = ParamSpec("_P")
 _R = TypeVar("_R")
 _PURPOSE_PATTERN = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
-_EMBEDDING_PROFILES = {
-    "e5-small": MULTILINGUAL_E5_SMALL_PROFILE,
-}
 
 app = typer.Typer(
     name="dithyramba",
@@ -116,14 +110,12 @@ access_policy_app = typer.Typer(help="Create and inspect immutable access polici
 source_app = typer.Typer(help="Ingest and inspect source provenance without source text.")
 packet_app = typer.Typer(help="Inspect and deterministically replay EvidencePackets.")
 review_app = typer.Typer(help="Record and inspect scoped, append-only human reviews.")
-model_app = typer.Typer(help="Provision pinned optional local models explicitly.")
 app.add_typer(library_app, name="library")
 app.add_typer(collection_app, name="collection")
 app.add_typer(access_policy_app, name="access-policy")
 app.add_typer(source_app, name="source")
 app.add_typer(packet_app, name="packet")
 app.add_typer(review_app, name="review")
-app.add_typer(model_app, name="model")
 
 
 def _version_callback(value: bool) -> None:
@@ -144,7 +136,6 @@ def _guard(function: Callable[_P, _R]) -> Callable[_P, _R]:
             ContractError,
             BackupBundleError,
             FtsError,
-            HybridContractError,
             IngestError,
             PersistenceError,
             ProvenanceError,
@@ -260,65 +251,6 @@ def atlas_migrate(
     typer.echo(f"evidence: {migrated.receipt.evidence_count}")
     typer.echo(f"exact_bindings: {migrated.receipt.exact_binding_count}")
     typer.echo(f"trace_spans: {migrated.receipt.trace_span_count}")
-
-
-@model_app.command("provision")
-@_guard
-def model_provision(
-    profile: Annotated[
-        str,
-        typer.Argument(
-            help="Pinned profile name: e5-small.",
-        ),
-    ] = "e5-small",
-    data_home: Annotated[
-        Path | None,
-        typer.Option(
-            "--data-home",
-            help="Absolute application-data root; defaults to the OS Dithyramba directory.",
-        ),
-    ] = None,
-    allow_network: Annotated[
-        bool,
-        typer.Option(
-            "--allow-network",
-            help="Explicitly permit one pinned Hugging Face download when weights are absent.",
-        ),
-    ] = False,
-    json_output: Annotated[bool, typer.Option("--json", help="Emit canonical JSON.")] = False,
-) -> None:
-    """Provision and verify one exact local embedding-model revision."""
-
-    selected = _EMBEDDING_PROFILES.get(profile)
-    if selected is None:
-        raise HybridContractError("unknown embedding profile; expected e5-small")
-    path, receipt = provision_model(
-        selected,
-        data_root=data_home,
-        allow_network=allow_network,
-    )
-    payload: dict[str, object] = {
-        "path": str(path),
-        "profile_id": receipt.embedding_profile_id,
-        "profile_hash": receipt.embedding_profile_hash,
-        "model_id": receipt.model_id,
-        "revision": receipt.revision,
-        "receipt_id": receipt.receipt_id,
-        "receipt_hash": receipt.receipt_hash,
-        "file_count": len(receipt.files),
-        "network_authorized": allow_network,
-    }
-    _emit(
-        payload,
-        json_output=json_output,
-        human_lines=(
-            f"model_id: {receipt.model_id}",
-            f"revision: {receipt.revision}",
-            f"profile_id: {receipt.embedding_profile_id}",
-            f"receipt_id: {receipt.receipt_id}",
-            f"path: {path}",
-        ),
-    )
 
 
 @app.command("index")

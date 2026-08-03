@@ -116,10 +116,10 @@ and may contain the short-lived loopback bearer token in `serve.stderr`.
 
 ## What this gate proves
 
-Neither mode installs Dithyramba's optional semantic extra, provisions a model,
-or requires a GPU or API key. The core gate validates the packaged local FTS5
-route and its engineering contracts. Full mode may download Chromium, but it
-does not test semantic-model quality.
+Neither mode provisions a model or requires a GPU or API key. The v1 package
+contains no embedding/reranking dependency extra. The core gate validates the
+packaged local FTS5 route and its engineering contracts. Full mode may download
+Chromium, but it does not test model quality.
 
 The full gate uses the development aggregate's combined coverage threshold of
 `>=95.00%`. Statement and branch coverage are reported separately so a strong

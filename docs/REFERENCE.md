@@ -18,7 +18,7 @@ uv run dithyramba <command> --help
 | Not yet qualified | Windows; current filesystem contracts are POSIX-specific |
 | Package environment | `uv` for development; wheel build uses Hatchling |
 | Base runtime | no model, GPU, external service, or Docker required |
-| Optional semantic extra | `sentence-transformers==5.6.0` |
+| Embedding or reranking runtime | not included in v1 |
 | Optional ontology extra | `numpy>=2,<3`; `scikit-learn>=1.8,<2` |
 | Current database schema | v13 |
 | Package version | `0.1.0rc1` |
