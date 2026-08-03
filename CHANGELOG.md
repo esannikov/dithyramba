@@ -51,11 +51,9 @@ history belong in dated evaluation reports, not in the product changelog.
   durable evidence core plus bounded interactive session loop. Updated the
   clean-install and wheel-closure checks to require the single packaged v1
   schema baseline and retained research-session tables.
-- A six-session Mars screen measured a 23.85% mean warm-turn reduction while
-  preserving 17/17 comparable top-10 result lists, 6/6 exact retries, and 6/6
-  cold reopens with zero model tokens. Automatic relation-aware repair remains
-  out of production after a one-case challenger repaired only one of two query
-  variants.
+- Multi-session evaluation showed lower warm-turn cost while preserving exact
+  retries and cold reopens with zero model tokens. Automatic relation-aware
+  repair remains outside production because its measured benefit was unstable.
 - Large-scope session completion now validates the shared immutable corpus
   closure once per explicit live scope and revalidates selected stored
   fragments on later questions. Modern Session Lens events reopen compact
@@ -76,12 +74,10 @@ history belong in dated evaluation reports, not in the product changelog.
 - Advanced the bounded `large-document` profile to
   `index/large-document/1.3`: valid sources up to 2,000 pages are admitted while
   existing time, file-size, character, and worker-memory guards remain active.
-- Completed a clean M1 rebuild of 816 real PhD sources / 276,165 fragments.
-  Cold ingest took 2,882.42 seconds; an unchanged five-Collection repeat took
-  39.62 seconds with zero new versions or fragments. A 30-question local run
-  used zero model calls/tokens and passed 240/240 human-report source-card
-  checks. These are engineering and provenance results, not scholarly-accuracy
-  claims.
+- Completed a clean large-Library rebuild and unchanged repeat with zero new
+  versions or fragments. The local research run used zero model calls or tokens
+  and preserved every displayed source coordinate. These are engineering and
+  provenance results, not research-validity claims.
 - Documented separate independent-evidence and author-context scopes after a
   mixed-scope control placed the researcher's own drafts in the first six
   results. The existing snapshot/policy boundary resolved this without a new
@@ -101,8 +97,8 @@ history belong in dated evaluation reports, not in the product changelog.
 - Documented the default profile as lexical-first, evidence-first, and
   embedding-optional. No claim is made that lexical retrieval wins every
   semantic-recall case.
-- Added a public Mars IdeaTrace-24 evaluation card that separates the frozen
-  reasoning test from the earlier 53,747-unit retrieval calibration.
+- Added a frozen IdeaTrace evaluation card that separates reasoning closure
+  from retrieval quality.
 - Preserved byte-compatible `CompactMemoryPacket/1.0` and `/1.1` identities by
   omitting empty trace metadata and rejecting non-empty Lens spans when a
   legacy connector cannot preserve them.
@@ -177,9 +173,9 @@ history belong in dated evaluation reports, not in the product changelog.
 - The guarded full update checks the unrounded JSON coverage value.
 - Granite and Qwen remain outside the active retrieval target; FTS is the
   default and Harrier is a bounded library-only reranker.
-- Case-specific Artists, P7, and model-comparison harnesses are no longer part
-  of the public release tree; their dated results remain in the evaluation
-  record with explicit limitations.
+- Case-specific and model-comparison harnesses are no longer part of the public
+  release tree; dated results remain in the evaluation record with explicit
+  limitations.
 
 ### Not yet public surface
 

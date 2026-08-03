@@ -111,7 +111,6 @@ contracts and design decisions inspectable:
 | [AnswerCoverageGate](ANSWER_COVERAGE_GATE.md) | Did a proposed answer use every required accepted facet? |
 | [Compact research memory](COMPACT_RESEARCH_MEMORY.md) | How are small source-closed packets routed and validated? |
 | [Research View](RESEARCH_PROJECTION.md) | How can wider candidate material remain visible without becoming accepted evidence? |
-| [Mars IdeaTrace-24](MARS_IDEATRACE_24.md) | What did the first frozen multi-source reasoning diagnostic test, improve, and leave unresolved? |
 | [Interactive research memory design](INTERACTIVE_RESEARCH_MEMORY_SPEC.md) | How can an agent continue research without turning chat into evidence or duplicating the truth layer? |
 | [Interactive-memory implementation history](ROADMAP_0.2.md) | In what dependency order were sessions, persistence, agent tools, review, and evaluation built? |
 

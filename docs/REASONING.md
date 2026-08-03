@@ -124,7 +124,7 @@ generation, public CLI/HTTP authoring, and human acceptance are not included.
 Those surfaces remain separate so a convenient synthesis cannot grant itself
 authority.
 
-The [Mars IdeaTrace-24 evaluation](MARS_IDEATRACE_24.md) is the first
-corpus-scale diagnostic of this layer. It used frozen evidence packets and a
-model judge, so it demonstrates repair behaviour and failure modes rather than
+A frozen corpus-scale diagnostic of this layer is retained in the
+[evaluation record](EVALUATION.md). It used fixed evidence packets and a model
+judge, so it demonstrates repair behaviour and failure modes rather than
 independent scientific validity.
