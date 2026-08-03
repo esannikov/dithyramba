@@ -120,7 +120,7 @@ def test_large_document_profile_is_versioned_and_explicitly_bounded() -> None:
     assert profile == LARGE_DOCUMENT_PARSER_PROFILE
     assert limits == ParserLimits(
         max_file_bytes=512 * 1024 * 1024,
-        max_pdf_pages=1_500,
+        max_pdf_pages=2_000,
         max_extracted_codepoints=20_000_000,
         timeout_seconds=180,
         max_rss_mib=2_560,

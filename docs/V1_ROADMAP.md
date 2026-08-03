@@ -48,6 +48,19 @@ membership, lineage, fragment, and physical Blob checks. Changed bytes still
 invoke the parser. A profile mismatch also invokes the parser. Corrupt Blob or
 logical state fails closed.
 
+The M1 clean rebuild exposed the complementary write-path requirement: after a
+profile mismatch, the newly parsed representation must be persisted rather than
+silently resolving to an older same-byte version. The v1 baseline now keys an
+immutable `SourceVersion` by source, byte hash, and parser profile. Returning to
+a previously recorded profile restores that exact historical representation.
+
+The same rebuild found one valid 1,698-page academic encyclopedia just above
+the original 1,500-page guard. A bounded probe completed in 68.57 seconds with
+1,697 text-bearing pages and 5,931,921 extracted code points. The explicit
+large-document profile therefore advances to `index/large-document/1.3` and a
+2,000-page ceiling; the 180-second, 512 MiB file, 20-million-character, and
+2,560 MiB worker guards remain in force.
+
 V1.2 required no speculative rewrite. On the 615-source, 259,165-fragment PhD
 scope, the existing process-local scope session built one authorized FTS index
 and reused it for all later queries. The measured core median was `7.109 s`;

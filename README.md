@@ -164,6 +164,11 @@ Book-length sources can be ingested with the explicit bounded
 The larger profile raises limits without disabling time, size, page, character,
 or worker-memory guards.
 
+The active parser profile is persisted as part of the immutable source
+representation. Repeating the same bytes with the same profile reuses the
+existing fragments without parser work; changing the profile creates a new
+representation and keeps the previous one available for exact replay.
+
 ## Stable interfaces
 
 | Surface | Role | Maturity |

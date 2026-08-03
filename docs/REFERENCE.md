@@ -62,9 +62,12 @@ dithyramba source versions
 `index` and `source add` accept `--parser-profile default` or
 `--parser-profile large-document`. The default remains deliberately small and
 conservative. `large-document` is an explicit bounded profile for book-length
-PDF, Markdown, and text inputs: up to 512 MiB per file, 1,500 PDF pages,
+PDF, Markdown, and text inputs: up to 512 MiB per file, 2,000 PDF pages,
 20 million extracted characters, 180 seconds, and 2,560 MiB worker RSS. It does
-not remove parser limits or change source identity.
+not remove parser limits or change source identity. A `SourceVersion` is unique
+for its source bytes and parser profile together: a changed profile is parsed
+once into a new immutable representation, while the next identical run reuses
+that exact representation.
 
 ### Recall and review
 
