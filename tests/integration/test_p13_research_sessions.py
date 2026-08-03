@@ -191,7 +191,7 @@ def test_session_events_are_append_only_and_reopen_exactly(tmp_path: Path) -> No
         assert state.status is SessionStatus.CLOSED
         assert state.event_count == 4
         assert state.evidence_refs == (packet_ref, fragment_ref)
-        assert repository.schema_version == 13
+        assert repository.schema_version == 1
         assert (
             repository._store.connection.execute(
                 """

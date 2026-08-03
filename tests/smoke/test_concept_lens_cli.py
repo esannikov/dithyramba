@@ -26,11 +26,12 @@ def test_concept_lens_cli_starts_loopback_with_valid_projection(
     monkeypatch.setattr("dithyramba.cli.uvicorn.run", fake_run)
     result = CliRunner().invoke(
         app,
-        ["concept-lens", "--projection", str(path), "--port", "8362"],
+        ["lens", "concepts", "--projection", str(path), "--port", "8362"],
     )
 
     assert result.exit_code == 0
-    assert "concept_lens: http://127.0.0.1:8362" in result.stdout
+    assert "lens: http://127.0.0.1:8362" in result.stdout
+    assert "lens_mode: concepts" in result.stdout
     assert "candidate-only read-only projection" in result.stdout
     assert calls[0]["host"] == "127.0.0.1"
 
@@ -38,7 +39,7 @@ def test_concept_lens_cli_starts_loopback_with_valid_projection(
 def test_concept_lens_cli_rejects_relative_projection() -> None:
     result = CliRunner().invoke(
         app,
-        ["concept-lens", "--projection", "ontology.json"],
+        ["lens", "concepts", "--projection", "ontology.json"],
     )
 
     assert result.exit_code == 2

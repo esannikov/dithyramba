@@ -2,8 +2,8 @@
 
 This guide builds one local, replayable evidence memory from source files with
 the persisted FTS-only CLI route. Package metadata remains `0.1.0rc1`; the
-current `0.2` development candidate also adds durable research sessions, local
-stdio MCP, and Session Lens. Replace the example identifiers with the values
+current v1 release candidate also adds durable research sessions, local stdio
+MCP, and Lens. Replace the example identifiers with the values
 printed by each command.
 
 To verify a fresh checkout, follow the separate
@@ -195,14 +195,14 @@ This optimization does not merge packets or review history.
 Open the human journal for that session in a separate terminal:
 
 ```bash
-uv run dithyramba session-lens \
+uv run dithyramba lens session \
   --library <library-id> \
   --session <research-session-id> \
   --data-home /absolute/private/dithyramba \
   --port 8353
 ```
 
-Visit `http://127.0.0.1:8353`. Session Lens is GET-only. Select a source slip to
+Visit `http://127.0.0.1:8353`. Lens session mode is GET-only. Select a source slip to
 read the exact packet-backed passage. Drafts, gaps, and rejected routes remain
 journal entries; visible evidence is not automatically accepted.
 
@@ -232,7 +232,7 @@ local profile and requires the same packet hash.
 uv run dithyramba review queue --help
 uv run dithyramba review decide --help
 
-uv run dithyramba reading-room \
+uv run dithyramba lens library \
   --library <library-id> \
   --snapshot <primary-snapshot-id> \
   --access-policy <policy-id> \
@@ -275,7 +275,7 @@ query or a search score.
 
 ## Common mistakes
 
-- Putting runtime SQLite or model caches in a synced folder.
+- Putting runtime SQLite or rebuildable caches in a synced folder.
 - Using a combined primary/research scope when provenance layer matters.
 - Treating a search score as proof.
 - Ignoring skips in the ingest CoverageReport.

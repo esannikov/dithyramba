@@ -91,8 +91,12 @@ class Store:
                 cached_statements=0,
             )
             connection.row_factory = sqlite3.Row
-            _apply_profile(connection)
             runner = MigrationRunner(connection, migration_source)
+            # Detect unmanaged or pre-v1 stores before profile PRAGMAs can
+            # change a database header. Legacy Libraries are an immutable
+            # source for an explicit rebuild, never an in-place migration.
+            runner.verify()
+            _apply_profile(connection)
             if apply_migrations:
                 runner.apply_all()
             elif require_head:

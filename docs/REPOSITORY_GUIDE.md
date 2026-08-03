@@ -26,7 +26,7 @@ rebuild, and verify the same wheel from source.
 | `fixtures/` | Small repository-authored CC0 inputs with frozen invariants | no |
 | `verification/` | Deterministic 1,000-fragment public replay of the evidence path | no |
 | `examples/` | Three CC0 notes used by the five-minute demo | no |
-| `migrations/` | Human-inspectable mirror of the packaged immutable SQL migrations | no |
+| `migrations/` | Human policy and pointer to the packaged v1 SQL baseline | no |
 | `schemas/` | Policy for versioned schemas and a pointer to executable contracts | no |
 | `scripts/` | Demo, release audit, distribution inspection, and clean-install gate | no |
 | `docs/` | User workflow, product/design rationale, contracts, architecture, evaluation, and development | no |
@@ -47,13 +47,13 @@ all-knowing service.
 | `store`, `persistence`, `backup` | SQLite schema, repositories, immutable records, backup, restore, and migration |
 | `recall`, `evidence`, `answers` | Candidate discovery, replayable packets, explicit evidence coverage, and answer validation |
 | `reasoning`, `answers` | Public IdeaTrace and proposition-level answer contracts, deterministic closure/coverage, and no automatic promotion |
-| `sessions` | 0.2 contracts for scoped research sessions, typed hash-chained events, and deterministic compact state; durable writes live in `persistence.sessions` |
+| `sessions` | Scoped research sessions, typed hash-chained events, and deterministic compact state; durable writes live in `persistence.sessions` |
 | `interactive` | agent-safe least-context Python facade over durable sessions and exact persisted recall; no human decision or promotion tools |
 | `ontology` | Experimental scoped candidate concepts, exact evidence closure, and co-occurrence links |
 | `meaning`, `relations`, `structure`, `research` | Typed interpretive objects and source-bound research structures |
 | `review` | Append-only human acceptance, revision, rejection, and deferral |
 | `connectors` | Compact source-closed packets for downstream tools and agents |
-| `reading_room`, `atlas`, `api` | Human and local programmatic views over one pinned Library and scope, including GET-only Session Lens |
+| `reading_room`, `atlas`, `api` | Internal implementations behind the unified GET-only Lens modes |
 | `mcp_stdio` | Thin local stdio JSON-RPC transport over `AgentResearchFacade`; no evidence, review, or promotion logic |
 | `tooling` | Contributor checks and terminology validation; not a research runtime service |
 
@@ -83,8 +83,8 @@ natural-language quality or research truth.
 - **Agent or systems specialist:** [Architecture](ARCHITECTURE.md) and
   [reference](REFERENCE.md)
 - **Reasoning integrator:** [Evidence-grounded reasoning](REASONING.md)
-- **Interactive-memory integrator:** [0.2 specification](INTERACTIVE_RESEARCH_MEMORY_SPEC.md)
-  and [roadmap](ROADMAP_0.2.md)
+- **Interactive-memory integrator:** [design record](INTERACTIVE_RESEARCH_MEMORY_SPEC.md)
+  and [implementation history](ROADMAP_0.2.md)
 - **Research-method reader:** [Explanation](EXPLANATION.md) and
   [evaluation limits](EVALUATION.md)
 - **Contributor:** [Development](DEVELOPMENT.md),
@@ -105,8 +105,8 @@ contracts and design decisions inspectable:
 | [Compact research memory](COMPACT_RESEARCH_MEMORY.md) | How are small source-closed packets routed and validated? |
 | [Research View](RESEARCH_PROJECTION.md) | How can wider candidate material remain visible without becoming accepted evidence? |
 | [Mars IdeaTrace-24](MARS_IDEATRACE_24.md) | What did the first frozen multi-source reasoning diagnostic test, improve, and leave unresolved? |
-| [Interactive research memory 0.2](INTERACTIVE_RESEARCH_MEMORY_SPEC.md) | How can an agent continue research without turning chat into evidence or duplicating the truth layer? |
-| [Roadmap 0.2](ROADMAP_0.2.md) | In what dependency order will sessions, persistence, agent tools, review, and evaluation be built? |
+| [Interactive research memory design](INTERACTIVE_RESEARCH_MEMORY_SPEC.md) | How can an agent continue research without turning chat into evidence or duplicating the truth layer? |
+| [Interactive-memory implementation history](ROADMAP_0.2.md) | In what dependency order were sessions, persistence, agent tools, review, and evaluation built? |
 
 ## Maintenance rule
 

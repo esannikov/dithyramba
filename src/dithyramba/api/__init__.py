@@ -4,6 +4,7 @@ from .app import bearer_token_for, create_app
 from .concept_lens import ConceptLensWebConfig, create_concept_lens_app
 from .config import LoopbackApiConfig
 from .flow_view import FlowViewWebConfig, create_flow_view_app
+from .lens import LensMode, create_lens_app
 from .models import (
     EvidencePacketResponse,
     HealthResponse,
@@ -26,6 +27,7 @@ __all__ = [
     "EvidencePacketResponse",
     "FlowViewWebConfig",
     "HealthResponse",
+    "LensMode",
     "LoopbackApiConfig",
     "ReadingRoomWebConfig",
     "ResearchAtlasWebConfig",
@@ -38,6 +40,7 @@ __all__ = [
     "create_app",
     "create_concept_lens_app",
     "create_flow_view_app",
+    "create_lens_app",
     "create_reading_room_app",
     "create_research_atlas_app",
     "create_session_lens_app",

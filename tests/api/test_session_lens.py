@@ -435,7 +435,8 @@ def test_session_lens_cli_opens_exact_session_and_starts_loopback(
     result = CliRunner().invoke(
         app,
         [
-            "session-lens",
+            "lens",
+            "session",
             "--library",
             library_id,
             "--session",
@@ -449,7 +450,8 @@ def test_session_lens_cli_opens_exact_session_and_starts_loopback(
 
     assert result.exit_code == 0, result.output
     assert result.stdout == (
-        "session_lens: http://127.0.0.1:8354\n"
+        "lens: http://127.0.0.1:8354\n"
+        "lens_mode: session\n"
         "projection_json: http://127.0.0.1:8354/projection.json\n"
         "mode: read-only session projection\n"
     )

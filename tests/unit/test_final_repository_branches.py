@@ -210,14 +210,6 @@ def test_reingest_reports_persisted_source_corruption(
         elif case == "missing-versions":
             connection.execute("DROP TRIGGER source_heads_no_delete")
             connection.execute("DELETE FROM source_heads WHERE source_id = ?", (source_id,))
-            connection.execute("DROP TRIGGER source_fragment_text_metrics_no_delete")
-            connection.execute(
-                "DELETE FROM source_fragment_text_metrics "
-                "WHERE source_fragment_id IN ("
-                "SELECT source_fragment_id FROM source_fragments "
-                "WHERE source_version_id = ?)",
-                (source_version_id,),
-            )
             connection.execute("DROP TRIGGER source_fragments_no_delete")
             connection.execute(
                 "DELETE FROM source_fragments WHERE source_version_id = ?",

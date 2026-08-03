@@ -1,5 +1,9 @@
 # Interactive research memory 0.2
 
+> Historical implementation specification. Its accepted contracts are now part
+> of the v1 baseline; current commands and guarantees are documented in
+> [`REFERENCE.md`](REFERENCE.md).
+
 Status: Session Spine, durable store, scoped cache, least-context agent
 transport, human-readable source references, stdio MCP, and compact GET-only
 Session Lens implemented in the 0.2 development candidate

@@ -11,7 +11,7 @@ The current release line is pre-alpha. Product surfaces must describe what the
 running system proves; they must not imply public validation, autonomous learning,
 or semantic confidence that has not been measured.
 
-The `0.2` development line adds bounded research sessions so an agent can
+The v1 line includes bounded research sessions so an agent can
 continue an investigation from compact state and exact artifact references.
 Session notes, drafts, and rejected paths remain journal material. They do not
 become evidence or accepted memory merely because an agent recorded them.
@@ -22,7 +22,8 @@ The product has one evidence core and two adapters around it:
 
 - an agent uses the local stdio MCP adapter to open a bounded session, recall
   exact evidence, and record drafts, gaps, or rejected paths;
-- a human uses Session Lens to inspect the brief, chronological journal, named
+- a human uses Lens to inspect the Library, session, atlas, concepts, or flow;
+  session mode shows the brief, chronological journal, named
   sources, and exact passages without mutating the Library.
 
 The first recall in a live process may build a session-scoped authorized FTS
@@ -72,9 +73,9 @@ terminology.
 - Exact source text is opened only through an authorized evidence path.
 - The local Library remains usable without a network connection.
 
-## Reading Room
+## Lens library mode
 
-Reading Room is the visual control surface for one explicit Library, snapshot,
+Library mode is the visual control surface for one explicit Library, snapshot,
 policy, and scope. It is not an administration console and not a free-form graph
 browser. Its first screen communicates the trustworthy state of memory, then lets
 the operator follow typed connections into packet-backed evidence.
@@ -82,9 +83,9 @@ the operator follow typed connections into packet-backed evidence.
 The surface is useful when it shortens an evidence audit. It must not turn
 co-occurrence, visual proximity, or shared styling into an asserted relation.
 
-## Research Atlas
+## Lens atlas mode
 
-Research Atlas is the corpus-facing workbench built on the same evidence
+Atlas mode is the corpus-facing workbench built on the same evidence
 contracts. Its first screen orients a human in the subject; it is not a benchmark
 viewer. Questions open plain-language answers in the central workspace. Named
 SourceChips open exact evidence in a stable right inspector. The hypothesis graph

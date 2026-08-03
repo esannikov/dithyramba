@@ -1,23 +1,23 @@
-# Migrations
+# Storage schema
 
-Numbered, immutable, checksummed SQLite migrations evolve the public storage
-contract. The initial migration preserves the legacy `VS0` contract name used
-inside schema identifiers; no generated migration framework is used.
+Dithyramba v1 installs one reviewed SQLite baseline from:
 
-Schema head v10 normalizes repeated protected-read manifests into append-only
-`CorpusReadSet` records. Several receipts may reference one exact set only when
-Library, snapshot, policy, Collections, and purpose all match; public
-`ReadReceipt/1.0` remains unchanged and legacy v9 receipts remain readable.
-Schema v9 adds hash-pinned connector-declared logical Source identity tables.
-Schema v7 adds append-only, text-free SemanticSpan plans and vector-v2
-generations. SQLite enforces source lineage, profile/model/runtime bindings,
-token and character bounds, exact plan counts before generation, and float32
-blob length. The persistence layer must still reconstruct every canonical hash
-and verify each vector blob SHA-256 inside its write transaction; stock SQLite
-cannot perform canonical JSON hashing or defer an application-defined hash
-check until commit. SemanticSpan validation resolves source lineage through
-the stored fragment hash and never selects the protected
-`source_fragments.text` column. Migration v7 backfills the append-only
-`source_fragment_text_metrics` projection once; an `AFTER INSERT` trigger uses
-only the just-inserted `NEW.text` value to capture hash and character count for
-future fragments. SemanticSpan validation reads that metadata-only projection.
+```text
+src/dithyramba/store/sql/0001_v1.sql
+```
+
+That packaged file is the runtime source of truth. It contains the retained
+source, scope, FTS evidence, review, reasoning, answer-projection, and research
+session tables. It deliberately creates no embedding, vector, reranker,
+model-runtime, or hybrid-retrieval tables.
+
+The pre-v1 numbered migration chain remains available in Git history only. A
+v1 process detects that history before applying connection-profile writes and
+refuses to migrate the Library in place. Rebuild a new v1 Library from the
+original read-only sources; keep the old Library unchanged until any review or
+session artifacts that matter have been exported with the matching pre-v1
+release.
+
+Future v1 migrations must be numbered, immutable, checksummed, contiguous, and
+backup-first. They may extend the v1 baseline, but must not silently reinterpret
+or reintroduce retired storage.

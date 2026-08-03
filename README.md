@@ -17,10 +17,10 @@ local corpus into versioned, addressable evidence packets that can be inspected,
 replayed, challenged, and reused without asking a model to reread everything.
 
 > **Current status:** package metadata remains `0.1.0rc1`; this branch is the
-> pre-alpha `0.2` development candidate. The source-to-evidence core is local,
-> persisted, and replayable. Schema v13 adds durable multi-turn research
+> v1 release candidate. The source-to-evidence core is local, persisted, and
+> replayable. One clean v1 schema baseline includes durable multi-turn research
 > sessions around that same core, with a process-local authorized FTS cache,
-> thin stdio MCP transport, compact agent context, and a GET-only Session Lens.
+> thin stdio MCP transport, compact agent context, and a GET-only Lens.
 > QueryCloud, candidate ontology, and evidence-grounded synthesis remain
 > experimental and cannot promote themselves into accepted memory.
 > Clean-checkout distribution and installation remain release gates.
@@ -88,13 +88,13 @@ claim restatement. It marks each exact span as fact, bounded synthesis,
 disclosed hypothesis, research question, or framing. Facts stay strict;
 hypotheses must expose their premises, falsifier, test question, and next
 evidence. `PropositionCoverageGate` checks the roles without promoting
-exploratory text into accepted memory. Schema v12 stores the projection and its
+exploratory text into accepted memory. The v1 baseline stores the projection and its
 judgment receipt as append-only canonical JSON. Lens can render a sparse subset
 of these source-traceable spans: clicking a coloured phrase selects the exact
 evidence chip and opens the bound passage, while unbound framing remains plain.
 
 Several questions over one exact scope may use `RecallService.recall_batch`.
-Schema v10 stores the shared protected fragment manifest once as a
+The v1 baseline stores the shared protected fragment manifest once as a
 content-addressed `CorpusReadSet`, while every question still receives its own
 request, packet, receipt, and review identity. This changes storage and repeated
 read work, not the meaning of the public packet contracts.
@@ -107,7 +107,7 @@ gaps, and rejected paths as a typed append-only journal. Its authorized read-set
 and in-memory FTS index are reused inside the process for later questions in the
 same exact scope; closing or eviction destroys that cache. Every question still
 persists an ordinary request, run, receipt, and packet. The same narrow facade is
-available through local stdio MCP, while Session Lens exposes a read-only human
+available through local stdio MCP, while Lens session mode exposes a read-only human
 journal with exact source inspection. Agent packets include a readable source
 title/URI beside every selected fragment, while their full corpus-read audit
 manifest stays local and reopenable by ID/hash.
@@ -120,8 +120,8 @@ manifest stays local and reopenable by ID/hash.
 | source versions, fragments, and addresses | process-local FTS index |
 | Library, Collection, Snapshot, and policy identity | candidate rankings |
 | evidence packets and read receipts | graph projections |
-| shared, content-addressed corpus read sets | model and candidate caches |
-| append-only review decisions | Reading Room and Lens pages |
+| shared, content-addressed corpus read sets | candidate caches |
+| append-only review decisions | Lens pages |
 | append-only IdeaTrace candidates and closure receipts | rebuilt trace graph views |
 | append-only answer projections and judgment receipts | sparse clickable Lens spans |
 
@@ -156,7 +156,7 @@ replays it byte-for-byte. It prints the temporary data path and the exact IDs so
 you can inspect the result yourself.
 
 For a real corpus, follow [the complete local workflow](docs/HOW_TO_USE.md).
-Keep live SQLite files, model caches, and backups outside the corpus and outside
+Keep live SQLite files, rebuildable caches, and backups outside the corpus and outside
 Obsidian, Syncthing, Dropbox, or another file-sync root.
 
 Book-length sources can be ingested with the explicit bounded
@@ -171,10 +171,8 @@ or worker-memory guards.
 | CLI | Library setup, ingest, snapshot, FTS recall, packet inspection and replay, review, backup and restore | default public path |
 | `EvidencePacket/1.0` | persisted, source-closed retrieval result | versioned preview contract |
 | Loopback HTTP service | local programmatic access to one pinned Library | implemented; not remotely exposed |
-| stdio MCP | bounded session, recall, answer preparation, gated draft, gap, and rejected-path tools over the Python facade | implemented on the 0.2 development branch; no acceptance or promotion tools |
-| Reading Room | read-only inspection of one Library, snapshot, policy, and scope | implemented preview |
-| Session Lens | brief, chronological research journal, exact packet-backed passages, drafts, gaps, and rejected paths | implemented GET-only 0.2 projection |
-| Research Atlas / Lens | case-specific questions, hypotheses, timeline, and exact sources | implemented projection surface |
+| stdio MCP | bounded session, recall, answer preparation, gated draft, gap, and rejected-path tools over the Python facade | implemented; no acceptance or promotion tools |
+| Lens | one CLI/API surface with library, session, atlas, concepts, and flow modes | implemented GET-only projections |
 | Compact connectors | small source-closed packets for downstream agents | implemented library contracts |
 | Candidate Ontology / Lens | scoped concepts and exact co-occurrence links over one bounded question neighbourhood | experimental, GET-only projection |
 | Evidence-grounded reasoning | short public IdeaTrace steps closed over exact semantic receipts | experimental contracts, persistence, and CLI verifier |
@@ -219,9 +217,9 @@ not an installable runtime path.
 
 Evidence-grounded reasoning is a separate post-answer path. It stores only
 public statements, named operations, premise links, concise warrants, gaps, and
-exact receipt bindings. It does not store private chain-of-thought text. Schema
-v11 persists the candidate trace and deterministic closure receipt in two
-append-only tables. Schema v12 adds append-only answer projections and their
+exact receipt bindings. It does not store private chain-of-thought text. The v1
+baseline persists the candidate trace and deterministic closure receipt in two
+append-only tables and adds append-only answer projections with their
 judgment receipts; a passed closure or proposition projection is only
 `review_eligible`.
 
@@ -265,7 +263,7 @@ because their source rights and project boundaries differ.
 | Public synthetic | 12 multilingual fragments and queries; 1,000 generated fragments with 20 probes | Current staging replay returned 12/12 expected multilingual sources at top 10; the 1,000-fragment pipeline selected the exact expected fragment with one stable packet hash and zero provider calls. |
 | Mars working corpus | 2,051 sources; 53,747 retrieval units; about 103.8M characters; 72 bilingual cases | The current model-free route with bounded flat expansion and exact proof admission placed the exact fragment in the top 10 for 42/51 positive cases (82.4%) and the correct source for 49/51 (96.1%). The complete replay was byte-identical and used zero generative calls or tokens. |
 | Mars multi-session cache | 2,047 Library sources; 53,747 normalized units; 6 three-turn research sessions plus 1 isolated repair session | One authorized read and one FTS build served all three questions in each session. Warm turns averaged 38.76 s versus 50.90 s for first turns (23.85% lower); 17/17 comparable top-10 lists were unchanged, retries and cold reopen were 6/6 exact, and model tokens were zero. A one-case relation repair was rejected from production because only 1/2 variants recovered the miss. |
-| M1 PhD interactive stress corpus | 622 active sources; 263,363 exact fragments; about 243.1M codepoints | Cold scope preparation took 56.887 s and the first fully audited completion 72.647 s; a second question in the same explicit session took 13.557 s. Session Lens projected 24 exact evidence fragments in 0.062–0.064 s. All runtime stages used zero LLM calls or tokens; these timings do not establish scholarly relevance. |
+| M1 PhD interactive stress corpus | 622 active sources; 263,363 exact fragments; about 243.1M codepoints | Cold scope preparation took 56.887 s and the first fully audited completion 72.647 s; a second question in the same explicit session took 13.557 s. Lens session mode projected 24 exact evidence fragments in 0.062–0.064 s. All runtime stages used zero LLM calls or tokens; these timings do not establish scholarly relevance. |
 | M1 PhD scholarly holdout | 24 frozen questions; 72 predeclared queries; corrected scope of 615 sources / 259,165 fragments | The zero-model local run finished in 1,219.752 s. Conservative agent audit found direct support in 20/72 top-three positions (27.8%) and useful evidence in 61/120 top-five positions (50.8%). Cleaning seven author-side or duplicated SourceFamilies improved scope integrity and speed but did not improve relevance. These are development labels, not independent human validation. |
 | Mars IdeaTrace-24 | 24 frozen evidence packets: 6 direct, 6 multi-source, 6 contested, 6 unsupported traps | With retrieval held constant, one gate-directed repair improved complete evidence closure from 6/18 to 16/18, complete answers from 21/24 to 23/24, and answer-status correctness from 22/24 to 24/24. Safe abstention remained 6/6; one semantic overclaim and one exact-quote mismatch remained blocked. |
 | Parisian Ten structured records | 28,006 records from 40 files and 7 source families; 56 bilingual queries | Prepared memory packets delivered the complete evidence set in 56/56 queries. At the same per-query evidence budget, raw FTS delivered all required records in 43/56, hybrid search in 42/56, and E5 in 37/56. |
@@ -366,7 +364,7 @@ uv build
 For this update, the canonical local gate passed 2,678 tests with two
 host-dependent browser skips. Strict typing, zero terminology findings,
 95.02% branch-aware combined coverage, and the dependency audit also passed.
-Distribution closure verifies every schema migration through v13, the Lens
+Distribution closure verifies the single clean v1 schema baseline, the Lens
 assets, and that the wheel is built from the sdist and imports from an isolated
 non-editable environment.
 

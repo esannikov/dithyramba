@@ -1010,6 +1010,7 @@ def test_atlas_cli_validates_absolute_manifest_and_starts_loopback(
     result = CliRunner().invoke(
         app,
         [
+            "lens",
             "atlas",
             "--manifest",
             str(path),
@@ -1023,11 +1024,12 @@ def test_atlas_cli_validates_absolute_manifest_and_starts_loopback(
     )
     relative = CliRunner().invoke(
         app,
-        ["atlas", "--manifest", "atlas.json"],
+        ["lens", "atlas", "--manifest", "atlas.json"],
     )
 
     assert result.exit_code == 0
-    assert "research_atlas: http://127.0.0.1:8361" in result.stdout
+    assert "lens: http://127.0.0.1:8361" in result.stdout
+    assert "lens_mode: atlas" in result.stdout
     assert "manifest_hash:" in result.stdout
     assert "projection_hash:" in result.stdout
     assert "mode: read-only" in result.stdout
@@ -1039,6 +1041,7 @@ def test_atlas_cli_validates_absolute_manifest_and_starts_loopback(
     relative_root = CliRunner().invoke(
         app,
         [
+            "lens",
             "atlas",
             "--manifest",
             str(path),
@@ -1052,6 +1055,7 @@ def test_atlas_cli_validates_absolute_manifest_and_starts_loopback(
     relative_projection = CliRunner().invoke(
         app,
         [
+            "lens",
             "atlas",
             "--manifest",
             str(path),

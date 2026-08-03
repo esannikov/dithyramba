@@ -64,7 +64,7 @@ The stable route persists `EvidencePacket/1.0`: the query identity, exact
 snapshot and policy scope, selected passages, source addresses, profile, read
 receipts, and packet hash required for exact replay.
 
-When several questions share one exact scope, schema v10 stores their permitted
+When several questions share one exact scope, the v1 baseline stores their permitted
 fragment manifest once as a content-addressed `CorpusReadSet`. Each question
 still has an independent `QueryRequest`, processing run, `ReadReceipt`, packet,
 and review history. Sharing storage never merges questions or permits a scope
@@ -78,7 +78,7 @@ remain an `EvidenceGap`; a high search score cannot fill them.
 
 ### 4. Memory in use
 
-Review decisions are scoped and append-only. Reading Room and Lens project the
+Review decisions are scoped and append-only. Lens projects the
 stored state for a person. Connectors produce compact source-closed packets for
 another agent. These surfaces do not become new truth stores and do not mutate
 memory during read-only inspection.
@@ -110,7 +110,7 @@ operation/qualifier policy to the already judged claim states. It does not
 rejudge historical truth. A passed closure is `review_eligible`, never accepted
 memory by itself.
 
-Schema v11 stores the canonical trace and closure receipt in two append-only
+The v1 baseline stores the canonical trace and closure receipt in two append-only
 SQLite tables. The graph is rebuilt from their JSON; no second graph database
 or vector index is required.
 
@@ -142,7 +142,7 @@ The deterministic gate makes no provider call. A semantic author or reviewer
 may be used on the final short answer only; it does not reread or embed the
 corpus.
 
-Schema v12 stores the canonical `AnswerProjection` and its semantic judgment
+The v1 baseline stores the canonical `AnswerProjection` and its semantic judgment
 receipt in two append-only tables. Persistence preserves what was judged; it
 does not generate the projection, accept its content, or replace the separate
 human review path. `PropositionCoverageResult` remains a deterministic,
@@ -222,19 +222,19 @@ open, but they cannot support a claim unless they link to an existing exact
 evidence artifact.
 
 The Session Spine, durable SQLite store, least-context Python facade, thin stdio
-MCP transport, and GET-only Session Lens are implemented. Migration
-0013 persists the immutable session receipt and typed hash-chained events,
+MCP transport, and GET-only Lens session mode are implemented. The v1 baseline
+persists the immutable session receipt and typed hash-chained events,
 validates exact artifact closure, and rebuilds compact state after a cold reopen.
 The facade and MCP return compact journal state separately from the current
 exact evidence projection. `AgentEvidencePacket/1.2` pairs every selected exact
 fragment with a human-readable source title/URI and immutable source identity,
 marks the set as `retrieved_candidates`, and reports compact source-dominance
 diagnostics; it still omits the materialized corpus-wide read manifest. Neither
-surface exposes acceptance, operator decisions, or closure. Session Lens renders the
+surface exposes acceptance, operator decisions, or closure. Lens session mode renders the
 brief, chronological journal, gaps, drafts, rejected paths, and exact
 packet-backed passages without becoming another truth store. See
-[the 0.2 specification](INTERACTIVE_RESEARCH_MEMORY_SPEC.md) and
-[roadmap](ROADMAP_0.2.md).
+[the interactive-memory design record](INTERACTIVE_RESEARCH_MEMORY_SPEC.md)
+and its [completed implementation roadmap](ROADMAP_0.2.md).
 
 ### Gate-bound answer route
 
@@ -296,7 +296,7 @@ revalidating the full corpus closure on every turn.
 ```text
 Python AgentResearchFacade
   ├─ stdio MCP: agent tools; JSON-RPC protocol on stdout, logs on stderr
-  └─ Session Lens: GET-only human projection; no mutation or acceptance route
+  └─ Lens: GET-only library/session/atlas/concepts/flow modes
 ```
 
 The MCP server implements protocol lifecycle, `tools/list`, and `tools/call`
@@ -305,7 +305,7 @@ without duplicating research logic. It exposes `open_session`, `recall`,
 `reject_path`. It does not expose candidate acceptance, human decisions,
 promotion, or closure.
 
-Modern Session Lens events reuse the compact command receipt and direct
+Modern Lens session events reuse the compact command receipt and direct
 fragment metadata lookup. Full packet reconstruction remains available for
 audit and as a legacy fallback, but it is no longer part of ordinary page
 rendering. On the same M1 corpus, a 24-fragment session projection measured
@@ -320,11 +320,10 @@ rendering. On the same M1 corpus, a 24-fragment session projection measured
 | research sessions and hash-chained events | append-only canonical JSON plus relational bindings in SQLite | durable research journal; chat and drafts remain non-evidence |
 | session authorized read-set and FTS index | process-local memory plus SQLite FTS5 | rebuildable scoped discovery capability; destroyed on close or eviction |
 | one-shot FTS index | SQLite FTS5 | rebuildable discovery index |
-| semantic vectors and reranker caches | optional local model data | rebuildable discovery aid |
 | graph and Atlas projections | versioned derived artifacts | navigational view |
 | original corpus | operator-owned files | read-only input |
 
-Runtime databases, WAL files, indexes, model weights, and backups belong in an
+Runtime databases, WAL files, indexes, and backups belong in an
 explicit application-data root outside the repository and outside synchronized
 corpus folders.
 

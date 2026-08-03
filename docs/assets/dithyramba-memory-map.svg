@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1320" viewBox="0 0 1800 1320" role="img" aria-labelledby="title description">
-  <title id="title">Dithyramba 0.2 research-memory architecture</title>
+  <title id="title">Dithyramba v1 research-memory architecture</title>
   <desc id="description">Scientific architecture figure showing the durable source-to-evidence core, the bounded interactive session loop for agents and researchers, rebuildable discovery aids, optional interpretation paths, and the separate human-review boundary.</desc>
   <defs>
     <marker id="arrow-stable" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
@@ -39,7 +39,7 @@
   <rect x="34" y="30" width="1732" height="1260" rx="6" fill="#fffefd" stroke="#c9c9c3" stroke-width="1.5"/>
 
   <g class="ui">
-    <text x="72" y="72" class="figure">FIG. 1 · SYSTEM ARCHITECTURE · 0.2 DEVELOPMENT CANDIDATE</text>
+    <text x="72" y="72" class="figure">FIG. 1 · SYSTEM ARCHITECTURE · V1 RELEASE CANDIDATE</text>
     <text x="72" y="122" class="title serif">Dithyramba research memory</text>
     <text x="72" y="154" class="subtitle">Durable evidence below every answer; compact session continuity around the same source-bound core.</text>
     <line x1="72" y1="178" x2="1728" y2="178" class="guide"/>
@@ -153,8 +153,8 @@
 
     <rect x="1400" y="782" width="328" height="184" rx="4" fill="#f7f3f8" stroke="#725582" stroke-width="1.6"/>
     <text x="1420" y="816" class="figure" fill="#725582">E · HUMAN VIEW [R]</text>
-    <text x="1420" y="851" class="node-title">Session Lens</text>
-    <text x="1420" y="883" class="copy">brief + journal + exact passages</text>
+    <text x="1420" y="851" class="node-title">Dithyramba Lens</text>
+    <text x="1420" y="883" class="copy">session mode · exact passages</text>
     <text x="1420" y="910" class="copy">GET-only inspection</text>
     <line x1="1420" y1="930" x2="1708" y2="930" class="guide"/>
     <text x="1420" y="953" class="small">viewing never accepts or mutates memory</text>
@@ -189,7 +189,7 @@
 
     <rect x="1154" y="1042" width="574" height="132" rx="4" fill="#fffaf6" stroke="#a95032" stroke-width="1.5" stroke-dasharray="7 5"/>
     <text x="1174" y="1075" class="node-title">Orientation projections [E]</text>
-    <text x="1704" y="1075" text-anchor="end" class="contract mono">Concept Lens · graph · Atlas</text>
+    <text x="1704" y="1075" text-anchor="end" class="contract mono">Lens: concepts · atlas · flow</text>
     <text x="1174" y="1106" class="copy">candidate concepts and typed links remain navigational views</text>
     <text x="1174" y="1134" class="small">co-occurrence, rank, or visual proximity is never proof</text>
     <text x="1174" y="1158" class="small">all promotable claims return to exact evidence and human review</text>

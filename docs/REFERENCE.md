@@ -1,7 +1,7 @@
 # Dithyramba reference
 
-This reference describes the `0.1.0rc1` package base plus the current pre-alpha
-`0.2` development candidate. The command itself is authoritative for exact
+This reference describes the `0.1.0rc1` package metadata plus the current v1
+release candidate. The command itself is authoritative for exact
 options and defaults:
 
 ```bash
@@ -20,7 +20,7 @@ uv run dithyramba <command> --help
 | Base runtime | no model, GPU, external service, or Docker required |
 | Embedding or reranking runtime | not included in v1 |
 | Optional ontology extra | `numpy>=2,<3`; `scikit-learn>=1.8,<2` |
-| Current database schema | v13 |
+| Current database schema | one v1 baseline (`0001_v1.sql`) |
 | Package version | `0.1.0rc1` |
 
 ## Command inventory
@@ -42,7 +42,6 @@ Use `dithyramba about` or the public demo before any Library exists.
 dithyramba library init
 dithyramba library list
 dithyramba library doctor
-dithyramba library migrate
 dithyramba collection add
 dithyramba collection list
 dithyramba collection freeze
@@ -84,24 +83,28 @@ dithyramba review queue
 dithyramba backup
 dithyramba restore
 dithyramba serve
-dithyramba reading-room
-dithyramba atlas
-dithyramba flow-view
-dithyramba concept-lens
-dithyramba session-lens
+dithyramba lens library
+dithyramba lens session
+dithyramba lens atlas
+dithyramba lens concepts
+dithyramba lens flow
 dithyramba mcp
 dithyramba reasoning-check
 ```
 
-`Lens` is the umbrella name for researcher-facing views, not a separate CLI
-command. Today it is assembled from ReadingRoom, Research Atlas, Concept Lens,
-Flow View, and Session Lens.
+`Lens` is the single researcher-facing CLI surface. Its modes retain separate
+validated input contracts rather than pretending that a live Library, a durable
+session, and an immutable Atlas are the same artifact.
 
-`reading-room` requires `--library`, `--snapshot`, `--access-policy`, at least
+`lens library` requires `--library`, `--snapshot`, `--access-policy`, at least
 one `--collection`, `--purpose`, and `--data-home`. It starts a separate GET-only
-loopback server. `atlas`, `flow-view`, `concept-lens`, and `session-lens` also
-start read-only loopback views. Session Lens requires one existing
+loopback server. `lens atlas`, `lens flow`, `lens concepts`, and `lens session`
+also start read-only loopback views. Session mode requires one existing
 `ResearchSession` ID and exposes `/projection.json` beside its human journal.
+
+There is no v1 in-place legacy migration command. A pre-v1 Library fails closed
+before connection-profile writes; rebuild from its read-only sources and use the
+matching pre-v1 release only if review or session artifacts must be exported.
 
 `mcp` runs a stdio server over one existing Library. It reserves stdout for
 newline-delimited JSON-RPC and exposes `open_session`, `recall`,
@@ -116,12 +119,6 @@ session-closure tool.
 `reasoning-check` consumes one absolute-path `IdeaTrace`, exact claim-evidence
 case set, and semantic entailment result. It makes no provider call and emits a
 canonical closure receipt. A non-passed closure exits non-zero.
-
-### Models
-
-```text
-dithyramba model provision
-```
 
 Provisioning requires an explicit network permission for first download. An
 offline call verifies a cached pinned revision. A provisioned model is not
@@ -206,18 +203,17 @@ references but predates the explicit `retrieved_candidates` admission state and
 source-diversity diagnostics. The full materialized `ReadReceipt` stays local
 in every version and is reopened only through the strict audit route.
 
-Schema v10 added an internal append-only `CorpusReadSet`: one exact protected
+The v1 baseline includes an internal append-only `CorpusReadSet`: one exact protected
 fragment manifest can be shared by several recall requests over the same
 Library, snapshot, policy, Collections, and purpose. Public `ReadReceipt/1.0`
-and `EvidencePacket/1.0` payloads remain unchanged, and v9 Libraries remain
-readable after migration.
+and `EvidencePacket/1.0` payloads remain unchanged.
 
-Schema v11 adds append-only `idea_traces` and
+The v1 baseline includes append-only `idea_traces` and
 `reasoning_closure_results`. It stores only canonical public trace artifacts,
 not private chain-of-thought text. A passed closure does not create a human
 `ReviewDecision` and does not promote a claim into accepted memory.
 
-Schema v12 adds append-only `answer_projections` and
+It also includes append-only `answer_projections` and
 `answer_projection_receipts`. The first stores exact role-labelled public
 prose; the second stores the semantic judgment bound to that projection.
 `PropositionCoverageResult` is deterministic and rebuildable, so it is not a
@@ -233,8 +229,8 @@ new version. Applied migrations remain immutable.
 | `EvidenceRequirement` | `dithyramba.evidence_requirement/1.0` | caller-owned input |
 | `EvidenceGateSpec` | `dithyramba.evidence_gate_spec/1.0` | caller-owned input |
 | `EvidenceCoverageResult` | `dithyramba.evidence_coverage_result/1.0` | in-memory |
-| `AnswerProjection` | `dithyramba.answer_projection/1.0` | append-only canonical JSON in schema v12 |
-| `AnswerProjectionJudgmentReceipt` | `dithyramba.answer_projection_receipt/1.0` | append-only canonical JSON in schema v12 |
+| `AnswerProjection` | `dithyramba.answer_projection/1.0` | append-only canonical JSON in the v1 baseline |
+| `AnswerProjectionJudgmentReceipt` | `dithyramba.answer_projection_receipt/1.0` | append-only canonical JSON in the v1 baseline |
 | `PropositionCoverageResult` | typed result | in-memory; display eligibility only |
 | `RouteCandidateReceipt` | `dithyramba.route_candidate_receipt/1.0` | library artifact |
 | `CompactMemoryPacket` | `dithyramba.compact_memory_packet/1.1` | library artifact |
@@ -269,7 +265,7 @@ not a new evidence or acceptance contract.
 
 `build_candidate_ontology(...)` consumes one bounded, already-authorized
 neighbourhood. The optional `ontology` extra supplies deterministic TF-IDF/NMF
-extraction. `dithyramba concept-lens --projection /absolute/ontology.json`
+extraction. `dithyramba lens concepts --projection /absolute/ontology.json`
 opens the validated result on loopback. `--presentation
 /absolute/presentation.json` optionally adds an ontology-bound human view with
 one title, question, summary, and entry concept per cluster. The command is

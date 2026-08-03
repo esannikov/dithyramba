@@ -43,7 +43,7 @@ agent question
   → EvidencePacket
   → compact evidence for the turn
   → packet reference appended to the session journal
-  → human inspection in Session Lens
+  → human inspection in Lens session mode
 ```
 
 Drafts and chat events explain the path of inquiry. They are not evidence unless
@@ -78,17 +78,16 @@ Dithyramba therefore stores:
 
 - source bytes and exact hashes;
 - structured records and typed links in SQLite;
-- optional vectors as rebuildable indexes;
 - human decisions as separate append-only records.
 
-If a better embedding model appears, vectors can be rebuilt while source IDs,
-citations, and decisions stay intact.
+V1 deliberately carries no embedding or vector runtime. A future discovery
+plugin could be evaluated without changing source IDs, citations, or decisions.
 
 ## Three questions that must remain separate
 
 ### 1. Was it discovered?
 
-FTS, aliases, phrase repair, neighbouring fragments, a vector model, or a
+FTS, aliases, phrase repair, neighbouring fragments, or a
 derived query can place a fragment in a bounded candidate list.
 
 ### 2. Is it relevant?

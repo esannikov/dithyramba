@@ -304,6 +304,12 @@ def restore_backup_bundle(
     if library_logical_identity_hash(config) != manifest.logical_identity_hash:
         raise BackupBundleIntegrityError("manifest Library logical identity is inconsistent")
     historical_schema = not record.is_current_schema
+    if historical_schema:
+        raise BackupBundleIntegrityError(
+            "pre-v1 BackupBundle detected; Dithyramba v1 does not rewrite historical "
+            "Libraries in place. Restore it with the matching pre-v1 release or rebuild "
+            "a new v1 Library from the original read-only sources."
+        )
     paths = None
     try:
         paths = create_library_layout(
@@ -338,32 +344,13 @@ def restore_backup_bundle(
                 expected_size=entry.byte_size,
             )
         _fsync_tree(paths.root)
-        if historical_schema:
-            from .migration import migrate_library_from_backup
-
-            migration = migrate_library_from_backup(
-                config.library_id,
-                data_root=paths.application_data_root,
-                backup_bundle=record.path,
-            )
-            if (
-                migration.receipt.old_schema_version != manifest.schema_version
-                or migration.receipt.backup_manifest_hash != record.manifest_hash
-            ):
-                raise BackupBundleIntegrityError(
-                    "historical restore migration receipt differs from its source bundle"
-                )
         repository = open_library(config.library_id, data_root=paths.application_data_root)
         try:
-            if historical_schema:
-                if repository.schema_version <= manifest.schema_version:
-                    raise BackupBundleIntegrityError("historical restore did not reach schema head")
-            else:
-                if repository.schema_fingerprint != manifest.schema_fingerprint:
-                    raise BackupBundleIntegrityError("restored schema fingerprint differs")
-                restored_counts = _row_counts(repository._store.connection)
-                if restored_counts != manifest.row_counts:
-                    raise BackupBundleIntegrityError("restored table counts differ")
+            if repository.schema_fingerprint != manifest.schema_fingerprint:
+                raise BackupBundleIntegrityError("restored schema fingerprint differs")
+            restored_counts = _row_counts(repository._store.connection)
+            if restored_counts != manifest.row_counts:
+                raise BackupBundleIntegrityError("restored table counts differ")
             restored_events, event_count, last_event_id = _event_log_bytes(
                 repository._store.connection
             )

@@ -11,7 +11,7 @@ read-only sources
   → local SQLite FTS with bounded lexical repair
   → candidate hygiene and EvidenceCoverageGate
   → compact AgentEvidencePacket
-  → MCP or Session Lens
+  → MCP or Lens
   → append-only human review
 ```
 
@@ -39,7 +39,7 @@ The cleanup does not weaken these invariants:
 
 ## Implementation status
 
-### 2026-08-03 — V1.1 to V1.3 complete locally
+### 2026-08-03 — V1.1 to V1.4 complete locally
 
 The incremental-ingest fast path is implemented on branch
 `codex/v1-clean-core`. Repeated input now reuses an existing SourceVersion
@@ -71,6 +71,16 @@ Earlier V1.1 verification: `2691 passed`, `2 skipped`, coverage `95.01%`;
 Ruff format/lint, strict mypy, terminology, and dependency audit passed. This
 closed V1.1 before runtime removal.
 
+V1.4 replaces the thirteen pre-v1 migrations with one reviewed packaged
+`0001_v1.sql` baseline. A new Library creates 77 retained tables and none of
+the retired semantic, vector, reranker, model-runtime, or hybrid tables. A
+pre-v1 migration history raises `LegacySchemaError` before connection-profile
+PRAGMAs, and a file-hash test proves the database bytes remain unchanged. The
+obsolete in-place migration command and its dead migration runtime were
+removed. Researcher views now share one `dithyramba lens` surface with
+`library`, `session`, `atlas`, `concepts`, and `flow` modes. Their internal
+contracts remain separate and independently testable.
+
 ## Current excess
 
 The verified baseline is conceptually smaller than its implementation. Before
@@ -85,14 +95,14 @@ several old or experimental routes.
 | `evidence`, compact packets, source-local drilldown | core | proof preparation |
 | `sessions`, `interactive`, stdio MCP | core | context-window and agent boundary |
 | `review` | core | human promotion boundary |
-| Session Lens and exact source inspector | core surface | human audit path |
+| Lens and exact source inspector | core surface | human audit path |
 | `answers` and bounded public `reasoning` artifacts | retain, narrow | source-grounded synthesis without hidden truth promotion |
 | backup and restore | retain | local durable memory requires recovery |
 | candidate ontology | optional until human coherence gate | useful orientation is not yet independently validated |
 | Research Atlas, Reading Room, Concept Lens, Flow View | consolidate | one Lens product surface is enough for v1 |
 | semantic vectors, hybrid retrieval, rerankers, model provisioning | remove from default runtime | no active default route and no measured current win |
 | `sentence-transformers` extra | remove or move to a separate experimental package | contradicts the model-free v1 promise |
-| old semantic/hybrid tables | preserve only through an explicit legacy importer | historical compatibility must not define the clean v1 schema |
+| old semantic/hybrid tables | absent from v1; pre-v1 Library opens fail closed | historical compatibility must not define the clean v1 schema |
 | case-specific fixtures, evaluations, model caches, runtime DBs | exclude from package | development evidence or rebuildable local state |
 
 The table is a deletion plan, not deletion authority. A module moves to
@@ -132,7 +142,7 @@ Acceptance:
 ### V1.3 — Runtime diet
 
 Build an import and dependency inventory, then remove inactive semantic/hybrid
-execution from the default package. Consolidate human views around Session Lens.
+execution from the default package. Consolidate human views around Lens.
 
 Acceptance:
 
@@ -153,10 +163,11 @@ and session artifacts.
 
 Acceptance:
 
-1. A new v1 Library starts from one documented schema baseline.
-2. No retired semantic/vector table is created in a new v1 Library.
-3. Legacy conversion is all-or-nothing, backup-first, and hash-verified.
-4. Failure leaves the original Library byte-for-byte untouched.
+1. [x] A new v1 Library starts from one documented schema baseline.
+2. [x] No retired semantic/vector table is created in a new v1 Library.
+3. [x] V1 does not convert legacy Libraries in place; it gives an explicit
+   rebuild/export instruction before any profile write.
+4. [x] Failure leaves the original Library byte-for-byte untouched.
 
 ### V1.5 — Release closure
 
@@ -166,7 +177,7 @@ clean-install protocol around the one stable route.
 Acceptance:
 
 1. Linux and macOS clean installs pass from sdist and wheel.
-2. Full Ruff, strict mypy, pytest, dependency audit, PDF, MCP, Session Lens,
+2. Full Ruff, strict mypy, pytest, dependency audit, PDF, MCP, Lens,
    and Chromium gates pass.
 3. Test coverage remains at least 95% without excluding retained runtime code.
 4. A fresh 300–800-source corpus completes ingest, incremental update, 30

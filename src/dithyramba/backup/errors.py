@@ -13,7 +13,3 @@ class BackupBundleIntegrityError(BackupBundleError):
 
 class BackupBundleConflictError(BackupBundleError):
     """Creation or restore would overwrite an existing artifact or Library."""
-
-
-class LibraryMigrationError(BackupBundleError):
-    """A backup-first Library migration could not be proven safe."""

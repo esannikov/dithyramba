@@ -31,25 +31,11 @@ def test_packaged_migration_smoke_returns_schema_evidence() -> None:
     evidence = verify_migrations_smoke()
 
     assert evidence["status"] == "ok"
-    assert evidence["schema_version"] == 13
+    assert evidence["schema_version"] == 1
     assert len(str(evidence["schema_fingerprint"])) == 64
     checksums = evidence["migration_checksums"]
     assert isinstance(checksums, dict)
-    assert set(checksums) == {
-        "1",
-        "2",
-        "3",
-        "4",
-        "5",
-        "6",
-        "7",
-        "8",
-        "9",
-        "10",
-        "11",
-        "12",
-        "13",
-    }
+    assert set(checksums) == {"1"}
 
 
 def test_actual_schema_tampering_fails_even_with_valid_migration_history(tmp_path: Path) -> None:

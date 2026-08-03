@@ -1,5 +1,8 @@
 # Roadmap 0.2
 
+> Completed implementation history. For the current release path, use
+> [`V1_ROADMAP.md`](V1_ROADMAP.md) and [`REFERENCE.md`](REFERENCE.md).
+
 The roadmap is ordered by dependency. A later stage must not be started merely
 because it is visually attractive; its preceding contract must first pass focused
 tests and cold replay.

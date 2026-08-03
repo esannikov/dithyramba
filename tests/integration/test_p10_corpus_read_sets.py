@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
 from typing import Any, cast
 
@@ -11,7 +10,7 @@ import pytest
 from dithyramba.backup import create_backup_bundle, restore_backup_bundle
 from dithyramba.persistence import PersistenceIntegrityError, SQLiteRecallBackend
 from dithyramba.recall import QueryRequest, RecallPersistenceError, RecallService
-from dithyramba.store import MigrationRunner, Store, discover_migrations
+from dithyramba.store import Store
 from tests.unit.test_p3_recall_persistence import _context
 
 _ROOT = Path(__file__).resolve().parents[2]
@@ -69,14 +68,9 @@ def _convert_receipt_to_legacy(connection: Any, read_receipt_id: str) -> None:
     )
 
 
-def test_v10_migration_copies_are_identical_and_fresh_schema_is_head(tmp_path: Path) -> None:
-    root = _ROOT / "migrations/0010_corpus_read_sets.sql"
-    packaged = _ROOT / "src/dithyramba/store/sql/0010_corpus_read_sets.sql"
-    assert root.read_bytes() == packaged.read_bytes()
-    assert discover_migrations(_ROOT / "migrations")[-1].version == 13
-
+def test_v1_baseline_contains_corpus_read_set_schema(tmp_path: Path) -> None:
     with Store.open(tmp_path / "fresh.sqlite3") as store:
-        assert store.schema_version == 13
+        assert store.schema_version == 1
         tables = {
             str(row[0])
             for row in store.connection.execute(
@@ -504,67 +498,6 @@ def test_batch_receipt_drift_fails_closed_and_rolls_back(
             )
             == 2
         )
-    finally:
-        context.repository.close()
-
-
-def test_v9_legacy_packet_migrates_and_replays_without_backfill(tmp_path: Path) -> None:
-    context = _context(tmp_path)
-    try:
-        service = _service(context)
-        packet = service.recall(context.request).packet
-        connection = context.repository._store.connection
-        _convert_receipt_to_legacy(connection, packet.read_receipt.read_receipt_id)
-
-        connection.execute("DROP TRIGGER read_receipt_items_reject_shared_insert")
-        connection.execute("DROP TRIGGER reasoning_closure_results_no_delete")
-        connection.execute("DROP TRIGGER reasoning_closure_results_no_update")
-        connection.execute("DROP TABLE reasoning_closure_results")
-        connection.execute("DROP TRIGGER idea_traces_no_delete")
-        connection.execute("DROP TRIGGER idea_traces_no_update")
-        connection.execute("DROP TABLE idea_traces")
-        connection.execute("DROP TRIGGER answer_projection_receipts_no_delete")
-        connection.execute("DROP TRIGGER answer_projection_receipts_no_update")
-        connection.execute("DROP TABLE answer_projection_receipts")
-        connection.execute("DROP TRIGGER answer_projections_no_delete")
-        connection.execute("DROP TRIGGER answer_projections_no_update")
-        connection.execute("DROP TABLE answer_projections")
-        connection.execute("DROP TRIGGER research_session_events_no_delete")
-        connection.execute("DROP TRIGGER research_session_events_no_update")
-        connection.execute("DROP TRIGGER research_session_events_validate_insert")
-        connection.execute("DROP TABLE research_session_events")
-        connection.execute("DROP TRIGGER research_sessions_no_delete")
-        connection.execute("DROP TRIGGER research_sessions_no_update")
-        connection.execute("DROP TABLE research_sessions")
-        connection.execute("DROP TABLE read_receipt_corpus_sets")
-        connection.execute("DROP TABLE corpus_read_set_items")
-        connection.execute("DROP TABLE corpus_read_sets")
-        connection.execute("DROP TRIGGER schema_migrations_no_delete")
-        connection.execute("DELETE FROM schema_migrations WHERE version IN (10, 11, 12, 13)")
-        connection.execute(
-            "CREATE TRIGGER schema_migrations_no_delete BEFORE DELETE ON "
-            "schema_migrations BEGIN SELECT RAISE(ABORT, "
-            "'schema_migrations is append-only'); END"
-        )
-
-        v9 = tmp_path / "v9-migrations"
-        v9.mkdir()
-        for migration in discover_migrations(_ROOT / "migrations")[:9]:
-            shutil.copyfile(_ROOT / "migrations" / migration.name, v9 / migration.name)
-        MigrationRunner(connection, v9).verify_at_head()
-        backed_up: list[int] = []
-        applied = MigrationRunner(connection, _ROOT / "migrations").apply_all(
-            backup_hook=lambda _connection, migration: backed_up.append(migration.version)
-        )
-        assert [item.version for item in applied] == [10, 11, 12, 13]
-        assert backed_up == [10, 11, 12, 13]
-        assert _table_count(connection, "corpus_read_sets") == 0
-
-        loaded = context.backend.load_evidence_packet(packet.evidence_packet_id)
-        assert loaded.canonical_bytes == packet.canonical_bytes
-        replay = service.replay(packet.evidence_packet_id)
-        assert replay.packet.canonical_bytes == packet.canonical_bytes
-        assert _table_count(connection, "corpus_read_sets") == 0
     finally:
         context.repository.close()
 

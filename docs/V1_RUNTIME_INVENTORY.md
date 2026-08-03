@@ -33,7 +33,7 @@ closure, but it is not evidence of package bloat.
 | lexical expansion and conditional QueryCloud | yes | measured deterministic repair |
 | candidate hygiene and EvidenceCoverageGate | yes | keep noise and unsupported answers out |
 | compact AgentEvidencePacket | yes | solve context-window pressure |
-| research session, stdio MCP, Session Lens | yes | agent and human access |
+| research session, stdio MCP, Lens | yes | agent and human access |
 | append-only review | yes | human promotion boundary |
 | backup and restore | yes | local durability |
 
@@ -58,15 +58,19 @@ tests. Runtime size moved from 153 files / 65,226 physical lines to 136 files /
 and the associated model dependency tree disappeared together. The retained
 route passed 1,946 tests with 95.26% branch-aware coverage after the deletion.
 
-Historical SQL tables are addressed separately in V1.4 because changing the
-schema boundary requires a new-Library test and an explicit legacy strategy.
+V1.4 replaced the historical SQL chain with one 77-table packaged baseline.
+Legacy histories are detected before profile PRAGMAs and are never rewritten.
+After schema and Lens consolidation the working tree contains 136 runtime
+Python files / 51,695 physical lines, 100 Python test files / 45,244 lines, and
+one packaged SQL baseline. Final counts and coverage are recorded only after
+the complete release gate.
 
 ## Optional or consolidating surfaces
 
 - Candidate Ontology remains optional until independent human coherence review.
-- Research Atlas, Reading Room, Concept Lens, and Flow View overlap. V1 keeps
-  one Session Lens product surface plus exact source inspection; useful
-  projections should become Lens modes rather than separate products.
+- Library, Session, Atlas, Concepts, and Flow now live behind one `lens` CLI/API
+  surface. Their separate validation contracts remain internal modes rather
+  than separate products.
 - Answer projection and bounded reasoning stay only where they expose factual,
   synthesis, hypothesis, question, and human-decision states without hidden
   promotion.
@@ -86,7 +90,6 @@ For every retired family:
 
 ## Next measured slice
 
-Build one clean v1 schema baseline for new Libraries, prove that it creates no
-retired semantic/vector tables, and verify that old Libraries remain untouched.
-Then consolidate the human views behind one Lens entrypoint and run the complete
-sdist/wheel clean-install protocol.
+Run the complete sdist/wheel clean-install protocol, then a fresh 300–800-source
+corpus with 30 frozen questions, exact replay, source inspection, and a repeated
+unchanged ingest. Only after those gates may local rebuildable caches be removed.

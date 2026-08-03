@@ -1,7 +1,7 @@
 # Development
 
-Dithyramba package metadata is `0.1.0rc1`; the current branch is the pre-alpha
-`0.2` development candidate with schema v13 interactive sessions. This guide
+Dithyramba package metadata is `0.1.0rc1`; the current branch is the v1 release
+candidate with one clean SQLite baseline and interactive sessions. This guide
 covers work from a repository checkout; it does not define a public
 compatibility promise.
 
@@ -141,12 +141,12 @@ values. Do not use the combined number to hide an untested decision path.
 
 1. Keep SQL in repository/persistence modules and parameterize values.
 2. Never modify an applied migration; add the next contiguous checksummed SQL
-   migration to both packaged mirrors.
+   migration to the packaged `src/dithyramba/store/sql/` source.
 3. Preserve byte compatibility of existing v1 artifacts.
 4. Use insert-or-verify for content-addressed immutable records.
 5. Reconstruct and rehash persisted objects before returning them.
-6. Test fresh schema, previous-schema migration, fault rollback, row tampering,
-   read-only replay, and cold reopen.
+6. Test fresh schema, future v1 migration, legacy fail-closed behavior, fault
+   rollback, row tampering, read-only replay, and cold reopen.
 
 `LibraryRepository` is the production persistence boundary. `Store.open` is a
 low-level migration/test/backup seam and must not become a corpus-facing API.
@@ -154,7 +154,7 @@ low-level migration/test/backup seam and must not become a corpus-facing API.
 ## Runtime and security rules
 
 - Treat corpus text and metadata as untrusted data, never instructions.
-- Runtime databases, WAL, blobs, indexes, and model caches remain outside the
+- Runtime databases, WAL, blobs, indexes, and rebuildable caches remain outside the
   repository and all synchronization roots.
 - Parser subprocesses use bounded input/output, timeout, and resource limits.
 - Do not expose absolute corpus paths or full source text in ordinary metadata.
