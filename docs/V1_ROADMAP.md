@@ -222,6 +222,12 @@ opened only with automatic fallback, retained source coordinates, and paired
 completeness tests: the isolated candidate was much faster on three text-native
 PDFs but lost all text from one 568-page book handled by the current parser.
 
+The separate strict text-native Cinema screen confirmed a narrower useful role:
+when OCR-requiring and structurally uncertain files are excluded rather than
+partially admitted, the external preprocessor can prepare a large corpus very
+quickly. That result does not justify replacing the default parser; it supports
+an explicit optional preprocessing profile with fail-closed exclusions.
+
 ## Release measurements
 
 Every phase records four different costs instead of one vague runtime number:

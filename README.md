@@ -323,11 +323,13 @@ verification/          deterministic public evidence-path replay
 examples/              small CC0 corpus used by the local demo
 schemas/               contract inventory policy, not duplicate schemas
 scripts/               demo and clean-machine acceptance tools
+skills/dithyramba/     thin Codex orchestration skill and evidence guidance
 docs/                  concepts, workflow, reference, and development guide
 .github/                continuous-integration and issue templates
 ```
 
-Only `src/dithyramba/` is installed into the runtime wheel. The other
+Only `src/dithyramba/` is installed into the runtime wheel. The Codex skill is
+an optional source-repository integration resource; the other
 directories support learning, development, reproducibility, and release
 verification. See the [repository guide](docs/REPOSITORY_GUIDE.md) for the
 responsibility of each directory and package group.
@@ -335,6 +337,7 @@ responsibility of each directory and package group.
 ## Documentation
 
 - [Start with your own corpus](docs/HOW_TO_USE.md)
+- [Codex skill orchestration](skills/dithyramba/SKILL.md)
 - [Understand the architecture](docs/ARCHITECTURE.md)
 - [How source-grounded memory works](docs/EXPLANATION.md)
 - [CLI and contract reference](docs/REFERENCE.md)

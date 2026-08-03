@@ -64,6 +64,11 @@ EXPECTED_SDIST_EXCLUDES = {
 }
 REQUIRED_PUBLIC_PATHS = {
     "docs/REPOSITORY_GUIDE.md",
+    "skills/dithyramba/SKILL.md",
+    "skills/dithyramba/agents/openai.yaml",
+    "skills/dithyramba/references/evidence-contract.md",
+    "skills/dithyramba/references/lifecycle.md",
+    "skills/dithyramba/references/mcp-tools.md",
     "verification/README.md",
     "verification/__init__.py",
     "verification/generate_synthetic_1000.py",

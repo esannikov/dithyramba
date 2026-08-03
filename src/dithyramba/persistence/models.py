@@ -8,6 +8,7 @@ from pathlib import Path
 from dithyramba.access import AccessPolicySnapshot, CompiledAccess, RequestScope
 from dithyramba.collections import CollectionConfig
 from dithyramba.library import LibraryConfig, LibraryPaths
+from dithyramba.provenance import ProcessingRunRecord
 
 # P2 provenance records live in ``dithyramba.provenance``. They are re-exported
 # by the persistence package, while this module remains the P1 record home.
@@ -39,6 +40,46 @@ class AccessPolicyRecord:
     name: str
     snapshot: AccessPolicySnapshot
     created_at: str
+
+
+@dataclass(frozen=True, slots=True)
+class LibraryCounts:
+    """Compact persisted-object counts for one physically isolated Library."""
+
+    collections: int
+    access_policies: int
+    sources: int
+    source_versions: int
+    source_fragments: int
+    collection_memberships: int
+    corpus_snapshots: int
+    snapshot_members: int
+    evidence_packets: int
+    research_sessions: int
+    processing_runs: int
+
+
+@dataclass(frozen=True, slots=True)
+class CorpusSnapshotSummary:
+    """Read-only snapshot identity without expanding its complete manifest."""
+
+    corpus_snapshot_id: str
+    manifest_hash: str
+    collection_ids: tuple[str, ...]
+    member_count: int
+    created_at: str
+
+
+@dataclass(frozen=True, slots=True)
+class LibraryDescription:
+    """One reconstructable operator overview with no source text."""
+
+    library: LibraryRecord
+    counts: LibraryCounts
+    collections: tuple[CollectionRecord, ...]
+    access_policies: tuple[AccessPolicyRecord, ...]
+    snapshots: tuple[CorpusSnapshotSummary, ...]
+    recent_processing_runs: tuple[ProcessingRunRecord, ...]
 
 
 @dataclass(frozen=True, slots=True)

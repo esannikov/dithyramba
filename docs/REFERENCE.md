@@ -41,11 +41,21 @@ Use `dithyramba about` or the public demo before any Library exists.
 ```text
 dithyramba library init
 dithyramba library list
+dithyramba library describe
 dithyramba library doctor
 dithyramba collection add
 dithyramba collection list
 dithyramba collection freeze
 ```
+
+`library describe --json` returns one text-free operator overview: verified
+Library identity and health, persisted-object counts, Collections,
+AccessPolicies, immutable snapshot summaries, and recent ProcessingRuns. It is
+the preferred first call for a human or agent resuming work. The command does
+not read source text, contact external services, mutate state, or claim that a
+successful processing run establishes scholarly correctness. Backup bundles
+remain external portable artifacts and are therefore reported as externally
+tracked rather than guessed from the live database.
 
 ### Policy, ingest, and sources
 
@@ -118,6 +128,11 @@ already found Sources before returning `answer`, `gap`, or `blocked`.
 `record_draft` requires an exactly replayable `answer` preparation. The MCP
 surface has no human acceptance, decision, promotion, deletion, or
 session-closure tool.
+
+The repository also contains a thin Codex skill in `skills/dithyramba/`. It
+orchestrates the CLI, MCP adapter, and Lens while preserving the same evidence
+and human-review boundaries. It is a source-repository integration resource,
+not part of the runtime wheel and not a second implementation of the memory.
 
 `reasoning-check` consumes one absolute-path `IdeaTrace`, exact claim-evidence
 case set, and semantic entailment result. It makes no provider call and emits a

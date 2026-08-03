@@ -294,8 +294,10 @@ revalidating the full corpus closure on every turn.
 ### Agent and human adapters
 
 ```text
-Python AgentResearchFacade
-  ├─ stdio MCP: agent tools; JSON-RPC protocol on stdout, logs on stderr
+optional Codex skill (thin orchestration, no research logic)
+  ├─ CLI: Library lifecycle, describe, doctor, ingest, snapshot, backup
+  ├─ Python AgentResearchFacade
+  │    └─ stdio MCP: bounded agent tools; JSON-RPC stdout, logs stderr
   └─ Lens: GET-only library/session/atlas/concepts/flow modes
 ```
 
@@ -304,6 +306,11 @@ without duplicating research logic. It exposes `open_session`, `recall`,
 `session_context`, `prepare_answer`, `record_draft`, `record_gap`, and
 `reject_path`. It does not expose candidate acceptance, human decisions,
 promotion, or closure.
+
+The optional skill selects among those existing surfaces and supplies workflow
+and evidence-language guidance. It does not read SQLite directly, implement
+retrieval, or add another persistence layer. `library describe` gives it a
+source-text-free orientation packet before any bounded research session opens.
 
 Modern Lens session events reuse the compact command receipt and direct
 fragment metadata lookup. Full packet reconstruction remains available for

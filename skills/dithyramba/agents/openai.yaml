@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dithyramba"
+  short_description: "Operate source-grounded research memory"
+  default_prompt: "Use $dithyramba to orient this Library, retrieve bounded evidence, and show what remains unverified."

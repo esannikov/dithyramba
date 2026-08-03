@@ -206,6 +206,28 @@ grep -Eq 'Sources indexed \([1-9][0-9]* processed\)' "$ACCEPT_ROOT/demo.log" \
 grep -Eq 'Evidence packet persisted \([1-9][0-9]* fragment\(s\)\)' "$ACCEPT_ROOT/demo.log" \
   || fail "demo did not persist source evidence"
 
+env -u PYTHONPATH "$RUNTIME_CLI" library describe \
+  --library "$LIBRARY_ID" --data-home "$DEMO_DATA" --json \
+  >"$ACCEPT_ROOT/library-description.json"
+env -u PYTHONPATH \
+  EXPECTED_LIBRARY_ID="$LIBRARY_ID" \
+  "$RUNTIME_PYTHON" - "$ACCEPT_ROOT/library-description.json" <<'PY'
+import json
+import os
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as stream:
+    payload = json.load(stream)
+assert payload["schema"] == "dithyramba.library_description/1.0"
+assert payload["library"]["library_id"] == os.environ["EXPECTED_LIBRARY_ID"]
+assert payload["health"]["status"] == "ok"
+assert payload["health"]["external_services_contacted"] is False
+assert payload["counts"]["sources"] == 3
+assert payload["counts"]["source_fragments"] > 0
+assert payload["counts"]["corpus_snapshots"] == 1
+assert payload["backup_tracking"]["mode"] == "external_bundle"
+PY
+
 # Replay the public 1,000-fragment evidence path from the installed wheel.
 env -u PYTHONPATH "$RUNTIME_PYTHON" -m verification.run_public_replay \
   --warmups 1 --measured 2 --output "$ACCEPT_ROOT/public-replay.json"

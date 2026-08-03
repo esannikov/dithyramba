@@ -7,13 +7,20 @@ history belong in dated evaluation reports, not in the product changelog.
 
 ### Added
 
+- `dithyramba library describe`: a read-only, source-text-free overview of one
+  verified Library, including object counts, Collections, immutable policies,
+  snapshot summaries, and recent ProcessingRuns.
+- A thin source-repository Codex skill that orchestrates Library lifecycle,
+  bounded MCP research, evidence-state language, progress reporting, and human
+  review boundaries without duplicating the Python core.
+
 - Durable 0.2 `ResearchSession` journals with compact least-context agent turns,
   exact command retry receipts, and cold-reopen state reconstruction.
 - Process-local `RecallScopeSession` reuse: one authorized fragment read-set and
   in-memory FTS index can serve later questions in the same exact session scope
   while every question retains its own durable packet and audit trail.
 - Thin newline-delimited JSON-RPC stdio MCP over the existing Python facade,
-  with six bounded research tools and no human acceptance or promotion tool.
+  with seven bounded research tools and no human acceptance or promotion tool.
 - GET-only Session Lens for briefs, chronological questions, packet-backed
   evidence, drafts, gaps, rejected paths, and exact source inspection.
 - `AgentEvidencePacket/1.2` explicitly marks recall output as
