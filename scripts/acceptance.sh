@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+export PYTHONDONTWRITEBYTECODE=1
 EXPECTED_UV="0.6.14"
 EXPECTED_PYTHON="3.11.12"
 EXPECTED_SCHEMA="1"
