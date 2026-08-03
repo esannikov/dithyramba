@@ -118,7 +118,7 @@ cannot point outside the parent answer or hypothesis evidence set.
 
 The release implements contracts, validation, replay, append-only persistence,
 corruption checks, and a CLI verifier for IdeaTrace. `AnswerProjection` and its
-semantic receipt are now durable schema-v12 records, while
+semantic receipt are durable records in the v1 baseline, while
 `PropositionCoverageGate` remains a deterministic rebuildable result. Automatic
 generation, public CLI/HTTP authoring, and human acceptance are not included.
 Those surfaces remain separate so a convenient synthesis cannot grant itself

@@ -1,7 +1,7 @@
 # Evaluation evidence and limits
 
 This page records what Dithyramba has actually been exercised on for the
-`0.1.0rc1` package base and current `0.2` development candidate. It separates
+historical package candidates and the current v1 candidate. It separates
 three different claims:
 
 1. **Public reproducibility:** checks anyone can run from this repository.
@@ -37,9 +37,10 @@ All committed fixture text is repository-authored and released as `CC0-1.0`.
 |---|---:|---:|---|
 | `public_multilingual` | 12 fragments; 12 preregistered queries: 6 Ukrainian and 6 English | recall@10 `12/12`; macro, UA, and EN recall `1.000` | Exact multilingual lexical retrieval over a tiny frozen fixture. |
 | `synthetic_1000` | 1,000 generated fragments; 20 deterministic lexical probes | expected fragment selected; packet hashes `1/1`; provider calls `0` | Ingest, scope compilation, FTS recall, receipts, persistence, and deterministic packet replay. |
+| `v1_fresh_corpus` | 400 newly generated sources; 2,800 fragments; 30 questions | top-one document, source address, and exact replay `30/30`; unchanged reuse `400/400`; model calls/tokens `0/0` | Clean ingest, incremental reuse, lexical retrieval, addressability, and replay on previously unseen synthetic inputs. |
 | Isolation fixtures | 2 Libraries; 4 public/private/holdout/excluded canaries | all fixture invariants passed | Scope is compiled before reading and excluded data does not silently enter recall. |
 | IdeaTrace closure fixtures | 2-step public chain plus stale, tampered, orphaned, failed-claim, persistence, corruption, and CLI cases | deterministic replay matched; unsafe paths failed or required review; provider calls `0` | Contract closure and fail-closed persistence, not the usefulness or truth of a generated idea. |
-| Answer projection and Lens trace fixtures | exact proposition spans, semantic receipts, append-only schema-v12 reopen, corruption, Library isolation, sparse source-linked Atlas spans | exact replay matched; invalid, overlapping, out-of-scope, or stale spans failed closed; provider calls `0` | Durable display governance and exact phrase-to-evidence routing, not semantic truth or automatic acceptance. |
+| Answer projection and Lens trace fixtures | exact proposition spans, semantic receipts, clean v1 reopen, corruption, Library isolation, sparse source-linked Atlas spans | exact replay matched; invalid, overlapping, out-of-scope, or stale spans failed closed; provider calls `0` | Durable display governance and exact phrase-to-evidence routing, not semantic truth or automatic acceptance. |
 
 The 1,000-fragment run is an engineering workload, not a semantic research
 benchmark. Its text and queries are deliberately easy and synthetic.
@@ -394,18 +395,22 @@ not substitute for that research-quality review.
 
 ## Engineering verification
 
-The current 0.2 development candidate collects 2,680 engineering tests. In its
+The current v1 candidate collects 1,910 engineering tests. In its
 canonical local gate:
 
-- 2,678 passed with two host-dependent browser skips;
-- branch-aware combined coverage was `95.02%` at a strict `95.00%` gate;
+- 1,908 passed with two host-dependent browser skips;
+- branch-aware combined coverage was `95.15%` at a strict `95.00%` gate;
 - terminology, format, lint, and strict typing passed;
 - the dependency audit found no known vulnerabilities;
 - a separate sdist-to-wheel closure installed non-editably in isolated Python
-  3.11.12, imported from temporary `site-packages`, and included migrations
-  through schema v13;
+  3.11.12, imported from temporary `site-packages`, and included the single
+  clean v1 schema baseline;
 - the deterministic 1,000-fragment replay remains the rights-safe public
-  research-path fixture.
+  research-path fixture;
+- the fresh-corpus acceptance ingested 400 sources / 2,800 fragments in
+  `1.955 s`, reused all unchanged sources in `0.782 s`, and answered 30 exact
+  lexical probes in `20.323 s` total (`0.675 s` median) with 30/30 top-one
+  document hits, source coordinates, and exact replays.
 
 Format, lint, terminology, strict typing, fixture validation, and the
 release-surface audit are separate gates. These are engineering signals, not

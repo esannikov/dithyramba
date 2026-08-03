@@ -199,9 +199,9 @@ deterministic but not navigationally coherent. The replacement is smaller:
 local scope, FTS-first neighbourhood, no required embedding model, and no
 global ontology claim.
 
-## Interactive research sessions (0.2 development candidate)
+## Interactive research sessions (v1 baseline)
 
-The 0.2 development candidate adds a continuing investigation around the stable
+The v1 baseline adds a continuing investigation around the stable
 evidence route. It does not store a chat transcript as source truth and does not
 create a second semantic layer.
 

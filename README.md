@@ -361,9 +361,13 @@ uv build
 ./scripts/acceptance.sh --quick
 ```
 
-For this update, the canonical local gate passed 2,678 tests with two
+For this v1 candidate, the canonical local gate passed 1,908 tests with two
 host-dependent browser skips. Strict typing, zero terminology findings,
-95.02% branch-aware combined coverage, and the dependency audit also passed.
+95.15% branch-aware combined coverage, and the dependency audit also passed.
+The fresh-corpus acceptance added 400 previously unseen sources (2,800
+fragments), reused all 400 unchanged sources on the second ingest, and returned
+the expected top-one document, exact source address, and byte-exact replay for
+30/30 questions with zero model calls or tokens.
 Distribution closure verifies the single clean v1 schema baseline, the Lens
 assets, and that the wheel is built from the sdist and imports from an isolated
 non-editable environment.

@@ -81,6 +81,13 @@ removed. Researcher views now share one `dithyramba lens` surface with
 `library`, `session`, `atlas`, `concepts`, and `flow` modes. Their internal
 contracts remain separate and independently testable.
 
+The canonical post-V1.4 gate passed `1908` tests with two host/browser skips,
+`95.15%` combined branch-aware coverage, strict mypy, Ruff, terminology, and
+dependency audit. A separate fresh-corpus acceptance created 400 unseen sources
+and 2,800 fragments, reused all 400 unchanged sources, and recovered the
+expected top-one document, exact source address, and byte-exact replay for
+30/30 frozen questions. It used zero model calls and zero model tokens.
+
 ## Current excess
 
 The verified baseline is conceptually smaller than its implementation. Before
@@ -180,7 +187,7 @@ Acceptance:
 2. Full Ruff, strict mypy, pytest, dependency audit, PDF, MCP, Lens,
    and Chromium gates pass.
 3. Test coverage remains at least 95% without excluding retained runtime code.
-4. A fresh 300–800-source corpus completes ingest, incremental update, 30
+4. [x] A fresh 300–800-source corpus completes ingest, incremental update, 30
    frozen questions, exact replay, and source inspection.
 5. Engineering checks and human relevance judgments are reported separately.
 

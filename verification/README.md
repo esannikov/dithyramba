@@ -11,6 +11,7 @@ call. It is release verification, not a general claim about research quality.
 | `generate_synthetic_1000.py` | Deterministically creates 1,000 synthetic fragments and 20 exact lexical probes. |
 | `synthetic_1000_manifest.json` | Freezes the expected fragment IDs, counts, profile, and canonical payload hash. |
 | `run_public_replay.py` | Exercises ingest, default-deny scope, FTS recall, receipts, persistence, and exact packet replay. |
+| `run_v1_fresh_corpus.py` | Creates 400 previously unseen Markdown sources, repeats unchanged ingest, and verifies 30 source-addressed questions with exact replay. |
 
 The generated text is repository-authored synthetic data released under
 `CC0-1.0`. Generated payloads and run outputs stay outside Git.
@@ -41,3 +42,16 @@ local engineering path and produces one deterministic evidence packet. It does
 not prove source truth, semantic recall on natural language, claim entailment,
 or usefulness to an independent researcher. Those require separate evaluation
 with disclosed corpora and human review.
+
+## Fresh-corpus v1 acceptance
+
+```bash
+uv run python -m verification.run_v1_fresh_corpus \
+  --output /tmp/dithyramba-v1-fresh-corpus.json
+```
+
+This deliberately uses no model and no network call. It measures a clean ingest,
+the verified unchanged-source fast path, top-one document retrieval, source
+coordinates, and exact replay across 30 questions. The synthetic vocabulary
+keeps the expected answer objectively checkable; it is not a semantic-quality
+evaluation.
