@@ -22,7 +22,7 @@ from .models import (
     ParserLimits,
     SourceBytes,
 )
-from .pdf import parse_pdf_source
+from .pdf import PDF_PARSER_REVISION, parse_pdf_source
 
 _MARKDOWN_REVISION = "markdown_atx/1.0"
 _PLAIN_TEXT_REVISION = "plain_text_atx/1.0"
@@ -58,7 +58,7 @@ def parse_source(
     revisions = {
         MediaType.MARKDOWN: _MARKDOWN_REVISION,
         MediaType.PLAIN_TEXT: _PLAIN_TEXT_REVISION,
-        MediaType.PDF: "pdfplumber/0.11.10+page_text/1.0",
+        MediaType.PDF: PDF_PARSER_REVISION,
     }
     revision = revisions[source.media_type]
 

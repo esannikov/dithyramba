@@ -108,14 +108,15 @@ def _extract(config: dict[str, Any]) -> dict[str, object]:
                 try:
                     text = page.extract_text() or ""
                     text = unicodedata.normalize(
-                        "NFC", text.replace("\r\n", "\n").replace("\r", "\n")
+                        "NFC",
+                        text.replace("\r\n", "\n").replace("\r", "\n").replace("\x00", "\ufffd"),
                     )
                     if not text.strip():
                         continue
                     words = page.extract_words()
                     if not words:
                         continue
-                    bbox = _word_union(words)
+                    bbox = _word_union(words, fallback=page.bbox)
                     total += len(text)
                     if total > max_codepoints:
                         return {"status": "failed", "code": "extracted_text_limit_exceeded"}
@@ -138,16 +139,36 @@ def _extract(config: dict[str, Any]) -> dict[str, object]:
     return {"status": "processed", "pages": pages}
 
 
-def _word_union(words: list[dict[str, Any]]) -> list[float]:
+def _word_union(
+    words: list[dict[str, Any]],
+    *,
+    fallback: tuple[float, float, float, float] | None = None,
+) -> list[float]:
     coordinates: list[tuple[float, float, float, float]] = []
     for word in words:
         values = tuple(float(word[key]) for key in ("x0", "top", "x1", "bottom"))
         if not all(math.isfinite(value) for value in values):
             raise ValueError("word bbox is non-finite")
         x0, top, x1, bottom = values
-        if x0 >= x1 or top >= bottom:
+        if x0 > x1 or top > bottom:
             raise ValueError("word bbox is invalid")
+        # A combining mark can legitimately have zero width or height in a
+        # pdfminer word record.  It contributes no area to the page union, so
+        # ignore it while retaining strict checks for inverted/non-finite
+        # geometry.  At least one real word box is still required below.
+        if x0 == x1 or top == bottom:
+            continue
         coordinates.append((x0, top, x1, bottom))
+    if not coordinates:
+        if fallback is None:
+            raise ValueError("word bbox union is empty")
+        fallback_values = tuple(float(value) for value in fallback)
+        if not all(math.isfinite(value) for value in fallback_values):
+            raise ValueError("fallback bbox is non-finite")
+        x0, top, x1, bottom = fallback_values
+        if x0 >= x1 or top >= bottom:
+            raise ValueError("fallback bbox is invalid")
+        return list(fallback_values)
     return [
         min(item[0] for item in coordinates),
         min(item[1] for item in coordinates),
