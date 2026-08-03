@@ -15,6 +15,11 @@ from .memory_packet import (
     RouteTraceStage,
     TaskRouter,
 )
+from .migration import (
+    AtlasMigrationReceipt,
+    MigratedResearchAtlas,
+    migrate_legacy_research_atlas,
+)
 from .models import (
     AtlasEvidence,
     AtlasGap,
@@ -24,7 +29,9 @@ from .models import (
     AtlasSource,
     AtlasSourceAddress,
     AtlasTimelineEvent,
+    AtlasTraceSpan,
     ResearchAtlasManifest,
+    TraceSpanKind,
 )
 from .projection import (
     LoadedResearchProjection,
@@ -51,16 +58,19 @@ __all__ = [
     "AtlasEvidence",
     "AtlasGap",
     "AtlasHypothesis",
+    "AtlasMigrationReceipt",
     "AtlasQuestion",
     "AtlasRelation",
     "AtlasSource",
     "AtlasSourceAddress",
     "AtlasTimelineEvent",
+    "AtlasTraceSpan",
     "CompactMemoryPacket",
     "CompactMemoryPacketV1_1",
     "LexicalQuestionCandidate",
     "LoadedResearchAtlas",
     "LoadedResearchProjection",
+    "MigratedResearchAtlas",
     "ProjectionCollection",
     "ProjectionMaterial",
     "ProjectionMaterialKind",
@@ -83,8 +93,10 @@ __all__ = [
     "RouteTraceStage",
     "SemanticQuestionCandidate",
     "TaskRouter",
+    "TraceSpanKind",
     "build_route_candidate_receipt",
     "load_research_atlas",
     "load_research_projection",
+    "migrate_legacy_research_atlas",
     "normalize_route_query",
 ]

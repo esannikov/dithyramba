@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from urllib.parse import quote, urlencode
 
 from dithyramba.contracts import canonical_json_bytes
+from dithyramba.interactive.models import AgentEvidencePacket
 from dithyramba.persistence.errors import SourceNotFoundError, SourceVersionNotFoundError
 from dithyramba.persistence.recall import SQLiteRecallBackend
 from dithyramba.persistence.repository import LibraryRepository
@@ -21,6 +22,14 @@ class ViewerNotFoundError(RuntimeError):
 @dataclass(frozen=True, slots=True)
 class PacketProjection:
     packet: EvidencePacket
+    source_chips: tuple[SourceChipResponse, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class AgentPacketProjection:
+    """Compact packet projection for an already persisted interactive turn."""
+
+    packet: AgentEvidencePacket
     source_chips: tuple[SourceChipResponse, ...]
 
 
@@ -58,6 +67,36 @@ class PacketViewService:
             self._chip_for_fragment(packet, fragment) for fragment in packet.source_fragments
         )
         return PacketProjection(packet=packet, source_chips=chips)
+
+    def load_agent_packet(self, packet: AgentEvidencePacket) -> AgentPacketProjection:
+        """Resolve a compact persisted agent packet without expanding ReadReceipt."""
+
+        if type(packet) is not AgentEvidencePacket:
+            raise TypeError("load_agent_packet requires an exact AgentEvidencePacket")
+        binding = self._recall_backend.load_evidence_packet_binding(packet.evidence_packet_id)
+        projected_items = tuple(
+            (item.source_fragment_id, item.rank, item.score) for item in packet.source_fragments
+        )
+        request = binding.query_request
+        if (
+            binding.packet_hash != packet.evidence_packet_hash
+            or request.query_request_id != packet.query_request_id
+            or request.request_hash != packet.query_request_hash
+            or binding.corpus_snapshot_id != packet.corpus_snapshot_id
+            or binding.result_status is not packet.result_status
+            or binding.source_fragment_items != projected_items
+        ):
+            raise ViewerNotFoundError("agent packet compact binding is inconsistent")
+        chips = tuple(
+            self._chip_for_fragment_identity(
+                evidence_packet_id=packet.evidence_packet_id,
+                packet_hash=packet.evidence_packet_hash,
+                packet_fragments=packet.source_fragments,
+                fragment=fragment,
+            )
+            for fragment in packet.source_fragments
+        )
+        return AgentPacketProjection(packet=packet, source_chips=chips)
 
     def load_viewer(
         self,
@@ -117,9 +156,24 @@ class PacketViewService:
         packet: EvidencePacket,
         fragment: EvidenceFragment,
     ) -> SourceChipResponse:
+        return self._chip_for_fragment_identity(
+            evidence_packet_id=packet.evidence_packet_id,
+            packet_hash=packet.packet_hash,
+            packet_fragments=packet.source_fragments,
+            fragment=fragment,
+        )
+
+    def _chip_for_fragment_identity(
+        self,
+        *,
+        evidence_packet_id: str,
+        packet_hash: str,
+        packet_fragments: tuple[EvidenceFragment, ...],
+        fragment: EvidenceFragment,
+    ) -> SourceChipResponse:
         packet_matches = tuple(
             item
-            for item in packet.source_fragments
+            for item in packet_fragments
             if item.source_fragment_id == fragment.source_fragment_id
         )
         if not packet_matches:
@@ -128,16 +182,9 @@ class PacketViewService:
             raise ViewerNotFoundError("packet fragment provenance is inconsistent")
         try:
             source_version = self._repository.get_source_version(fragment.source_version_id)
-            matching_metadata = tuple(
-                item
-                for item in self._repository.list_source_fragments(fragment.source_version_id)
-                if item.source_fragment_id == fragment.source_fragment_id
-            )
+            metadata = self._repository.get_source_fragment(fragment.source_fragment_id)
         except (SourceNotFoundError, SourceVersionNotFoundError):
             raise ViewerNotFoundError("packet fragment does not resolve in this Library") from None
-        if len(matching_metadata) != 1:
-            raise ViewerNotFoundError("packet fragment does not resolve in this Library")
-        metadata = matching_metadata[0]
         source_id = source_version.source_id
         stored_address = metadata.source_address_json
         expected_address = canonical_json_bytes(fragment.source_address.payload()).decode("utf-8")
@@ -158,14 +205,14 @@ class PacketViewService:
             f"{quote(fragment.source_version_id, safe='')}?"
             + urlencode(
                 {
-                    "packet": packet.evidence_packet_id,
+                    "packet": evidence_packet_id,
                     "fragment": fragment.source_fragment_id,
                 }
             )
         )
         return SourceChipResponse(
-            evidence_packet_id=packet.evidence_packet_id,
-            packet_hash=packet.packet_hash,
+            evidence_packet_id=evidence_packet_id,
+            packet_hash=packet_hash,
             source_id=source_id,
             source_family_id=source.source_family_id,
             root_source_id=source.root_source_id,

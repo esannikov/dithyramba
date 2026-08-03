@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ atlas.title }} · Dithyramba Research Atlas</title>
+    <title>{{ atlas.title }} · Dithyramba Lens</title>
     <link rel="stylesheet" href="/research-atlas.css">
   </head>
-  <body>
+  <body class="{% if selected_evidence or selected_material %}has-inspector{% endif %}">
     {% macro source_chips(evidence_ids, selected_id) -%}
       {% if evidence_ids %}
         <ul class="source-chip-list" aria-label="Джерела">
@@ -14,9 +14,10 @@
             {% set item = evidence_by_id[evidence_id] %}
             <li>
               <a
-                class="source-chip role-{{ item.evidence.role.value }}"
-                href="/?view={{ view }}&selected={{ selected_id }}&evidence={{ evidence_id }}#inspector"
+                class="source-chip role-{{ item.evidence.role.value }}{% if evidence_id in active_span_evidence_ids %} is-active{% endif %}"
+                href="/?view={{ view }}&selected={{ selected_id }}&evidence={{ evidence_id }}{% if selected_span %}&span={{ selected_span.span_id }}{% endif %}#inspector"
                 aria-label="Відкрити доказ із джерела «{{ item.source.title }}»"
+                {% if evidence_id in active_span_evidence_ids %}aria-current="true"{% endif %}
               >
                 <span class="source-chip-role">{{ evidence_role_labels[item.evidence.role.value] }}</span>
                 <span class="source-chip-copy">
@@ -30,19 +31,41 @@
       {% endif %}
     {%- endmacro %}
 
+    {% macro traceable_text(parts, selected_id) -%}
+      <span class="traceable-text">
+        {% for part in parts -%}
+          {% if part.span_id %}
+            <a
+              class="traceable-span trace-{{ part.kind }}{% if part.is_selected %} is-selected{% endif %}"
+              href="/?view={{ view }}&selected={{ selected_id }}&span={{ part.span_id }}&evidence={{ part.first_evidence_id }}#inspector"
+              aria-label="{{ trace_kind_labels[part.kind] }}; відкрити {{ part.evidence_ids|length }} пов’язаних джерел"
+              {% if part.is_selected %}aria-current="true"{% endif %}
+            >{{ part.text }}</a>
+          {% else %}{{ part.text }}{% endif %}
+        {%- endfor %}
+      </span>
+    {%- endmacro %}
+
     {% macro question_card(question) -%}
-      <article class="question-card state-{{ question.state.value }}" id="{{ question.question_id }}">
+      {% set is_current = selected and selected.question_id is defined and selected.question_id == question.question_id %}
+      <article class="question-card state-{{ question.state.value }}{% if is_current %} is-expanded{% endif %}" id="{{ question.question_id }}">
         <div class="card-topline">
           <span class="state-chip">{{ state_labels[question.state.value] }}</span>
           <span>{{ question.evidence_ids|length }} опор</span>
         </div>
         <h3><a href="/?view={{ view }}&selected={{ question.question_id }}">{{ question.prompt }}</a></h3>
-        <div class="short-answer">
-          <p class="eyebrow">Коротка відповідь</p>
-          <p>{{ question.short_answer }}</p>
-        </div>
-        {{ source_chips(question.evidence_ids, question.question_id) }}
-        {% if question.gap %}<p class="gap-note"><strong>Ще не з’ясовано:</strong> {{ question.gap }}</p>{% endif %}
+        {% if is_current %}
+          <div class="short-answer">
+            <p>{{ traceable_text(trace_parts_by_object[question.question_id], question.question_id) }}</p>
+            {% if question.trace_spans %}
+              <small class="trace-hint">Підкреслений текст відкриває точний доказ.</small>
+            {% endif %}
+          </div>
+          {{ source_chips(question.evidence_ids, question.question_id) }}
+          {% if question.gap %}<p class="gap-note"><strong>Ще не з’ясовано:</strong> {{ question.gap }}</p>{% endif %}
+        {% else %}
+          <a class="open-row" href="/?view={{ view }}&selected={{ question.question_id }}">Відкрити відповідь і докази →</a>
+        {% endif %}
       </article>
     {%- endmacro %}
 
@@ -50,7 +73,7 @@
     <header class="atlas-context">
       <a class="atlas-wordmark" href="/?view=overview">
         <span class="wordmark-mark" aria-hidden="true">D</span>
-        <span>Dithyramba <b>Research Atlas</b></span>
+        <span>Dithyramba <b>Lens</b></span>
       </a>
       <dl class="atlas-context-list">
         <div>
@@ -60,7 +83,7 @@
         <div>
           <dt>Корпус</dt>
           <dd>
-            {{ metrics.source_count }} доказових джерел
+            {{ metrics.source_count }} джерел у корпусі
             {% if projection %} · {{ metrics.material_count }} матеріалів для дослідження{% endif %}
           </dd>
         </div>
@@ -75,31 +98,24 @@
       </dl>
     </header>
 
-    <div class="atlas-layout">
-      <nav class="atlas-nav" aria-label="Розділи атласу">
-        <p class="atlas-nav-kicker">Дослідницький стіл</p>
-        <h1>{{ atlas.subject }}</h1>
-        <p class="atlas-nav-summary">{{ atlas.subtitle }}</p>
-        <ol>
-          {% for key, label in view_labels.items() %}
-            <li>
-              <a href="/?view={{ key }}" {% if view == key %}aria-current="page"{% endif %}>
-                <span>{{ loop.index }}</span>{{ label }}
-              </a>
-            </li>
-          {% endfor %}
-        </ol>
-        <p class="atlas-nav-note">
-          Перевірені висновки, робочі гіпотези й матеріали-кандидати мають різні
-          статуси. Кожен доказ відкривається до точного місця в джерелі.
-        </p>
-      </nav>
+    <nav class="atlas-nav" aria-label="Розділи атласу">
+      <ol>
+        {% for key, label in view_labels.items() %}
+          <li>
+            <a href="/?view={{ key }}" {% if view == key %}aria-current="page"{% endif %}>
+              {{ label }}
+            </a>
+          </li>
+        {% endfor %}
+      </ol>
+    </nav>
 
+    <div class="atlas-layout">
       <main id="workspace" class="atlas-workspace">
         {% if view == "overview" %}
           <section class="hero-section">
             <h2>{{ atlas.title }}</h2>
-            <p class="hero-copy">{{ atlas.corpus.scope_note }}</p>
+            <p class="hero-copy">{{ atlas.subtitle }}</p>
             {% if projection %}
               <p class="projection-status"><strong>Поточний статус:</strong> {{ projection.summary }}</p>
             {% endif %}
@@ -189,30 +205,40 @@
             </div>
             <div class="hypothesis-graph">
               {% for hypothesis in atlas.hypotheses %}
-                <article class="hypothesis-card state-{{ hypothesis.state.value }}" id="{{ hypothesis.hypothesis_id }}">
+                {% set is_current = selected and selected.hypothesis_id is defined and selected.hypothesis_id == hypothesis.hypothesis_id %}
+                <article class="hypothesis-card state-{{ hypothesis.state.value }}{% if is_current %} is-expanded{% endif %}" id="{{ hypothesis.hypothesis_id }}">
                   <div class="card-topline">
                     <span class="state-chip">{{ state_labels[hypothesis.state.value] }}</span>
                     <span>{{ hypothesis.evidence_ids|length }} опор</span>
                   </div>
                   <h3><a href="/?view=hypotheses&selected={{ hypothesis.hypothesis_id }}">{{ hypothesis.title }}</a></h3>
-                  <p>{{ hypothesis.synthesis }}</p>
-                  {% if hypothesis.hypothesis_id in hypothesis_projection_metrics %}
-                    {% set projection_metric = hypothesis_projection_metrics[hypothesis.hypothesis_id] %}
-                    <p class="related-memory">
-                      За межами перевірених опор:
-                      <strong>{{ projection_metric.material_count }} матеріалів-кандидатів</strong>
-                      у {{ projection_metric.theme_count }} темах.
-                      <a href="/?view=materials">Перейти до ширшої пам’яті</a>
+                  {% if is_current %}
+                    <p class="hypothesis-synthesis">
+                      {{ traceable_text(trace_parts_by_object[hypothesis.hypothesis_id], hypothesis.hypothesis_id) }}
                     </p>
+                    {% if hypothesis.trace_spans %}
+                      <small class="trace-hint">Підкреслений текст відкриває точний доказ.</small>
+                    {% endif %}
+                    {% if hypothesis.hypothesis_id in hypothesis_projection_metrics %}
+                      {% set projection_metric = hypothesis_projection_metrics[hypothesis.hypothesis_id] %}
+                      <p class="related-memory">
+                        За межами перевірених опор:
+                        <strong>{{ projection_metric.material_count }} матеріалів-кандидатів</strong>
+                        у {{ projection_metric.theme_count }} темах.
+                        <a href="/?view=materials">Перейти до ширшої пам’яті</a>
+                      </p>
+                    {% endif %}
+                    {{ source_chips(hypothesis.evidence_ids, hypothesis.hypothesis_id) }}
+                    {% if hypothesis.counterevidence_ids %}
+                      <div class="counter-evidence">
+                        <strong>Що стримує висновок</strong>
+                        {{ source_chips(hypothesis.counterevidence_ids, hypothesis.hypothesis_id) }}
+                      </div>
+                    {% endif %}
+                    {% if hypothesis.gap %}<p class="gap-note"><strong>Ще потрібно:</strong> {{ hypothesis.gap }}</p>{% endif %}
+                  {% else %}
+                    <a class="open-row" href="/?view=hypotheses&selected={{ hypothesis.hypothesis_id }}">Розгорнути гіпотезу →</a>
                   {% endif %}
-                  {{ source_chips(hypothesis.evidence_ids, hypothesis.hypothesis_id) }}
-                  {% if hypothesis.counterevidence_ids %}
-                    <div class="counter-evidence">
-                      <strong>Що стримує висновок</strong>
-                      {{ source_chips(hypothesis.counterevidence_ids, hypothesis.hypothesis_id) }}
-                    </div>
-                  {% endif %}
-                  {% if hypothesis.gap %}<p class="gap-note"><strong>Ще потрібно:</strong> {{ hypothesis.gap }}</p>{% endif %}
                 </article>
               {% else %}
                 <p class="empty-state">Гіпотези ще не сформовані.</p>
@@ -346,13 +372,17 @@
         {% elif view == "sources" %}
           <section class="section-block">
             <div class="section-heading">
-              <div><p class="eyebrow">Корпус</p><h2>Хто і в чому це стверджує</h2></div>
+              <div><h2>Хто і в чому це стверджує</h2></div>
               <p>{{ atlas.corpus.cutoff_note }}</p>
             </div>
+            <div class="material-result-heading">
+              <p><strong>{{ source_total }}</strong> джерел у корпусі</p>
+              <span>сторінка {{ source_page }} з {{ source_page_count }}</span>
+            </div>
             <div class="source-ledger">
-              {% for source in atlas.sources %}
+              {% for source in sources %}
                 <article id="{{ source.source_id }}">
-                  <div class="source-ledger-index">{{ "%02d"|format(loop.index) }}</div>
+                  <div class="source-ledger-index">{{ ((source_page - 1) * 30) + loop.index }}</div>
                   <div>
                     <p class="source-meta">{{ source_kind_labels[source.source_kind.value] }} · {{ voice_labels[source.voice_kind.value] }}</p>
                     <h3><a href="/?view=sources&selected={{ source.source_id }}">{{ source.title }}</a></h3>
@@ -362,10 +392,22 @@
                 </article>
               {% endfor %}
             </div>
+            {% if source_page_count > 1 %}
+              <nav class="pagination" aria-label="Сторінки джерел">
+                {% if source_page > 1 %}
+                  <a href="/?view=sources&page={{ source_page - 1 }}">← Попередні</a>
+                {% endif %}
+                <span>{{ source_page }} / {{ source_page_count }}</span>
+                {% if source_page < source_page_count %}
+                  <a href="/?view=sources&page={{ source_page + 1 }}">Наступні →</a>
+                {% endif %}
+              </nav>
+            {% endif %}
           </section>
         {% endif %}
       </main>
 
+      {% if selected_evidence or selected_material %}
       <aside id="inspector" class="evidence-inspector" aria-label="Точний доказ">
         {% if selected_material %}
           <p class="eyebrow">Матеріал для дослідження</p>
@@ -395,7 +437,14 @@
             <a class="original-link" href="/artifacts/{{ selected_material.source.source_id }}?material={{ selected_material.material.material_id }}">Відкрити точний фрагмент</a>
           {% endif %}
         {% elif selected_evidence %}
-          <p class="eyebrow">Доказ до висновку</p>
+          {% if selected_span %}
+            <section class="selected-passage">
+              <p>{{ trace_kind_labels[selected_span.kind.value] }}</p>
+              <blockquote>{{ selected_span.text }}</blockquote>
+              <small>{{ selected_span.evidence_ids|length }} пов’язаних джерел; нижче відкрито перше.</small>
+            </section>
+          {% endif %}
+          <p class="eyebrow">Доказ до вибраного фрагмента</p>
           <div class="inspector-badges">
             <span>{{ evidence_role_labels[selected_evidence.evidence.role.value] }}</span>
             <span>{{ source_kind_labels[selected_evidence.source.source_kind.value] }}</span>
@@ -441,10 +490,6 @@
           {% if selected_evidence.source.artifact_path %}
             <p class="artifact-address"><span>Локальна копія</span><code>{{ selected_evidence.source.artifact_path }}</code></p>
           {% endif %}
-        {% else %}
-          <p class="eyebrow">Інспектор доказу</p>
-          <h2>Оберіть кольоровий чип джерела</h2>
-          <p>Тут відкриються автор, точна назва, місце в джерелі, уривок і межа того, що він справді доводить.</p>
         {% endif %}
         <details class="method-details">
           <summary>Як це перевірено?</summary>
@@ -457,6 +502,7 @@
           <p><code>{{ manifest_hash }}</code></p>
         </details>
       </aside>
+      {% endif %}
     </div>
 
   </body>

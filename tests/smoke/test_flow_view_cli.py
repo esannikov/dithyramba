@@ -21,11 +21,11 @@ def test_flow_view_cli_pins_loopback_and_read_only_mode(
         captured.update(kwargs)
 
     monkeypatch.setattr("dithyramba.cli.uvicorn.run", fake_run)
-    result = CliRunner().invoke(app, ["flow-view", "--port", "8767"])
+    result = CliRunner().invoke(app, ["lens", "flow", "--port", "8767"])
 
     assert result.exit_code == 0, result.output
     assert result.stdout == (
-        "flow_view: http://127.0.0.1:8767\nmode: read-only static process map\n"
+        "lens: http://127.0.0.1:8767\nlens_mode: flow\nmode: read-only static process map\n"
     )
     assert captured["host"] == "127.0.0.1"
     assert captured["port"] == 8767

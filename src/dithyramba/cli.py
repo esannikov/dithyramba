@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import sqlite3
 from collections.abc import Callable
@@ -27,17 +28,15 @@ from dithyramba.answers import ClaimEvidenceCaseSet, ClaimEvidenceEntailmentResu
 from dithyramba.api import (
     ConceptLensWebConfig,
     EvidenceBoardWebConfig,
+    LensMode,
     bearer_token_for,
     create_app,
-    create_concept_lens_app,
-    create_flow_view_app,
-    create_reading_room_app,
-    create_research_atlas_app,
+    create_lens_app,
 )
+from dithyramba.atlas import migrate_legacy_research_atlas
 from dithyramba.backup import (
     BackupBundleError,
     create_backup_bundle,
-    migrate_library,
     restore_backup_bundle,
     verify_backup_bundle,
 )
@@ -47,6 +46,7 @@ from dithyramba.ingest.errors import IngestError
 from dithyramba.ingest.models import parser_profile
 from dithyramba.ingest.service import IngestService
 from dithyramba.library import LibraryConfig
+from dithyramba.mcp_stdio import run_stdio_mcp
 from dithyramba.persistence import (
     AccessPolicyRecord,
     CollectionRecord,
@@ -54,6 +54,7 @@ from dithyramba.persistence import (
     LibraryRepository,
     PersistenceError,
     SQLiteRecallBackend,
+    SQLiteResearchSessionRepository,
     initialize_library,
     list_libraries,
     open_library,
@@ -71,17 +72,13 @@ from dithyramba.reasoning import (
     ReasoningClosureGate,
 )
 from dithyramba.recall import (
-    HARRIER_OSS_V1_270M_PROFILE,
-    MULTILINGUAL_E5_SMALL_PROFILE,
     FtsError,
-    HybridContractError,
     QueryRequest,
     RecallError,
     RecallResult,
     RecallService,
     RetrievalBudget,
     current_fts_runtime_profile,
-    provision_model,
 )
 from dithyramba.review import (
     ReviewAction,
@@ -96,10 +93,6 @@ from dithyramba.store import StoreError
 _P = ParamSpec("_P")
 _R = TypeVar("_R")
 _PURPOSE_PATTERN = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
-_EMBEDDING_PROFILES = {
-    "e5-small": MULTILINGUAL_E5_SMALL_PROFILE,
-    "harrier-270m": HARRIER_OSS_V1_270M_PROFILE,
-}
 
 app = typer.Typer(
     name="dithyramba",
@@ -113,14 +106,16 @@ access_policy_app = typer.Typer(help="Create and inspect immutable access polici
 source_app = typer.Typer(help="Ingest and inspect source provenance without source text.")
 packet_app = typer.Typer(help="Inspect and deterministically replay EvidencePackets.")
 review_app = typer.Typer(help="Record and inspect scoped, append-only human reviews.")
-model_app = typer.Typer(help="Provision pinned optional local models explicitly.")
+lens_app = typer.Typer(
+    help="Open one read-only human view of a Library, session, atlas, concept map, or flow."
+)
 app.add_typer(library_app, name="library")
 app.add_typer(collection_app, name="collection")
 app.add_typer(access_policy_app, name="access-policy")
 app.add_typer(source_app, name="source")
 app.add_typer(packet_app, name="packet")
 app.add_typer(review_app, name="review")
-app.add_typer(model_app, name="model")
+app.add_typer(lens_app, name="lens")
 
 
 def _version_callback(value: bool) -> None:
@@ -141,7 +136,6 @@ def _guard(function: Callable[_P, _R]) -> Callable[_P, _R]:
             ContractError,
             BackupBundleError,
             FtsError,
-            HybridContractError,
             IngestError,
             PersistenceError,
             ProvenanceError,
@@ -181,67 +175,82 @@ def about() -> None:
     typer.echo(
         "Dithyramba 0.1.0rc1 is a pre-alpha source preview with a persisted, "
         "replayable local FTS evidence route. It is not yet a validated memory system; "
-        "adaptive retrieval, graph recall, and synthesis remain experimental or incomplete."
+        "graph recall and synthesis remain experimental or incomplete."
     )
 
 
-@model_app.command("provision")
+@app.command("atlas-migrate")
 @_guard
-def model_provision(
-    profile: Annotated[
-        str,
-        typer.Argument(
-            help=("Pinned profile name: e5-small or harrier-270m."),
-        ),
-    ] = "e5-small",
-    data_home: Annotated[
+def atlas_migrate(
+    source: Annotated[
+        Path,
+        typer.Argument(help="Historical Research Atlas manifest."),
+    ],
+    output: Annotated[
+        Path,
+        typer.Option("--output", help="New manifest path; parent must already exist."),
+    ],
+    artifact_root: Annotated[
         Path | None,
         typer.Option(
-            "--data-home",
-            help="Absolute application-data root; defaults to the OS Dithyramba directory.",
+            "--artifact-root",
+            help="Existing case-data root used to rebuild exact line bindings.",
         ),
     ] = None,
-    allow_network: Annotated[
-        bool,
+    trace_overrides: Annotated[
+        Path | None,
         typer.Option(
-            "--allow-network",
-            help="Explicitly permit one pinned Hugging Face download when weights are absent.",
+            "--trace-overrides",
+            help="Optional JSON map of exact visible spans to evidence IDs.",
         ),
-    ] = False,
-    json_output: Annotated[bool, typer.Option("--json", help="Emit canonical JSON.")] = False,
+    ] = None,
+    receipt_output: Annotated[
+        Path | None,
+        typer.Option(
+            "--receipt-output",
+            help="Optional migration receipt path; defaults beside the output manifest.",
+        ),
+    ] = None,
 ) -> None:
-    """Provision and verify one exact local embedding-model revision."""
+    """Migrate one historical Atlas without modifying its frozen input."""
 
-    selected = _EMBEDDING_PROFILES.get(profile)
-    if selected is None:
-        raise HybridContractError("unknown embedding profile; expected e5-small or harrier-270m")
-    path, receipt = provision_model(
-        selected,
-        data_root=data_home,
-        allow_network=allow_network,
+    if not source.is_file():
+        raise ContractError("Atlas source must be an existing file")
+    if not output.is_absolute() or not output.parent.is_dir():
+        raise ContractError("Atlas output must be absolute and its parent must exist")
+    if artifact_root is not None and (
+        not artifact_root.is_absolute() or not artifact_root.is_dir()
+    ):
+        raise ContractError("artifact root must be an existing absolute directory")
+    try:
+        payload = json.loads(source.read_text(encoding="utf-8"))
+        overrides = (
+            {}
+            if trace_overrides is None
+            else json.loads(trace_overrides.read_text(encoding="utf-8"))
+        )
+        if not isinstance(payload, dict) or not isinstance(overrides, dict):
+            raise ValueError("Atlas input and trace overrides must be JSON objects")
+        migrated = migrate_legacy_research_atlas(
+            payload,
+            artifact_root=artifact_root,
+            trace_overrides=overrides,
+        )
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise ContractError(str(exc)) from exc
+    receipt_path = receipt_output or output.with_name("MIGRATION_RECEIPT.json")
+    if not receipt_path.is_absolute() or not receipt_path.parent.is_dir():
+        raise ContractError("receipt output must be absolute and its parent must exist")
+    output.write_bytes(
+        canonical_json_bytes(migrated.manifest.model_dump(mode="json", exclude_none=True)) + b"\n"
     )
-    payload: dict[str, object] = {
-        "path": str(path),
-        "profile_id": receipt.embedding_profile_id,
-        "profile_hash": receipt.embedding_profile_hash,
-        "model_id": receipt.model_id,
-        "revision": receipt.revision,
-        "receipt_id": receipt.receipt_id,
-        "receipt_hash": receipt.receipt_hash,
-        "file_count": len(receipt.files),
-        "network_authorized": allow_network,
-    }
-    _emit(
-        payload,
-        json_output=json_output,
-        human_lines=(
-            f"model_id: {receipt.model_id}",
-            f"revision: {receipt.revision}",
-            f"profile_id: {receipt.embedding_profile_id}",
-            f"receipt_id: {receipt.receipt_id}",
-            f"path: {path}",
-        ),
-    )
+    receipt_path.write_bytes(canonical_json_bytes(migrated.receipt.model_dump(mode="json")) + b"\n")
+    typer.echo(f"manifest: {output}")
+    typer.echo(f"receipt: {receipt_path}")
+    typer.echo(f"sources: {migrated.receipt.source_count}")
+    typer.echo(f"evidence: {migrated.receipt.evidence_count}")
+    typer.echo(f"exact_bindings: {migrated.receipt.exact_binding_count}")
+    typer.echo(f"trace_spans: {migrated.receipt.trace_span_count}")
 
 
 @app.command("index")
@@ -378,53 +387,6 @@ def library_doctor(
             f"schema_version: {payload['schema_version']}",
             f"schema_fingerprint: {payload['schema_fingerprint']}",
             f"fts5_available: {str(payload['fts5_available']).lower()}",
-        ),
-    )
-
-
-@library_app.command("migrate")
-@_guard
-def library_migrate(
-    library: Annotated[str, typer.Option("--library", help="Explicit Library ID.")],
-    data_home: Annotated[
-        Path | None,
-        typer.Option(
-            "--data-home",
-            help="Absolute application-data root; defaults to the OS Dithyramba directory.",
-        ),
-    ] = None,
-    backup_output_directory: Annotated[
-        Path | None,
-        typer.Option(
-            "--backup-output-directory",
-            help="Existing private directory for the required pre-migration BackupBundle.",
-        ),
-    ] = None,
-    json_output: Annotated[bool, typer.Option("--json", help="Emit canonical JSON.")] = False,
-) -> None:
-    """Backup, verify, and explicitly migrate one historical Library to head."""
-
-    result = migrate_library(
-        library,
-        data_root=data_home,
-        backup_output_directory=backup_output_directory,
-    )
-    payload = {
-        **result.receipt.payload(),
-        "receipt_hash": result.receipt.receipt_hash,
-        "backup_path": str(result.backup.path),
-    }
-    _emit(
-        payload,
-        json_output=json_output,
-        human_lines=(
-            f"library_id: {payload['library_id']}",
-            f"old_schema_version: {payload['old_schema_version']}",
-            f"new_schema_version: {payload['new_schema_version']}",
-            f"status: {payload['status']}",
-            f"backup_path: {payload['backup_path']}",
-            f"backup_manifest_hash: {payload['backup_manifest_hash']}",
-            f"receipt_hash: {payload['receipt_hash']}",
         ),
     )
 
@@ -1296,7 +1258,31 @@ def serve(
     )
 
 
-@app.command("reading-room")
+@app.command("mcp")
+@_guard
+def mcp_stdio(
+    library: Annotated[str, typer.Option("--library", help="Explicit Library ID.")],
+    data_home: Annotated[
+        Path,
+        typer.Option("--data-home", help="Absolute Dithyramba application-data root."),
+    ],
+    agent_id: Annotated[
+        str,
+        typer.Option("--agent-id", help="Stable model actor ID for the session journal."),
+    ] = "agent:mcp",
+) -> None:
+    """Expose the bounded research-session facade as a local MCP stdio server."""
+
+    with open_library(library, data_root=data_home) as repository:
+        repository.verify()
+        run_stdio_mcp(
+            repository,
+            agent_id=agent_id,
+            profile_version=current_fts_runtime_profile().profile_version,
+        )
+
+
+@lens_app.command("library")
 @_guard
 def reading_room(
     library: Annotated[str, typer.Option("--library", help="Explicit Library ID.")],
@@ -1448,7 +1434,8 @@ def reading_room(
         corpus_fragment_limit=corpus_fragment_limit,
     )
     origin = f"http://127.0.0.1:{port}"
-    application = create_reading_room_app(
+    application = create_lens_app(
+        LensMode.LIBRARY,
         library_id=library,
         data_home=data_home,
         corpus_snapshot_id=snapshot,
@@ -1458,7 +1445,8 @@ def reading_room(
         limits=limits,
         evidence_board=board,
     )
-    typer.echo(f"reading_room: {origin}")
+    typer.echo(f"lens: {origin}")
+    typer.echo("lens_mode: library")
     typer.echo(f"projection_json: {origin}/projection.json")
     if board is not None:
         typer.echo(f"evidence_board: {origin}/evidence-board")
@@ -1474,7 +1462,7 @@ def reading_room(
     )
 
 
-@app.command("atlas")
+@lens_app.command("atlas")
 @_guard
 def research_atlas(
     manifest: Annotated[
@@ -1515,14 +1503,16 @@ def research_atlas(
     if artifact_root is not None and not artifact_root.is_absolute():
         raise typer.BadParameter("artifact-root must be an absolute path")
     origin = f"http://127.0.0.1:{port}"
-    application = create_research_atlas_app(
+    application = create_lens_app(
+        LensMode.ATLAS,
         manifest_path=manifest,
         allowed_origin=origin,
         projection_path=projection,
         artifact_root=artifact_root,
     )
     config = application.state.research_atlas_config
-    typer.echo(f"research_atlas: {origin}")
+    typer.echo(f"lens: {origin}")
+    typer.echo("lens_mode: atlas")
     typer.echo(f"manifest_hash: {config.atlas.manifest_hash}")
     if config.projection is not None:
         typer.echo(f"projection_hash: {config.projection.manifest_hash}")
@@ -1538,7 +1528,7 @@ def research_atlas(
     )
 
 
-@app.command("flow-view")
+@lens_app.command("flow")
 @_guard
 def flow_view(
     port: Annotated[
@@ -1549,8 +1539,9 @@ def flow_view(
     """Open the small, read-only map of Dithyramba's main data flow."""
 
     origin = f"http://127.0.0.1:{port}"
-    application = create_flow_view_app(allowed_origin=origin)
-    typer.echo(f"flow_view: {origin}")
+    application = create_lens_app(LensMode.FLOW, allowed_origin=origin)
+    typer.echo(f"lens: {origin}")
+    typer.echo("lens_mode: flow")
     typer.echo("mode: read-only static process map")
     uvicorn.run(
         application,
@@ -1563,7 +1554,7 @@ def flow_view(
     )
 
 
-@app.command("concept-lens")
+@lens_app.command("concepts")
 @_guard
 def concept_lens(
     projection: Annotated[
@@ -1592,16 +1583,63 @@ def concept_lens(
     if presentation is not None and not presentation.is_absolute():
         raise typer.BadParameter("presentation must be an absolute path")
     origin = f"http://127.0.0.1:{port}"
-    application = create_concept_lens_app(
+    application = create_lens_app(
+        LensMode.CONCEPTS,
         projection_path=projection,
         presentation_path=presentation,
         allowed_origin=origin,
     )
     config: ConceptLensWebConfig = application.state.concept_lens_config
-    typer.echo(f"concept_lens: {origin}")
+    typer.echo(f"lens: {origin}")
+    typer.echo("lens_mode: concepts")
     typer.echo(f"ontology_id: {config.ontology.manifest.ontology_id}")
     typer.echo(f"manifest_hash: {config.ontology.manifest_hash}")
     typer.echo("mode: candidate-only read-only projection")
+    uvicorn.run(
+        application,
+        host="127.0.0.1",
+        port=port,
+        log_level="info",
+        access_log=False,
+        server_header=False,
+        date_header=False,
+    )
+
+
+@lens_app.command("session")
+@_guard
+def session_lens(
+    library: Annotated[str, typer.Option("--library", help="Explicit Library ID.")],
+    session: Annotated[
+        str,
+        typer.Option("--session", help="Durable ResearchSession ID."),
+    ],
+    data_home: Annotated[
+        Path,
+        typer.Option("--data-home", help="Absolute Dithyramba application-data root."),
+    ],
+    port: Annotated[
+        int,
+        typer.Option("--port", min=1_024, max=65_535, help="Loopback TCP port."),
+    ] = 8353,
+) -> None:
+    """Open a GET-only working journal for one interactive research session."""
+
+    with open_library(library, data_root=data_home) as repository:
+        repository.verify()
+        SQLiteResearchSessionRepository(repository).get_session(session)
+    origin = f"http://127.0.0.1:{port}"
+    application = create_lens_app(
+        LensMode.SESSION,
+        library_id=library,
+        data_home=data_home,
+        session_id=session,
+        allowed_origin=origin,
+    )
+    typer.echo(f"lens: {origin}")
+    typer.echo("lens_mode: session")
+    typer.echo(f"projection_json: {origin}/projection.json")
+    typer.echo("mode: read-only session projection")
     uvicorn.run(
         application,
         host="127.0.0.1",

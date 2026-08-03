@@ -1,8 +1,10 @@
 # How to use Dithyramba
 
 This guide builds one local, replayable evidence memory from source files with
-the persisted FTS-only CLI route in the `0.1.0rc1` pre-alpha source preview.
-Replace the example identifiers with the values printed by each command.
+the persisted FTS-only CLI route. Package metadata remains `0.1.0rc1`; the
+current v1 release candidate also adds durable research sessions, local stdio
+MCP, and Lens. Replace the example identifiers with the values
+printed by each command.
 
 To verify a fresh checkout, follow the separate
 [clean-install acceptance protocol](ACCEPTANCE.md).
@@ -148,6 +150,62 @@ For a two-scope workflow, ask the same question again with the research
 Collection and its own snapshot. You now have two independently replayable
 packets: what the root sources show and what later researchers infer.
 
+### Continue the investigation through an agent
+
+Start the local stdio MCP server from an MCP-capable client:
+
+```bash
+uv run dithyramba mcp \
+  --library <library-id> \
+  --data-home /absolute/private/dithyramba \
+  --agent-id agent:research-assistant
+```
+
+The client launches that command and speaks newline-delimited JSON-RPC over
+standard input/output. Dithyramba exposes seven bounded tools:
+
+```text
+open_session → recall → prepare_answer → record_draft
+             → session_context / record_gap / reject_path
+```
+
+`open_session` requires the research question, intended use, success criteria,
+snapshot, policy, purpose, and Collection IDs. Save its `session_id`. Every
+`recall` also requires a stable `command_id`; retrying the same command with the
+same input returns the stored turn, while changing the input fails closed.
+
+Before generating a source-backed answer, call `prepare_answer` with the
+recall turn's `evidence_event_id` and an explicit `EvidenceGateSpec`. The
+preparation filters obvious reference matter, indexes, tables, and lexical
+topic drift; runs `EvidenceCoverageGate`; and, only when a literal requirement
+is still missing, searches inside up to three Sources already found by the
+broad recall. It then returns `answer`, `gap`, or `blocked` together with the
+exact candidates and gate result.
+
+Pass the complete returned preparation to `record_draft`. Dithyramba repeats
+the preparation immediately before appending the draft and rejects a changed
+or non-`answer` result. The Gate checks declared fragment coverage, not the
+truth or entailment of every generated sentence; human review remains separate.
+
+The first recall builds one process-local authorized read-set and FTS index for
+that exact session scope. Later questions reuse it. The cache is destroyed when
+the process exits or closes its scope sessions, and it is rebuilt after restart.
+This optimization does not merge packets or review history.
+
+Open the human journal for that session in a separate terminal:
+
+```bash
+uv run dithyramba lens session \
+  --library <library-id> \
+  --session <research-session-id> \
+  --data-home /absolute/private/dithyramba \
+  --port 8353
+```
+
+Visit `http://127.0.0.1:8353`. Lens session mode is GET-only. Select a source slip to
+read the exact packet-backed passage. Drafts, gaps, and rejected routes remain
+journal entries; visible evidence is not automatically accepted.
+
 ## 8. Inspect and replay
 
 ```bash
@@ -174,7 +232,7 @@ local profile and requires the same packet hash.
 uv run dithyramba review queue --help
 uv run dithyramba review decide --help
 
-uv run dithyramba reading-room \
+uv run dithyramba lens library \
   --library <library-id> \
   --snapshot <primary-snapshot-id> \
   --access-policy <policy-id> \
@@ -205,24 +263,22 @@ uv run dithyramba restore /absolute/private/backups/<bundle> \
 Restore verifies paths, file modes, hashes, schema, migrations, rows, event
 stream, and blob closure before opening the Library.
 
-## Experimental adaptive API
+## Optional query expansion
 
-`dithyramba.recall.execute_adaptive_retrieval` is a Python library surface,
-not a persisted CLI route. Its caller must provide already authorized exact
-fragments, explicit proof metadata, a frozen `EvidenceGateSpec`, and a pinned
-Harrier scorer. QueryCloud is optional and bounded to two derived queries.
+Use the original question first. A compact deterministic expansion may add
+aliases, translated names, and close domain phrases. QueryCloud is reserved for
+a named coverage gap and is bounded to two derived queries.
 
-Do not use this API as a durable record yet. Compatibility contracts exist,
-but the route does not yet bind or persist them. Until the adaptive plan,
-execution artifacts, persistence, and cold replay are complete, the stable CLI
-packet above remains the auditable result.
+Derived queries are discovery instructions, not evidence. Persist the original
+question, exact source fragments, and evidence decision; do not cite a generated
+query or a search score.
 
 ## Common mistakes
 
-- Putting runtime SQLite or model caches in a synced folder.
+- Putting runtime SQLite or rebuildable caches in a synced folder.
 - Using a combined primary/research scope when provenance layer matters.
 - Treating a search score as proof.
 - Ignoring skips in the ingest CoverageReport.
 - Reusing a snapshot after adding sources and assuming it changed.
-- Calling a library-only adaptive result replayable when it exists only in
-  process memory.
+- Treating a derived query as evidence or as a replacement for the operator's
+  original question.

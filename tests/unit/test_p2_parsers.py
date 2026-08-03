@@ -217,8 +217,11 @@ def test_pdf_signature_corruption_and_no_text_have_distinct_outcomes(tmp_path: P
     )
     assert signature.failure_code == "invalid_pdf_signature"
     assert corrupt.failure_code == "parser_invalid_pdf"
+    assert signature.parser_revision == pdf.PDF_PARSER_REVISION
+    assert corrupt.parser_revision == pdf.PDF_PARSER_REVISION
     assert no_text.status is ParseStatus.SKIPPED
     assert no_text.failure_code == "no_extractable_text"
+    assert no_text.parser_revision == pdf.PDF_PARSER_REVISION
 
 
 def test_pdf_worker_enforces_page_and_text_limits(tmp_path: Path) -> None:
@@ -715,8 +718,30 @@ def test_worker_word_union_validates_geometry() -> None:
             {"x0": 0, "top": 3, "x1": 5, "bottom": 6},
         ]
     ) == [0.0, 2.0, 5.0, 6.0]
+    assert pdf_worker._word_union(
+        [
+            {"x0": 1, "top": 2, "x1": 1, "bottom": 4},
+            {"x0": 2, "top": 3, "x1": 5, "bottom": 6},
+        ]
+    ) == [2.0, 3.0, 5.0, 6.0]
     with pytest.raises(ValueError):
         pdf_worker._word_union([{"x0": 1, "top": 2, "x1": 1, "bottom": 4}])
+    assert pdf_worker._word_union(
+        [{"x0": 1, "top": 2, "x1": 1, "bottom": 4}],
+        fallback=(0, 0, 100, 200),
+    ) == [0.0, 0.0, 100.0, 200.0]
+    with pytest.raises(ValueError):
+        pdf_worker._word_union(
+            [{"x0": 1, "top": 2, "x1": 1, "bottom": 4}],
+            fallback=(0, 0, float("nan"), 200),
+        )
+    with pytest.raises(ValueError):
+        pdf_worker._word_union(
+            [{"x0": 1, "top": 2, "x1": 1, "bottom": 4}],
+            fallback=(0, 0, 0, 200),
+        )
+    with pytest.raises(ValueError):
+        pdf_worker._word_union([{"x0": 3, "top": 2, "x1": 1, "bottom": 4}])
     with pytest.raises(ValueError):
         pdf_worker._word_union([{"x0": float("nan"), "top": 2, "x1": 3, "bottom": 4}])
 
@@ -824,6 +849,7 @@ def test_worker_closes_page_caches_on_continue_success_and_early_limit(
             self.text = text
             self.words = words
             self.close_count = 0
+            self.bbox = (0.0, 0.0, 100.0, 200.0)
 
         def extract_text(self) -> str:
             return self.text
@@ -847,9 +873,15 @@ def test_worker_closes_page_caches_on_continue_success_and_early_limit(
         def __exit__(self, *_args: object) -> None:
             return None
 
-    pages = [FakePage(""), FakePage("wordless", words=False), FakePage("kept")]
+    pages = [FakePage(""), FakePage("wordless", words=False), FakePage("kept\x00uncertain")]
     monkeypatch.setattr(pdfplumber, "open", lambda _path: FakePdf(pages))
-    assert pdf_worker._extract(config)["status"] == "processed"
+    result = pdf_worker._extract(config)
+    assert result["status"] == "processed"
+    result_pages = result["pages"]
+    assert isinstance(result_pages, list)
+    first_page = result_pages[0]
+    assert isinstance(first_page, dict)
+    assert first_page["text"] == "kept\ufffduncertain"
     assert [page.close_count for page in pages] == [1, 1, 1]
 
     limited = FakePage("too long")

@@ -1540,6 +1540,127 @@ def test_recall_batch_matches_sequential_packets_with_one_read_and_session(
         assert replayed.run.kind == "replay"
 
 
+def test_recall_scope_session_matches_one_shot_and_reuses_one_authorized_index(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    specs = (
+        SourceSpec("alpha", "alpha evidence and common craft"),
+        SourceSpec("beta", "beta evidence and common craft"),
+    )
+    sequential_scenario = _scenario(specs)
+    cached_scenario = _scenario(specs)
+    sequential_service = _canonical_fts_service(sequential_scenario)
+    cached_service = _canonical_fts_service(cached_scenario)
+    sequential_requests = tuple(
+        _request_with_question(sequential_scenario.request, question)
+        for question in ("alpha craft", "beta evidence")
+    )
+    cached_requests = tuple(
+        _request_with_question(cached_scenario.request, question)
+        for question in ("alpha craft", "beta evidence")
+    )
+    expected = tuple(sequential_service.recall(request) for request in sequential_requests)
+
+    class CountingSession(PermittedFtsSession):
+        constructions = 0
+
+        def __init__(self, *, fragments: tuple[FtsFragment, ...]) -> None:
+            type(self).constructions += 1
+            super().__init__(fragments=fragments)
+
+    monkeypatch.setattr(recall_service_module, "PermittedFtsSession", CountingSession)
+    with cached_service.open_scope_session(cached_requests[0]) as scope_session:
+        actual = tuple(
+            cached_service.recall_in_session(request, scope_session) for request in cached_requests
+        )
+        assert scope_session.stats.index_build_count == 1
+        assert scope_session.stats.search_count == 2
+        assert scope_session.stats.permitted_fragment_count == len(specs)
+
+    assert scope_session.closed
+    assert CountingSession.constructions == 1
+    assert len(cached_scenario.backend.authorization_scopes) == 1
+    assert len(cached_scenario.backend.read_ids) == 1
+    assert len(cached_scenario.backend.started_runs) == 2
+    assert tuple(result.packet.canonical_bytes for result in actual) == tuple(
+        result.packet.canonical_bytes for result in expected
+    )
+    with pytest.raises(RecallRequestError, match="closed"):
+        cached_service.recall_in_session(cached_requests[0], scope_session)
+
+
+def test_recall_scope_session_rejects_scope_or_service_drift_before_write() -> None:
+    first_scenario = _scenario((SourceSpec("alpha", "alpha public"),))
+    second_scenario = _scenario((SourceSpec("alpha", "alpha public"),))
+    first_service = _canonical_fts_service(first_scenario)
+    second_service = _canonical_fts_service(second_scenario)
+    scope_session = first_service.open_scope_session(first_scenario.request)
+    wrong_scope = _request_with_question(
+        first_scenario.request,
+        "alpha",
+        purpose="analysis",
+    )
+
+    with pytest.raises(RecallRequestError, match="differs"):
+        first_service.recall_in_session(wrong_scope, scope_session)
+    with pytest.raises(RecallRequestError, match="different RecallService"):
+        second_service.recall_in_session(second_scenario.request, scope_session)
+
+    assert first_scenario.backend.queries == {}
+    assert second_scenario.backend.queries == {}
+    scope_session.close()
+
+
+def test_source_local_drilldown_is_bounded_to_authorized_named_sources() -> None:
+    specs = (
+        SourceSpec("alpha", "alpha broad evidence"),
+        SourceSpec("beta", "beta exact passage"),
+    )
+    scenario = _scenario(specs)
+    service = _canonical_fts_service(scenario)
+    with service.open_scope_session(scenario.request) as scope_session:
+        result = service.source_local_drilldown(
+            scenario.request,
+            scope_session,
+            question="exact passage",
+            source_ids=(specs[1].source_id,),
+            max_candidates=5,
+        )
+
+        assert result.source_ids == (specs[1].source_id,)
+        assert tuple(item.source_id for item in result.fragments) == (specs[1].source_id,)
+        assert result.result.trace[0].source_fragment_id == specs[1].fragment_id
+        assert scope_session.stats.search_count == 1
+
+        with pytest.raises(RecallRequestError, match="exact RecallScopeSession"):
+            service.source_local_drilldown(
+                scenario.request,
+                cast(Any, object()),
+                question="exact",
+                source_ids=(specs[1].source_id,),
+            )
+        for invalid_ids in (
+            (),
+            (specs[0].source_id, specs[0].source_id),
+            ("",),
+            cast(Any, [specs[0].source_id]),
+        ):
+            with pytest.raises(RecallRequestError, match="unique nonblank"):
+                service.source_local_drilldown(
+                    scenario.request,
+                    scope_session,
+                    question="exact",
+                    source_ids=invalid_ids,
+                )
+        with pytest.raises(RecallRequestError, match="authorized read scope"):
+            service.source_local_drilldown(
+                scenario.request,
+                scope_session,
+                question="exact",
+                source_ids=("source_outside",),
+            )
+
+
 def test_recall_batch_rejects_mixed_scope_before_any_write() -> None:
     scenario = _scenario((SourceSpec("allowed", "alpha public"),))
     service = _canonical_fts_service(scenario)

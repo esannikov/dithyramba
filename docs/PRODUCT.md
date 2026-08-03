@@ -11,6 +11,32 @@ The current release line is pre-alpha. Product surfaces must describe what the
 running system proves; they must not imply public validation, autonomous learning,
 or semantic confidence that has not been measured.
 
+The v1 line includes bounded research sessions so an agent can
+continue an investigation from compact state and exact artifact references.
+Session notes, drafts, and rejected paths remain journal material. They do not
+become evidence or accepted memory merely because an agent recorded them.
+
+## Interactive research memory
+
+The product has one evidence core and two adapters around it:
+
+- an agent uses the local stdio MCP adapter to open a bounded session, recall
+  exact evidence, and record drafts, gaps, or rejected paths;
+- a human uses Lens to inspect the Library, session, atlas, concepts, or flow;
+  session mode shows the brief, chronological journal, named
+  sources, and exact passages without mutating the Library.
+
+The first recall in a live process may build a session-scoped authorized FTS
+cache. Later questions in the same exact scope may reuse it. The cache is not
+memory authority: it is destroyed on process exit, close, or eviction and can be
+rebuilt from the immutable source and policy record. Every question still gets
+its own durable request, receipt, packet, and journal event.
+
+This is the product's context-window strategy. The agent receives a small
+session state and selected evidence packet rather than the complete corpus or
+chat transcript. Full audit artifacts stay local and addressable by immutable
+ID and hash.
+
 ## Primary operator
 
 The primary operator is a researcher in the broad sense: scientist, historian,
@@ -34,8 +60,8 @@ terminology.
 
 - Evidence precedes interpretation.
 - Candidate recall, relevance ranking, and evidence sufficiency are three
-  separate decisions. Harrier may improve the second; only exact proof and the
-  coverage gate decide the third.
+  separate decisions. Candidate ordering may improve the second; only exact
+  proof and the coverage gate decide the third.
 - A generated or rewritten query may discover a source fragment but is never
   itself evidence and never replaces the operator's original question.
 - AccessPolicy is compiled before any read or projection.
@@ -47,9 +73,9 @@ terminology.
 - Exact source text is opened only through an authorized evidence path.
 - The local Library remains usable without a network connection.
 
-## Reading Room
+## Lens library mode
 
-Reading Room is the visual control surface for one explicit Library, snapshot,
+Library mode is the visual control surface for one explicit Library, snapshot,
 policy, and scope. It is not an administration console and not a free-form graph
 browser. Its first screen communicates the trustworthy state of memory, then lets
 the operator follow typed connections into packet-backed evidence.
@@ -57,9 +83,9 @@ the operator follow typed connections into packet-backed evidence.
 The surface is useful when it shortens an evidence audit. It must not turn
 co-occurrence, visual proximity, or shared styling into an asserted relation.
 
-## Research Atlas
+## Lens atlas mode
 
-Research Atlas is the corpus-facing workbench built on the same evidence
+Atlas mode is the corpus-facing workbench built on the same evidence
 contracts. Its first screen orients a human in the subject; it is not a benchmark
 viewer. Questions open plain-language answers in the central workspace. Named
 SourceChips open exact evidence in a stable right inspector. The hypothesis graph
@@ -78,6 +104,13 @@ The evidence passport keeps two axes distinct:
 The inspector always names the exact source and asserting voice, states the
 evidence role, shows the independence group and limitation, and then opens the
 exact local excerpt and original source.
+
+Answers and hypothesis syntheses may contain sparse source-traceable phrases.
+Only exact phrases with stored evidence bindings receive an epistemic
+underline. Selecting one phrase highlights the corresponding SourceChip and
+opens its exact passage in the inspector. Prose without that binding remains
+plain, so visual emphasis never implies support that the manifest does not
+contain.
 
 Search scores, query IDs, model names, and evaluation labels belong in
 progressive method disclosure. They may explain how a candidate was found, but

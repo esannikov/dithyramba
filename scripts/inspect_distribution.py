@@ -15,7 +15,7 @@ from email.parser import BytesParser
 from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parents[1]
-MIGRATIONS = tuple(f"{index:04d}_" for index in range(1, 10))
+V1_SCHEMA = "dithyramba/store/sql/0001_v1.sql"
 FORBIDDEN_PARTS = {
     ".agent",
     ".git",
@@ -238,12 +238,10 @@ def _assert_metadata(wheel: Distribution, sdist: Distribution, project: dict[str
         requirements = metadata.get_all("Requires-Dist", [])
         if not any(item.startswith("defusedxml==0.7.1") for item in requirements):
             raise RuntimeError(f"{label} is missing the defusedxml runtime dependency")
-        if "semantic" not in metadata.get_all("Provides-Extra", []):
-            raise RuntimeError(f"{label} is missing the semantic extra")
-        if not any(
-            "sentence-transformers==5.6.0" in item and "semantic" in item for item in requirements
-        ):
-            raise RuntimeError(f"{label} is missing the pinned semantic dependency")
+        if set(metadata.get_all("Provides-Extra", [])) != {"ontology"}:
+            raise RuntimeError(f"{label} optional extras differ from the v1 contract")
+        if any("sentence-transformers" in item.casefold() for item in requirements):
+            raise RuntimeError(f"{label} contains the retired semantic dependency")
 
     wheel_headers = _message(_single_file(wheel, ".dist-info/WHEEL"))
     if wheel_headers.get("Generator") != "hatchling 1.27.0":
@@ -259,22 +257,28 @@ def _assert_runtime_closure(package: dict[str, bytes]) -> None:
         "dithyramba/py.typed",
         "dithyramba/api/templates/reading_room.html",
         "dithyramba/api/static/reading_room.css",
+        "dithyramba/api/templates/research_atlas.html",
+        "dithyramba/api/static/research_atlas.css",
         "dithyramba/store/sql/__init__.py",
-        "dithyramba/recall/adaptive.py",
+        V1_SCHEMA,
+        "dithyramba/persistence/answer_projection.py",
         "dithyramba/recall/compatibility.py",
         "dithyramba/connectors/books.py",
     }
     missing = required - set(package)
-    for prefix in MIGRATIONS:
-        if not any(
-            PurePosixPath(name).parent.as_posix() == "dithyramba/store/sql"
-            and PurePosixPath(name).name.startswith(prefix)
-            for name in package
-        ):
-            missing.add(f"dithyramba/store/sql/{prefix}*.sql")
     if missing:
         formatted = "\n".join(f"  - {name}" for name in sorted(missing))
         raise RuntimeError(f"distribution misses required runtime files:\n{formatted}")
+    packaged_sql = {
+        name
+        for name in package
+        if PurePosixPath(name).parent.as_posix() == "dithyramba/store/sql"
+        and PurePosixPath(name).suffix == ".sql"
+    }
+    if packaged_sql != {V1_SCHEMA}:
+        raise RuntimeError(
+            f"distribution SQL differs from the one-baseline v1 contract: {sorted(packaged_sql)!r}"
+        )
 
 
 def _sha256(path: Path) -> str:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+from dataclasses import replace
 from pathlib import Path, PurePosixPath
 
 from dithyramba._version import __version__
@@ -242,7 +243,33 @@ class IngestService:
                 source = read_source_bytes(root, relative_path, self._limits)
             except IngestError as exc:
                 return _input_error(collection_root_id, relative_path, exc)
-            parsed = parse_source(source, self._limits, pdf_temp_root=self._pdf_temp_root)
+            reusable = self._repository.find_reusable_unchanged_source(
+                collection_id=collection_id,
+                collection_root_id=collection_root_id,
+                source=source,
+                parser_profile=self._profile_version,
+                identity_declaration=declaration,
+            )
+            if reusable is not None:
+                try:
+                    validate_source_unchanged(root, source, self._limits)
+                except IngestError as exc:
+                    return _input_error(collection_root_id, relative_path, exc)
+                return IngestInputOutcome(
+                    collection_root_id=collection_root_id,
+                    relative_path=relative_path,
+                    terminal_outcome=TerminalInputOutcome.PROCESSED,
+                    disposition=reusable.disposition,
+                    source_id=reusable.source_id,
+                    source_version_id=reusable.source_version_id,
+                    source_family_id=reusable.source_family_id,
+                    root_source_id=reusable.root_source_id,
+                    fragment_count=reusable.fragment_count,
+                )
+            parsed = replace(
+                parse_source(source, self._limits, pdf_temp_root=self._pdf_temp_root),
+                parser_profile=self._profile_version,
+            )
             try:
                 validate_source_unchanged(root, source, self._limits)
             except IngestError as exc:

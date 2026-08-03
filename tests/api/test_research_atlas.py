@@ -15,6 +15,19 @@ from pydantic import ValidationError
 from typer.testing import CliRunner
 
 from dithyramba.api import create_research_atlas_app
+from dithyramba.api.config import LoopbackApiConfig
+from dithyramba.api.research_atlas import (
+    ResearchAtlasWebConfig,
+    _chip_attribution,
+    _evidence_views,
+    _first_evidence,
+    _first_span_evidence,
+    _object_id,
+    _selected_object,
+    _selected_trace_span,
+    _source_binding_view,
+    _trace_text_parts,
+)
 from dithyramba.atlas import load_research_atlas, load_research_projection
 from dithyramba.cli import app
 
@@ -109,6 +122,16 @@ def _payload() -> dict[str, object]:
                 "short_answer": "Він пов’язував його з уявним випробуванням машин.",
                 "state": "qualified",
                 "evidence_ids": ["evidence_letter", "evidence_study"],
+                "trace_spans": [
+                    {
+                        "span_id": "trace_question_method",
+                        "start": 4,
+                        "end": 48,
+                        "text": "пов’язував його з уявним випробуванням машин",
+                        "kind": "fact",
+                        "evidence_ids": ["evidence_letter"],
+                    }
+                ],
                 "gap": "Потрібна рання незалежна фіксація.",
                 "tags": ["method"],
             },
@@ -132,6 +155,24 @@ def _payload() -> dict[str, object]:
                 "state": "working",
                 "evidence_ids": ["evidence_letter"],
                 "counterevidence_ids": ["evidence_study"],
+                "trace_spans": [
+                    {
+                        "span_id": "trace_hypothesis_first_person",
+                        "start": 0,
+                        "end": 14,
+                        "text": "Особистий опис",
+                        "kind": "fact",
+                        "evidence_ids": ["evidence_letter"],
+                    },
+                    {
+                        "span_id": "trace_hypothesis_synthesis",
+                        "start": 17,
+                        "end": 42,
+                        "text": "пізніший аналіз сходяться",
+                        "kind": "synthesis",
+                        "evidence_ids": ["evidence_study"],
+                    },
+                ],
                 "gap": "Знайти сучасне Теслі свідчення.",
                 "question_ids": ["question_origin"],
             },
@@ -290,8 +331,14 @@ def test_research_atlas_is_traceable_script_free_and_get_only(tmp_path: Path) ->
     )
     with TestClient(app) as client:
         overview = client.get("/")
-        question = client.get("/?view=questions&selected=question_origin&evidence=evidence_letter")
-        hypothesis = client.get("/?view=hypotheses&selected=hypothesis_visual")
+        question = client.get(
+            "/?view=questions&selected=question_origin"
+            "&span=trace_question_method&evidence=evidence_letter"
+        )
+        hypothesis = client.get(
+            "/?view=hypotheses&selected=hypothesis_visual"
+            "&span=trace_hypothesis_synthesis&evidence=evidence_study"
+        )
         timeline = client.get("/?view=timeline&selected=event_publication")
         gaps = client.get("/?view=gaps")
         sources = client.get("/?view=sources&selected=source_study")
@@ -304,14 +351,21 @@ def test_research_atlas_is_traceable_script_free_and_get_only(tmp_path: Path) ->
     assert "<script" not in overview.text.casefold()
     assert "<form" not in overview.text.casefold()
     assert "Ключові питання" in overview.text
-    assert "Він пов’язував його з уявним випробуванням машин." in question.text
+    assert "пов’язував його з уявним випробуванням машин" in question.text
     assert '<strong class="source-chip-title">My Inventions</strong>' in question.text
     assert '<small class="source-chip-attribution">Nikola Tesla · 1919</small>' in question.text
+    assert 'class="traceable-span trace-fact is-selected"' in question.text
+    assert "Підкреслений текст відкриває точний доказ." in question.text
+    assert "перевірюване твердження" in question.text
+    assert 'class="source-chip role-supports is-active"' in question.text
     assert "Nikola Tesla · My Inventions · 1919 · chapter 1, paragraph 3" not in question.text
     assert "The first-person passage." in question.text
     assert "Ретроспективна" not in question.text
     assert "Retrospective memory is not an independent chronology." in question.text
     assert "Як пов’язані інтерпретації" in hypothesis.text
+    assert 'class="traceable-span trace-synthesis is-selected"' in hypothesis.text
+    assert "синтез джерел" in hypothesis.text
+    assert 'class="source-chip role-qualifies is-active"' in hypothesis.text
     assert "Пізній жанр обмежує буквальне читання." in hypothesis.text
     assert "Хронологія як маршрут до доказів" in timeline.text
     timeline_source_chip = timeline.text.split('class="source-chip ', maxsplit=1)[1].split(
@@ -474,6 +528,7 @@ def test_atlas_selection_falls_back_without_disclosing_files(tmp_path: Path) -> 
     with TestClient(app) as client:
         page = client.get("/?view=sources&selected=source_missing&evidence=evidence_missing")
         invalid = client.get("/?view=technical")
+        invalid_span = client.get("/?view=questions&selected=question_origin&span=trace_missing")
         wrong_host = client.get("/", headers={"host": "example.org"})
 
     assert page.status_code == 200
@@ -481,6 +536,7 @@ def test_atlas_selection_falls_back_without_disclosing_files(tmp_path: Path) -> 
     assert "artifacts/tesla.md" in page.text
     assert "file://" not in page.text
     assert invalid.status_code == 422
+    assert invalid_span.status_code == 404
     assert wrong_host.status_code == 400
 
 
@@ -636,7 +692,7 @@ def test_atlas_artifact_viewer_handles_binary_type_size_and_encoding(
         ),
         (
             lambda payload: payload["questions"][0].update(evidence_ids=["evidence_missing"]),
-            "question evidence",
+            "question.*evidence",
         ),
         (
             lambda payload: payload["relations"][0].update(
@@ -656,6 +712,31 @@ def test_manifest_rejects_broken_contracts(
     path = _manifest(tmp_path, payload)
     with pytest.raises(ValidationError, match=message):
         load_research_atlas(path)
+
+
+def test_manifest_rejects_invalid_trace_spans(tmp_path: Path) -> None:
+    payload = deepcopy(_payload())
+    payload["questions"][0]["trace_spans"][0]["text"] = "wrong displayed text"  # type: ignore[index]
+    payload["questions"][0]["trace_spans"][0]["end"] = 24  # type: ignore[index]
+    with pytest.raises(ValidationError, match="exact displayed text"):
+        load_research_atlas(_manifest(tmp_path, payload))
+
+    payload = deepcopy(_payload())
+    first_span = payload["hypotheses"][0]["trace_spans"][0]  # type: ignore[index]
+    second_span = payload["hypotheses"][0]["trace_spans"][1]  # type: ignore[index]
+    second_span["start"] = first_span["start"]
+    second_span["end"] = first_span["end"]
+    second_span["text"] = first_span["text"]
+    with pytest.raises(ValidationError, match="ordered and non-overlapping"):
+        load_research_atlas(_manifest(tmp_path, payload))
+
+    payload = deepcopy(_payload())
+    payload["questions"][0]["trace_spans"][0]["evidence_ids"] = [  # type: ignore[index]
+        "evidence_study"
+    ]
+    payload["questions"][0]["evidence_ids"] = ["evidence_letter"]  # type: ignore[index]
+    with pytest.raises(ValidationError, match="references missing IDs"):
+        load_research_atlas(_manifest(tmp_path, payload))
 
 
 def test_manifest_rejects_unsafe_source_addresses_and_self_relations(tmp_path: Path) -> None:
@@ -714,6 +795,200 @@ def test_manifest_requires_evidence_for_promoted_findings(tmp_path: Path) -> Non
         load_research_atlas(_manifest(tmp_path, payload))
 
 
+def test_atlas_optional_routes_fail_closed_and_paginate(tmp_path: Path) -> None:
+    manifest_path = _manifest(tmp_path)
+    app_without_projection = create_research_atlas_app(
+        manifest_path=manifest_path,
+        allowed_origin="http://testserver",
+        test_only_allow_testserver=True,
+    )
+    with TestClient(app_without_projection) as client:
+        assert client.get("/projection.json").status_code == 404
+        assert client.get("/?view=materials").status_code == 404
+        assert client.get("/?view=sources&page=2").status_code == 404
+        assert client.get("/artifacts/source_missing").status_code == 404
+
+    artifact_root = tmp_path / "data"
+    artifact = artifact_root / "artifacts" / "tesla.md"
+    artifact.parent.mkdir(parents=True)
+    artifact.write_text("Exact source\nBound passage\nTail\n", encoding="utf-8")
+    payload = _payload()
+    exact_hash = sha256(b"Bound passage").hexdigest()
+    payload["evidence"][0]["fragment_text_sha256"] = exact_hash  # type: ignore[index]
+    payload["evidence"][0]["source_address"]["line_start"] = 2  # type: ignore[index]
+    payload["evidence"][0]["source_address"]["line_end"] = 2  # type: ignore[index]
+    manifest_path = _manifest(tmp_path, payload)
+    projection_path = _projection(
+        tmp_path,
+        base_manifest_hash=load_research_atlas(manifest_path).manifest_hash,
+        fragment_hash=exact_hash,
+    )
+    app_with_projection = create_research_atlas_app(
+        manifest_path=manifest_path,
+        projection_path=projection_path,
+        artifact_root=artifact_root,
+        allowed_origin="http://testserver",
+        test_only_allow_testserver=True,
+    )
+    with TestClient(app_with_projection) as client:
+        projection = client.get("/projection.json")
+        assert projection.status_code == 200
+        assert projection.headers["etag"].strip('"') == projection.json()["projection_hash"]
+        assert client.get("/?view=materials&theme=missing").status_code == 404
+        assert client.get("/?view=materials&period=missing").status_code == 404
+        assert client.get("/?view=materials&page=2").status_code == 404
+        assert (
+            client.get(
+                "/artifacts/source_letter?evidence=evidence_letter&material=material_candidate"
+            ).status_code
+            == 422
+        )
+        assert client.get("/artifacts/source_letter?evidence=evidence_missing").status_code == 404
+        assert client.get("/artifacts/source_letter?material=material_missing").status_code == 404
+        material = client.get("/artifacts/source_letter?material=material_candidate&full=true")
+        assert material.status_code == 200
+        assert "Bound passage" in material.text
+
+
+def test_atlas_exact_artifact_binding_detects_drift_and_range_errors(tmp_path: Path) -> None:
+    artifact_root = tmp_path / "data"
+    artifact = artifact_root / "artifacts" / "tesla.md"
+    artifact.parent.mkdir(parents=True)
+    artifact.write_text("Exact source\nChanged passage\n", encoding="utf-8")
+    payload = _payload()
+    payload["evidence"][0]["source_address"]["line_start"] = 2  # type: ignore[index]
+    payload["evidence"][0]["source_address"]["line_end"] = 2  # type: ignore[index]
+    payload["evidence"][0]["fragment_text_sha256"] = sha256(b"Expected passage").hexdigest()  # type: ignore[index]
+    manifest_path = _manifest(tmp_path, payload)
+    app = create_research_atlas_app(
+        manifest_path=manifest_path,
+        artifact_root=artifact_root,
+        allowed_origin="http://testserver",
+        test_only_allow_testserver=True,
+    )
+    with TestClient(app) as client:
+        drift = client.get("/artifacts/source_letter?evidence=evidence_letter")
+        assert drift.status_code == 409
+
+    payload["evidence"][0]["source_address"]["line_start"] = 9  # type: ignore[index]
+    payload["evidence"][0]["source_address"]["line_end"] = 9  # type: ignore[index]
+    manifest_path = _manifest(tmp_path, payload)
+    app = create_research_atlas_app(
+        manifest_path=manifest_path,
+        artifact_root=artifact_root,
+        allowed_origin="http://testserver",
+        test_only_allow_testserver=True,
+    )
+    with TestClient(app) as client:
+        out_of_range = client.get("/artifacts/source_letter?evidence=evidence_letter")
+        assert out_of_range.status_code == 409
+
+
+def test_atlas_view_helpers_keep_selection_and_trace_failures_explicit(
+    tmp_path: Path,
+) -> None:
+    atlas = load_research_atlas(_manifest(tmp_path))
+    manifest = atlas.manifest
+    evidence_views = _evidence_views(manifest)
+
+    fallback = _selected_object(manifest, view="sources", selected="source_missing")
+    assert fallback == manifest.sources[0]
+    assert _object_id(object()) is None
+    assert _first_evidence(None, evidence_views=evidence_views) is None
+    open_question = manifest.questions[1]
+    assert _first_evidence(open_question, evidence_views=evidence_views) is None
+    span = _selected_trace_span(
+        manifest.questions[0],
+        requested_span_id="trace_question_method",
+    )
+    assert span is not None
+    assert _first_span_evidence(span, evidence_views=evidence_views) is not None
+    parts = _trace_text_parts(
+        manifest.questions[0].short_answer,
+        manifest.questions[0].trace_spans,
+        selected_span_id=None,
+    )
+    assert parts[-1].text.endswith(".")
+    assert _source_binding_view(manifest.evidence[1], None, source_id="source_study") is None
+    assert _source_binding_view(None, None, source_id="source_study") is None
+    dated_title = manifest.sources[0].model_copy(update={"title": "My Inventions 1919"})
+    assert _chip_attribution(dated_title) == "Nikola Tesla"
+
+
+def test_atlas_rejects_invalid_root_symlink_and_material_without_projection(
+    tmp_path: Path,
+) -> None:
+    manifest_path = _manifest(tmp_path)
+    with pytest.raises(ValueError, match="artifact_root"):
+        ResearchAtlasWebConfig(
+            loopback=LoopbackApiConfig(
+                library_id="library_00000000000040008000000000000000",
+                data_home=tmp_path,
+                allowed_origin="http://testserver",
+                test_only_allow_testserver=True,
+            ),
+            atlas=load_research_atlas(manifest_path),
+            artifact_root=Path("."),
+        )
+
+    artifact_root = tmp_path / "data"
+    artifacts = artifact_root / "artifacts"
+    artifacts.mkdir(parents=True)
+    (tmp_path / "outside.md").write_text("outside", encoding="utf-8")
+    (artifacts / "link.md").symlink_to(tmp_path / "outside.md")
+    payload = _payload()
+    payload["sources"][0]["artifact_path"] = "artifacts/link.md"  # type: ignore[index]
+    app = create_research_atlas_app(
+        manifest_path=_manifest(tmp_path, payload),
+        artifact_root=artifact_root,
+        allowed_origin="http://testserver",
+        test_only_allow_testserver=True,
+    )
+    with TestClient(app) as client:
+        assert client.get("/artifacts/source_letter").status_code == 404
+
+    (artifacts / "tesla.md").write_text("Exact source\nBound passage\n", encoding="utf-8")
+    payload = _payload()
+    payload["evidence"][0]["fragment_text_sha256"] = sha256(b"Bound passage").hexdigest()  # type: ignore[index]
+    payload["evidence"][0]["source_address"]["line_start"] = 2  # type: ignore[index]
+    payload["evidence"][0]["source_address"]["line_end"] = 2  # type: ignore[index]
+    app = create_research_atlas_app(
+        manifest_path=_manifest(tmp_path, payload),
+        artifact_root=artifact_root,
+        allowed_origin="http://testserver",
+        test_only_allow_testserver=True,
+    )
+    with TestClient(app) as client:
+        assert client.get("/artifacts/source_letter?material=material_candidate").status_code == 404
+
+
+def test_atlas_valid_period_filter_opens_materials(tmp_path: Path) -> None:
+    payload = _payload()
+    artifact_root = tmp_path / "data"
+    artifact = artifact_root / "artifacts" / "tesla.md"
+    artifact.parent.mkdir(parents=True)
+    artifact.write_text("Exact source\nBound passage\n", encoding="utf-8")
+    exact_hash = sha256(b"Bound passage").hexdigest()
+    payload["evidence"][0]["fragment_text_sha256"] = exact_hash  # type: ignore[index]
+    manifest_path = _manifest(tmp_path, payload)
+    projection_path = _projection(
+        tmp_path,
+        base_manifest_hash=load_research_atlas(manifest_path).manifest_hash,
+        fragment_hash=exact_hash,
+    )
+    app = create_research_atlas_app(
+        manifest_path=manifest_path,
+        projection_path=projection_path,
+        artifact_root=artifact_root,
+        allowed_origin="http://testserver",
+        test_only_allow_testserver=True,
+    )
+    with TestClient(app) as client:
+        response = client.get("/?view=materials&period=period_early")
+    assert response.status_code == 200
+    assert "Ранній кандидатний запис про метод" in response.text
+
+
 def test_atlas_cli_validates_absolute_manifest_and_starts_loopback(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -735,6 +1010,7 @@ def test_atlas_cli_validates_absolute_manifest_and_starts_loopback(
     result = CliRunner().invoke(
         app,
         [
+            "lens",
             "atlas",
             "--manifest",
             str(path),
@@ -748,11 +1024,12 @@ def test_atlas_cli_validates_absolute_manifest_and_starts_loopback(
     )
     relative = CliRunner().invoke(
         app,
-        ["atlas", "--manifest", "atlas.json"],
+        ["lens", "atlas", "--manifest", "atlas.json"],
     )
 
     assert result.exit_code == 0
-    assert "research_atlas: http://127.0.0.1:8361" in result.stdout
+    assert "lens: http://127.0.0.1:8361" in result.stdout
+    assert "lens_mode: atlas" in result.stdout
     assert "manifest_hash:" in result.stdout
     assert "projection_hash:" in result.stdout
     assert "mode: read-only" in result.stdout
@@ -764,6 +1041,7 @@ def test_atlas_cli_validates_absolute_manifest_and_starts_loopback(
     relative_root = CliRunner().invoke(
         app,
         [
+            "lens",
             "atlas",
             "--manifest",
             str(path),
@@ -777,6 +1055,7 @@ def test_atlas_cli_validates_absolute_manifest_and_starts_loopback(
     relative_projection = CliRunner().invoke(
         app,
         [
+            "lens",
             "atlas",
             "--manifest",
             str(path),

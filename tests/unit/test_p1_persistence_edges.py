@@ -788,8 +788,6 @@ def test_authorized_read_detects_missing_fragment_after_revalidation(
     repository, _collection, authorization = _authorized_repository(tmp_path)
     try:
         _freeze_recompile(repository, authorization.compiled, monkeypatch)
-        repository._store.connection.execute("DROP TRIGGER source_fragment_text_metrics_no_delete")
-        repository._store.connection.execute("DELETE FROM source_fragment_text_metrics")
         repository._store.connection.execute("DROP TRIGGER source_fragments_no_delete")
         repository._store.connection.execute("DELETE FROM source_fragments")
 
@@ -999,7 +997,7 @@ def test_store_open_library_requires_typed_validated_paths(tmp_path: Path) -> No
 
     paths = create_library_layout(LibraryConfig(name="Typed paths"), data_root=tmp_path / "data")
     with Store.open_library(paths) as store:
-        assert store.schema_version == 11
+        assert store.schema_version == 1
 
 
 def test_store_rejects_missing_or_symlinked_parent(tmp_path: Path) -> None:

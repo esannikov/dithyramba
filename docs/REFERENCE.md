@@ -1,7 +1,8 @@
 # Dithyramba reference
 
-This reference describes the `0.1.0rc1` pre-alpha source preview. The command
-itself is authoritative for exact options and defaults:
+This reference describes the `0.1.0rc1` package metadata plus the current v1
+release candidate. The command itself is authoritative for exact
+options and defaults:
 
 ```bash
 uv run dithyramba <command> --help
@@ -17,9 +18,9 @@ uv run dithyramba <command> --help
 | Not yet qualified | Windows; current filesystem contracts are POSIX-specific |
 | Package environment | `uv` for development; wheel build uses Hatchling |
 | Base runtime | no model, GPU, external service, or Docker required |
-| Optional semantic extra | `sentence-transformers==5.6.0` |
+| Embedding or reranking runtime | not included in v1 |
 | Optional ontology extra | `numpy>=2,<3`; `scikit-learn>=1.8,<2` |
-| Current database schema | v11 |
+| Current database schema | one v1 baseline (`0001_v1.sql`) |
 | Package version | `0.1.0rc1` |
 
 ## Command inventory
@@ -41,7 +42,6 @@ Use `dithyramba about` or the public demo before any Library exists.
 dithyramba library init
 dithyramba library list
 dithyramba library doctor
-dithyramba library migrate
 dithyramba collection add
 dithyramba collection list
 dithyramba collection freeze
@@ -62,9 +62,12 @@ dithyramba source versions
 `index` and `source add` accept `--parser-profile default` or
 `--parser-profile large-document`. The default remains deliberately small and
 conservative. `large-document` is an explicit bounded profile for book-length
-PDF, Markdown, and text inputs: up to 512 MiB per file, 1,500 PDF pages,
-20 million extracted characters, 180 seconds, and 1,024 MiB worker RSS. It does
-not remove parser limits or change source identity.
+PDF, Markdown, and text inputs: up to 512 MiB per file, 2,000 PDF pages,
+20 million extracted characters, 180 seconds, and 2,560 MiB worker RSS. It does
+not remove parser limits or change source identity. A `SourceVersion` is unique
+for its source bytes and parser profile together: a changed profile is parsed
+once into a new immutable representation, while the next identical run reuses
+that exact representation.
 
 ### Recall and review
 
@@ -83,29 +86,42 @@ dithyramba review queue
 dithyramba backup
 dithyramba restore
 dithyramba serve
-dithyramba reading-room
-dithyramba atlas
-dithyramba flow-view
-dithyramba concept-lens
+dithyramba lens library
+dithyramba lens session
+dithyramba lens atlas
+dithyramba lens concepts
+dithyramba lens flow
+dithyramba mcp
 dithyramba reasoning-check
 ```
 
-`Lens` is the umbrella name for researcher-facing views, not a separate CLI
-command. Today it is assembled from ReadingRoom, Research Atlas, and Flow View.
+`Lens` is the single researcher-facing CLI surface. Its modes retain separate
+validated input contracts rather than pretending that a live Library, a durable
+session, and an immutable Atlas are the same artifact.
 
-`reading-room` requires `--library`, `--snapshot`, `--access-policy`, at least
+`lens library` requires `--library`, `--snapshot`, `--access-policy`, at least
 one `--collection`, `--purpose`, and `--data-home`. It starts a separate GET-only
-loopback server. `atlas` and `flow-view` also start read-only loopback views.
+loopback server. `lens atlas`, `lens flow`, `lens concepts`, and `lens session`
+also start read-only loopback views. Session mode requires one existing
+`ResearchSession` ID and exposes `/projection.json` beside its human journal.
+
+There is no v1 in-place legacy migration command. A pre-v1 Library fails closed
+before connection-profile writes; rebuild from its read-only sources and use the
+matching pre-v1 release only if review or session artifacts must be exported.
+
+`mcp` runs a stdio server over one existing Library. It reserves stdout for
+newline-delimited JSON-RPC and exposes `open_session`, `recall`,
+`session_context`, `prepare_answer`, `record_draft`, `record_gap`, and
+`reject_path`. `prepare_answer` applies deterministic candidate hygiene,
+evaluates an explicit `EvidenceGateSpec`, and may run a bounded search inside
+already found Sources before returning `answer`, `gap`, or `blocked`.
+`record_draft` requires an exactly replayable `answer` preparation. The MCP
+surface has no human acceptance, decision, promotion, deletion, or
+session-closure tool.
 
 `reasoning-check` consumes one absolute-path `IdeaTrace`, exact claim-evidence
 case set, and semantic entailment result. It makes no provider call and emits a
 canonical closure receipt. A non-passed closure exits non-zero.
-
-### Models
-
-```text
-dithyramba model provision
-```
 
 Provisioning requires an explicit network permission for first download. An
 offline call verifies a cached pinned revision. A provisioned model is not
@@ -172,17 +188,39 @@ not create a compatibility promise beyond the declared `0.1.x` preview.
 | `BackupBundle` | `dithyramba.backup_bundle/1.0` | portable hash-closed Library backup |
 | `IdeaTrace` | `dithyramba.idea_trace/1.0` | short public reasoning candidate over exact claim-evidence cases |
 | `ReasoningClosureResult` | `dithyramba.reasoning_closure/1.0` | deterministic structural closure; review eligibility only |
+| `ResearchSessionBrief` | `dithyramba.research_session_brief/1.0` | bounded purpose, success criteria, and limits |
+| `ResearchSession` | `dithyramba.research_session/1.0` | immutable Library/snapshot/policy scope |
+| `SessionEvent` | `dithyramba.session_event/1.0` | typed append-only research-journal step |
 
-Schema v10 added an internal append-only `CorpusReadSet`: one exact protected
+Interactive transport adds two compact, derived schemas rather than changing
+the durable `EvidencePacket/1.0`:
+
+| View | Schema | Boundary |
+|---|---|---|
+| `AgentSessionContext` | `dithyramba.agent_session_context/1.0` | bounded recent journal state plus explicit omission counts |
+| `AgentEvidencePacket` | `dithyramba.agent_evidence_packet/1.2` | selected exact fragments, readable source references, candidate-only admission state, source-diversity diagnostics, coverage, and IDs/hashes of the full audit receipts |
+
+`AgentEvidencePacket/1.0` and `/1.1` remain readable for development-session
+replay. Version 1.0 lacks readable source references; version 1.1 has source
+references but predates the explicit `retrieved_candidates` admission state and
+source-diversity diagnostics. The full materialized `ReadReceipt` stays local
+in every version and is reopened only through the strict audit route.
+
+The v1 baseline includes an internal append-only `CorpusReadSet`: one exact protected
 fragment manifest can be shared by several recall requests over the same
 Library, snapshot, policy, Collections, and purpose. Public `ReadReceipt/1.0`
-and `EvidencePacket/1.0` payloads remain unchanged, and v9 Libraries remain
-readable after migration.
+and `EvidencePacket/1.0` payloads remain unchanged.
 
-Schema v11 adds append-only `idea_traces` and
+The v1 baseline includes append-only `idea_traces` and
 `reasoning_closure_results`. It stores only canonical public trace artifacts,
 not private chain-of-thought text. A passed closure does not create a human
 `ReviewDecision` and does not promote a claim into accepted memory.
+
+It also includes append-only `answer_projections` and
+`answer_projection_receipts`. The first stores exact role-labelled public
+prose; the second stores the semantic judgment bound to that projection.
+`PropositionCoverageResult` is deterministic and rebuildable, so it is not a
+separate durable table.
 
 Changing the meaning or required fields of one of these schemas requires a
 new version. Applied migrations remain immutable.
@@ -194,16 +232,29 @@ new version. Applied migrations remain immutable.
 | `EvidenceRequirement` | `dithyramba.evidence_requirement/1.0` | caller-owned input |
 | `EvidenceGateSpec` | `dithyramba.evidence_gate_spec/1.0` | caller-owned input |
 | `EvidenceCoverageResult` | `dithyramba.evidence_coverage_result/1.0` | in-memory |
-| `QueryRepairPlan` | `dithyramba.query_repair_plan/1.0` | in-memory |
-| `HarrierScoreBatch` | `dithyramba.harrier_score_batch/1.0` | in-memory |
-| `AdaptiveStageReceipt` | `dithyramba.adaptive_stage_receipt/2.0` | in-memory |
-| `AdaptiveRecallResult` | `dithyramba.adaptive_recall_result/2.2` | in-memory |
+| `AnswerProjection` | `dithyramba.answer_projection/1.0` | append-only canonical JSON in the v1 baseline |
+| `AnswerProjectionJudgmentReceipt` | `dithyramba.answer_projection_receipt/1.0` | append-only canonical JSON in the v1 baseline |
+| `PropositionCoverageResult` | typed result | in-memory; display eligibility only |
 | `RouteCandidateReceipt` | `dithyramba.route_candidate_receipt/1.0` | library artifact |
 | `CompactMemoryPacket` | `dithyramba.compact_memory_packet/1.1` | library artifact |
 | `CompactConnectorPacket` | `dithyramba.compact_connector_packet/1.0` | library artifact |
 
 These contracts are executable and tested, but they do not imply a stable
 CLI/HTTP compatibility promise.
+
+`AnswerProjection` never changes `ResearchAnswer/1.0`. It binds exact character
+spans of the displayed answer to accepted claims and labels them as fact,
+synthesis, hypothesis, question, or framing. Hypotheses require a falsifiable
+probe. `PropositionCoverageGate` is deterministic and provider-free; a separate
+semantic receipt is required to verify that the prose actually matches its
+declared roles.
+
+Research Atlas may additionally carry sparse `AtlasTraceSpan` view records for
+question answers and hypothesis syntheses. A span stores exact character
+offsets, an epistemic display kind, and one or more Atlas evidence IDs. Lens
+uses those bindings to highlight only traceable phrases and to select the
+corresponding source evidence. Trace spans are part of the Atlas projection,
+not a new evidence or acceptance contract.
 
 ## Experimental scoped-ontology types
 
@@ -217,13 +268,13 @@ CLI/HTTP compatibility promise.
 
 `build_candidate_ontology(...)` consumes one bounded, already-authorized
 neighbourhood. The optional `ontology` extra supplies deterministic TF-IDF/NMF
-extraction. `dithyramba concept-lens --projection /absolute/ontology.json`
+extraction. `dithyramba lens concepts --projection /absolute/ontology.json`
 opens the validated result on loopback. `--presentation
 /absolute/presentation.json` optionally adds an ontology-bound human view with
 one title, question, summary, and entry concept per cluster. The command is
 GET-only and does not promote candidates or mutate a Library.
 
-## Adaptive compatibility contracts
+## Fragment compatibility contracts
 
 | Contract | Schema | Current boundary |
 |---|---|---|
@@ -231,22 +282,9 @@ GET-only and does not promote candidates or mutate a Library.
 | `ExternalReferenceMap` | `dithyramba.external_reference_map/1.0` | tested library artifact; not run-bound |
 | `ProofMetadataManifest` | `dithyramba.proof_metadata_manifest/1.0` | tested library artifact; not persisted |
 
-These contracts are present and tested in the source preview. They fail closed,
-but the adaptive route does not yet bind their instances into one persisted run.
-
-## Planned durable adaptive contracts
-
-The following names are reserved for the durable adaptive slice:
-
-| Contract | Responsibility |
-|---|---|
-| `AdaptiveQueryPlan/1.0` | freeze scope, budgets, Gate, providers, and compatibility hashes |
-| `AdaptiveEvidencePacket/2.0` | persist matched proof, gaps, and text-free discovery trace |
-
-`AdaptiveEvidencePacket/2.0` is distinct from the existing
-`ExpandedEvidencePacket/2.0`; neither extends `EvidencePacket/1.0` in place.
-The three compatibility artifacts listed in the previous section are already
-executable and fail closed, but are not yet bound to a persisted adaptive run.
+These contracts are present and tested in the source preview. They fail closed
+when an external fragment projection no longer matches Dithyramba's exact
+source identity or proof metadata.
 
 ## Default budgets
 
@@ -263,12 +301,18 @@ session, then persists a separate ordinary request, run, packet, and receipt
 identity for each question. Mixed scopes fail before execution. A batch does
 not merge questions, evidence, or review history.
 
-### Adaptive route
+`AgentResearchFacade` opens a process-local `RecallScopeSession` on the first
+recall for one session. The cache is bound to exact Library, snapshot, policy,
+purpose, Collections, and exclusions; retrieval budget remains per question.
+The default LRU capacity is four live scope sessions. `close_scope_sessions()`
+destroys every in-memory SQLite index. `cache_stats(session_id)` reports only
+non-canonical runtime counts: permitted fragments, builds, and searches.
 
-The route uses bounded FTS50, conditional FTS100, a Harrier scoring cap, a
-bounded total discovered-candidate cap, and at most two QueryCloud queries.
-Exact constants are versioned in `AdaptiveRetrievalConfig`; callers should not
-reimplement them from prose.
+### Expanded discovery route
+
+Development evaluations use bounded FTS50, conditional FTS100, a bounded total
+candidate cap, and at most two QueryCloud queries. These are evaluation
+parameters, not a public persisted request contract.
 
 ## Evidence gate results
 
@@ -289,7 +333,6 @@ probability.
 |---|---|---|
 | none / FTS5 | exact lexical recall | default |
 | multilingual E5-small | compact dense control; rejected as the tested global cartography geometry | optional |
-| Harrier 270M | bounded q0 candidate reranking | adaptive library route |
 
 Model scores never set `body_proof_eligible`, source authority, independence,
 or a human ReviewDecision.

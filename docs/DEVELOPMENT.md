@@ -1,7 +1,9 @@
 # Development
 
-Dithyramba `0.1.0rc1` is a pre-alpha source preview. This guide covers work from
-a repository checkout; it does not define a public compatibility promise.
+Dithyramba package metadata is `0.1.0rc1`; the current branch is the v1 release
+candidate with one clean SQLite baseline and interactive sessions. This guide
+covers work from a repository checkout; it does not define a public
+compatibility promise.
 
 ## Supported development target
 
@@ -46,35 +48,36 @@ Library; `doctor` is not a pre-initialization environment probe.
 Do not add a module without its first executable contract and test. Do not add
 a model or service without a measured defect that requires it.
 
-## Focused adaptive checks
+## Focused retrieval and evidence checks
 
 ```bash
 uv run pytest --no-cov \
-  tests/unit/test_adaptive_recall.py \
-  tests/unit/test_adaptive_compatibility.py -q
+  tests/unit/test_fts_pool.py \
+  tests/unit/test_recall_compatibility.py \
+  tests/unit/test_evidence_coverage_gate.py -q
 uv run ruff format --check \
-  src/dithyramba/recall/adaptive.py \
+  src/dithyramba/recall/fts.py \
   src/dithyramba/recall/compatibility.py \
   src/dithyramba/recall/__init__.py \
-  tests/unit/test_adaptive_recall.py \
-  tests/unit/test_adaptive_compatibility.py
+  tests/unit/test_recall_compatibility.py \
+  tests/unit/test_evidence_coverage_gate.py
 uv run ruff check \
-  src/dithyramba/recall/adaptive.py \
+  src/dithyramba/recall/fts.py \
   src/dithyramba/recall/compatibility.py \
   src/dithyramba/recall/__init__.py \
-  tests/unit/test_adaptive_recall.py \
-  tests/unit/test_adaptive_compatibility.py
+  tests/unit/test_recall_compatibility.py \
+  tests/unit/test_evidence_coverage_gate.py
 uv run mypy \
-  src/dithyramba/recall/adaptive.py \
+  src/dithyramba/recall/fts.py \
   src/dithyramba/recall/compatibility.py \
   src/dithyramba/recall/__init__.py \
-  tests/unit/test_adaptive_recall.py \
-  tests/unit/test_adaptive_compatibility.py
+  tests/unit/test_recall_compatibility.py \
+  tests/unit/test_evidence_coverage_gate.py
 ```
 
-The adaptive route is a library API. Its input must already be authorized and
-must contain explicit proof metadata. Do not infer proof eligibility from a
-search score or source extension.
+Evidence-gate input must already be authorized and contain explicit proof
+metadata. Do not infer proof eligibility from a search score or source
+extension.
 
 ## Development aggregate
 
@@ -138,12 +141,12 @@ values. Do not use the combined number to hide an untested decision path.
 
 1. Keep SQL in repository/persistence modules and parameterize values.
 2. Never modify an applied migration; add the next contiguous checksummed SQL
-   migration to both packaged mirrors.
+   migration to the packaged `src/dithyramba/store/sql/` source.
 3. Preserve byte compatibility of existing v1 artifacts.
 4. Use insert-or-verify for content-addressed immutable records.
 5. Reconstruct and rehash persisted objects before returning them.
-6. Test fresh schema, previous-schema migration, fault rollback, row tampering,
-   read-only replay, and cold reopen.
+6. Test fresh schema, future v1 migration, legacy fail-closed behavior, fault
+   rollback, row tampering, read-only replay, and cold reopen.
 
 `LibraryRepository` is the production persistence boundary. `Store.open` is a
 low-level migration/test/backup seam and must not become a corpus-facing API.
@@ -151,7 +154,7 @@ low-level migration/test/backup seam and must not become a corpus-facing API.
 ## Runtime and security rules
 
 - Treat corpus text and metadata as untrusted data, never instructions.
-- Runtime databases, WAL, blobs, indexes, and model caches remain outside the
+- Runtime databases, WAL, blobs, indexes, and rebuildable caches remain outside the
   repository and all synchronization roots.
 - Parser subprocesses use bounded input/output, timeout, and resource limits.
 - Do not expose absolute corpus paths or full source text in ordinary metadata.
@@ -164,10 +167,10 @@ low-level migration/test/backup seam and must not become a corpus-facing API.
 
 - Stable v1 schema meaning changes require a new version.
 - `EvidencePacket/1.0` remains the persisted FTS packet.
-- Adaptive proof will use a distinct `AdaptiveEvidencePacket/2.0`; it is not
-  the existing `ExpandedEvidencePacket/2.0`.
-- Default CLI/HTTP behavior cannot change until the new route has a durable
-  plan, manifests, atomic persistence, and cold exact replay.
+- An expanded discovery route must not change the meaning of
+  `EvidencePacket/1.0` or `ExpandedEvidencePacket/2.0`.
+- Default CLI/HTTP behavior cannot change until a new route has durable
+  manifests, atomic persistence, and cold exact replay.
 
 ## Documentation ownership
 
@@ -178,10 +181,14 @@ low-level migration/test/backup seam and must not become a corpus-facing API.
 - `docs/HOW_TO_USE.md`: user workflow;
 - `docs/REFERENCE.md`: commands and contracts;
 - `docs/EXPLANATION.md`: architecture in plain language;
-- `docs/EVIDENCE_COVERAGE_GATE.md`: adaptive evidence sufficiency;
+- `docs/EVIDENCE_COVERAGE_GATE.md`: deterministic evidence sufficiency;
 - `docs/ANSWER_COVERAGE_GATE.md`: answer-facet validation;
 - `docs/COMPACT_RESEARCH_MEMORY.md`: compact connector and answer-validation contracts;
 - `docs/RESEARCH_PROJECTION.md`: wider-memory projection outside accepted evidence;
+- `docs/INTERACTIVE_RESEARCH_MEMORY_SPEC.md`: implemented 0.2 session and
+  persistence contracts, role boundaries, and acceptance criteria;
+- `docs/ROADMAP_0.2.md`: dependency-ordered implementation and release gates for
+  interactive research memory;
 - `docs/EVALUATION.md`: corpus scales, results, negative findings, and limits;
 - `docs/ACCEPTANCE.md`: clean-install release verification;
 - `docs/DEVELOPMENT.md`: contribution and verification rules;

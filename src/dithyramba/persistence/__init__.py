@@ -18,8 +18,11 @@ from dithyramba.provenance import (
     TerminalInputOutcome,
 )
 
+from .answer_projection import SQLiteAnswerProjectionRepository
 from .errors import (
     AccessPolicyNotFoundError,
+    AnswerProjectionNotFoundError,
+    AnswerProjectionPersistenceError,
     AuthorizationError,
     BackupError,
     CollectionNotFoundError,
@@ -34,10 +37,12 @@ from .errors import (
     ProcessingRunNotFoundError,
     QueryRequestNotFoundError,
     RecallArtifactNotFoundError,
+    ResearchSessionNotFoundError,
+    ResearchSessionPersistenceError,
+    SessionArtifactNotFoundError,
     SourceNotFoundError,
     SourceVersionNotFoundError,
 )
-from .hybrid import SQLiteHybridStore
 from .meaning import SQLiteMeaningRepository
 from .models import (
     AccessPolicyRecord,
@@ -59,12 +64,14 @@ from .repository import (
     list_libraries,
     open_library,
 )
-from .semantic import SemanticSpanVectorBundle, SQLiteSemanticSpanStore
+from .sessions import SQLiteResearchSessionRepository
 from .structure import SQLiteStructureRepository
 
 __all__ = [
     "AccessPolicyNotFoundError",
     "AccessPolicyRecord",
+    "AnswerProjectionNotFoundError",
+    "AnswerProjectionPersistenceError",
     "AuthorizationError",
     "AuthorizedRead",
     "BackupError",
@@ -96,14 +103,16 @@ __all__ = [
     "ProcessingRunStatus",
     "QueryRequestNotFoundError",
     "RecallArtifactNotFoundError",
-    "SQLiteHybridStore",
+    "ResearchSessionNotFoundError",
+    "ResearchSessionPersistenceError",
+    "SQLiteAnswerProjectionRepository",
     "SQLiteMeaningRepository",
     "SQLiteReasoningRepository",
     "SQLiteRecallBackend",
     "SQLiteRelationRepository",
-    "SQLiteSemanticSpanStore",
+    "SQLiteResearchSessionRepository",
     "SQLiteStructureRepository",
-    "SemanticSpanVectorBundle",
+    "SessionArtifactNotFoundError",
     "SourceFamilyRole",
     "SourceFragmentRecord",
     "SourceFragmentText",

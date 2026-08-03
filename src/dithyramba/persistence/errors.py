@@ -55,6 +55,26 @@ class RecallArtifactNotFoundError(PersistenceError):
     """A required immutable recall artifact is absent from the database."""
 
 
+class AnswerProjectionNotFoundError(PersistenceError):
+    """A proposition projection or its judgment receipt does not exist."""
+
+
+class AnswerProjectionPersistenceError(PersistenceError):
+    """A proposition projection cannot be stored or reopened exactly."""
+
+
+class ResearchSessionNotFoundError(PersistenceError):
+    """A research session does not exist in the current Library."""
+
+
+class ResearchSessionPersistenceError(PersistenceError):
+    """A research session or event cannot be stored or reopened exactly."""
+
+
+class SessionArtifactNotFoundError(ResearchSessionPersistenceError):
+    """A session event references an absent, stale, or out-of-scope artifact."""
+
+
 class PersistenceConflictError(PersistenceError):
     """An insert-only repository write conflicts with existing state."""
 

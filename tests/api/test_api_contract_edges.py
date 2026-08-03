@@ -13,6 +13,7 @@ from dithyramba.api.config import LoopbackApiConfig, build_config
 from dithyramba.api.models import address_response
 from dithyramba.api.services import PacketProjection, PacketViewService, ViewerNotFoundError
 from dithyramba.ingest import PdfSourceAddress, SourceAddress
+from dithyramba.interactive import AgentEvidencePacket
 from dithyramba.persistence import SQLiteRecallBackend
 from dithyramba.persistence.repository import open_library
 
@@ -177,6 +178,14 @@ def test_packet_view_service_rejects_every_inconsistent_projection(
     with open_library(source.library_id, data_root=api_world.data_home) as repository:
         service = PacketViewService(repository, SQLiteRecallBackend(repository))
         projection = service.load_packet(source.evidence_packet_id)
+        compact = AgentEvidencePacket.create(projection.packet)
+        compact_projection = service.load_agent_packet(compact)
+        assert compact_projection.packet == compact
+        assert compact_projection.source_chips == projection.source_chips
+        with pytest.raises(TypeError, match="exact AgentEvidencePacket"):
+            service.load_agent_packet(cast(AgentEvidencePacket, object()))
+        with pytest.raises(ViewerNotFoundError, match="compact binding"):
+            service.load_agent_packet(compact.model_copy(update={"evidence_packet_hash": "b" * 64}))
         fragment = next(
             item
             for item in projection.packet.source_fragments

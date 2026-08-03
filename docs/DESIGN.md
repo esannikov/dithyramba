@@ -88,6 +88,12 @@ remains present below the main view.
 ## Interaction
 
 - Reading Room is GET-only and performs no domain mutation.
+- Session Lens is GET-only and separates chronological journal material from
+  exact packet-backed evidence. A draft, gap, or rejected path never receives
+  evidence styling merely because it appears in the session.
+- Agent session context, MCP tool names, cache counters, and command receipts
+  belong under progressive technical disclosure; the primary human view begins
+  with the Brief, the research path, named sources, and exact passages.
 - Navigation, filters, pagination, and selection have shareable query parameters.
 - Keyboard focus uses a visible 2-pixel blue ring with 3-pixel offset.
 - Links and controls have at least 44 by 44 pixel touch targets on coarse pointers.
@@ -134,6 +140,19 @@ Research Atlas navigation uses these stable human routes:
 - How does the subject unfold over time?
 - What else does the memory contain, and what deserves review next?
 - What is the evidence passport and how should this source be read?
+
+Within an answer or hypothesis, use role colour only for exact stored trace
+spans:
+
+- fact — teal underline;
+- synthesis — violet underline;
+- hypothesis — amber underline;
+- research question — blue underline;
+- currently selected span — warm gold field plus the active source chip.
+
+The trace decoration must remain sparse. Unbound connective prose keeps normal
+ink, and colour never substitutes for the visible source title, asserting
+voice, evidence role, limitation, and exact passage.
 
 Ukrainian UI translations should remain plain and consistent. Schema identifiers
 appear as supporting metadata, not as the primary label. Never show a generic

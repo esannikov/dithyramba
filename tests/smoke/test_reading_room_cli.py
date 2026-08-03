@@ -109,7 +109,8 @@ def test_reading_room_pins_explicit_scope_and_runs_on_loopback(
     result = runner.invoke(
         app,
         [
-            "reading-room",
+            "lens",
+            "library",
             "--library",
             library_id,
             "--snapshot",
@@ -129,7 +130,8 @@ def test_reading_room_pins_explicit_scope_and_runs_on_loopback(
 
     assert result.exit_code == 0, result.output
     assert result.stdout == (
-        "reading_room: http://127.0.0.1:8766\n"
+        "lens: http://127.0.0.1:8766\n"
+        "lens_mode: library\n"
         "projection_json: http://127.0.0.1:8766/projection.json\n"
         "mode: read-only\n"
     )
@@ -146,7 +148,7 @@ def test_reading_room_pins_explicit_scope_and_runs_on_loopback(
 
 
 def test_reading_room_requires_complete_explicit_scope() -> None:
-    result = runner.invoke(app, ["reading-room"])
+    result = runner.invoke(app, ["lens", "library"])
 
     assert result.exit_code == 2
     assert "Missing option" in result.output

@@ -87,13 +87,62 @@ result = EvidenceCoverageGate(spec).evaluate(candidates)
 source-role metadata, and an independence group. Candidate order does not
 change the canonical result; rank remains part of the input.
 
-## Current boundary
+## Interactive answer boundary
 
-The module is a pure public Python contract under `dithyramba.evidence`. It is
-not yet a default `recall` CLI step and creates no persistent database object.
-Consumers may apply it to an authorized `EvidencePacket` or another exact
-fragment projection. Persistence and UI promotion require a later versioned
-integration contract.
+The pure evaluator remains public under `dithyramba.evidence`; ordinary
+`recall` still returns candidates and never invents a pass. The interactive
+facade and stdio MCP now bind it to the answer route:
+
+1. `recall` returns `AgentEvidencePacket/1.2` with
+   `admission_state: retrieved_candidates`;
+2. `prepare_answer` removes deterministic bibliography, index, table, and
+   no-overlap noise;
+3. the Gate evaluates the exact remaining fragments;
+4. if an answerable question is incomplete and the missing requirement has
+   literal anchors, a bounded FTS repair searches inside at most three Sources
+   already found by the broad recall;
+5. the Gate evaluates the combined exact candidates again;
+6. when the result is `ready`, the answer packet is reduced to an
+   inclusion-minimal set of Gate-matched fragments: removing any remaining
+   fragment would make the declared evidence roles incomplete;
+7. `record_draft` replays the same preparation and refuses any state other than
+   `ready`.
+
+The original FTS receipt is never rewritten. The local drilldown is recorded in
+`AgentAnswerPreparation/1.0` with its query, source IDs, result hash, selected
+fragment IDs, and filtered count. The draft event links the original packet and
+the exact matched source fragments.
+
+The compact answer packet is a projection, not a destructive rewrite. The
+original retrieval packet, local-search receipt, rejected-fragment assessments,
+and provenance addresses remain durable and inspectable. Evidence-gap diagnostics retain
+their broader candidate set because the operator may need to understand what is
+still missing.
+
+## Precision discipline
+
+Literal matching is only as precise as the Gate specification. Put the domain
+anchor and the evidence role in the same `EvidenceRequirement` when they must
+co-occur in one passage. For example, an art-research explainability claim
+should require an art anchor, an explainability anchor, and a limitation anchor
+inside one fragment. Separate broad requirements could otherwise combine an
+unrelated art passage with a generic machine-learning passage.
+
+Avoid weak alternatives such as `model`, `human`, `project`, or `expert` unless
+another anchor group narrows their meaning in the same requirement. Named-example
+questions whose entities are not known in advance should remain `partial` or
+`insufficient` until a stronger specification, human review, or semantic
+claim-evidence check is available.
+
+This proves declared evidence-role coverage immediately before the journal
+accepts a source-backed draft. It does not prove entailment of every sentence,
+historical truth, or human acceptance. An external model can still emit text
+outside Dithyramba; the system controls its own answer/journal boundary.
+
+For generated prose, the optional `ClaimEvidenceEntailmentGate` and
+`PropositionCoverageGate` provide a separate post-generation boundary. They do
+not turn retrieval scores or literal role coverage into truth; their result and
+any model or human reviewer used by the application must remain disclosed.
 
 Corpus-specific replays and measurements remain development evidence. They do
 not establish general retrieval quality or evidence sufficiency.

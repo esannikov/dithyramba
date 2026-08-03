@@ -276,6 +276,23 @@ def test_complete_packet_preserves_source_closed_exact_provenance(source_schema:
     assert packet.connector_packet_hash == canonical_sha256_hex(packet.semantic_payload())
 
 
+def test_legacy_compact_packet_refuses_unsigned_atlas_trace_spans() -> None:
+    raw = _source_packet().model_dump(mode="json")
+    raw["questions"][0]["trace_spans"] = [
+        {
+            "span_id": "trace_use",
+            "start": 0,
+            "end": 3,
+            "text": "Use",
+            "kind": "fact",
+            "evidence_ids": ["evidence_recipe"],
+        }
+    ]
+
+    with pytest.raises(ValidationError, match="cannot carry Atlas trace spans"):
+        CompactMemoryPacket.model_validate_json(json.dumps(raw))
+
+
 def test_partial_packet_reports_every_missing_required_role() -> None:
     request = _request(
         assignments=(

@@ -9,6 +9,7 @@ from typing import Any, NoReturn, cast
 import pytest
 
 import dithyramba.persistence.recall as recall_persistence
+import dithyramba.recall.artifacts as recall_artifacts
 from dithyramba.access import AccessPolicySnapshot, CollectionRule, PolicyEffect, RequestScope
 from dithyramba.collections import (
     CollectionConfig,
@@ -200,20 +201,21 @@ def test_read_receipt_id_is_computed_once_before_shared_head_insert(
                 for index in range(64)
             ),
         )
-        expected_id = receipt.read_receipt_id
-        original_id_property = cast(property, vars(ReadReceipt)["read_receipt_id"])
-        original_id_getter = cast(Callable[[ReadReceipt], str], original_id_property.fget)
         id_computations = 0
+        original_content_id = cast(
+            Callable[[str, bytes], str],
+            vars(recall_artifacts)["content_id"],
+        )
 
-        def tracked_read_receipt_id(value: ReadReceipt) -> str:
+        def tracked_content_id(prefix: str, canonical_bytes: bytes) -> str:
             nonlocal id_computations
             id_computations += 1
-            return original_id_getter(value)
+            return original_content_id(prefix, canonical_bytes)
 
         monkeypatch.setattr(
-            ReadReceipt,
-            "read_receipt_id",
-            property(tracked_read_receipt_id),
+            recall_artifacts,
+            "content_id",
+            tracked_content_id,
         )
         monkeypatch.setattr(
             recall_persistence,
@@ -231,7 +233,6 @@ def test_read_receipt_id_is_computed_once_before_shared_head_insert(
             lambda *_args, **_kwargs: recall_persistence._CorpusReadSetIdentity(
                 corpus_read_set_id="corpus_read_set_test",
                 set_hash="c" * 64,
-                payload={},
             ),
         )
         connection = _RecordingConnection()
@@ -244,7 +245,7 @@ def test_read_receipt_id_is_computed_once_before_shared_head_insert(
         )
 
         assert id_computations == 1
-        assert expected_id.startswith("read_")
+        assert receipt.read_receipt_id.startswith("read_")
     finally:
         context.repository.close()
 
@@ -515,6 +516,33 @@ def test_sqlite_completion_post_commit_fault_preserves_exact_success(
             ).fetchone()[0]
             == 0
         )
+    finally:
+        context.repository.close()
+
+
+def test_completion_returns_validated_packet_without_rehydrating_full_receipt(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    context = _context(tmp_path, paragraph_count=12)
+    try:
+        load_calls = 0
+
+        def forbidden_full_load(_packet_id: str) -> NoReturn:
+            nonlocal load_calls
+            load_calls += 1
+            raise AssertionError("completion must not rehydrate its full persisted receipt")
+
+        monkeypatch.setattr(context.backend, "load_evidence_packet", forbidden_full_load)
+        result = _service(context).recall(context.request)
+
+        assert load_calls == 0
+        assert result.run.output_hash == result.packet.packet_hash
+        assert result.packet.read_receipt.items
+        independently_loaded = SQLiteRecallBackend(context.repository).load_evidence_packet(
+            result.packet.evidence_packet_id
+        )
+        assert independently_loaded.canonical_bytes == result.packet.canonical_bytes
     finally:
         context.repository.close()
 
@@ -953,6 +981,58 @@ def test_packet_loader_rejects_relational_projection_corruption(
             )
         with pytest.raises(PersistenceIntegrityError):
             context.backend.load_evidence_packet(packet.evidence_packet_id)
+    finally:
+        context.repository.close()
+
+
+@pytest.mark.parametrize(
+    "target",
+    ["terminal_status", "packet_json", "packet_item_score", "packet_item_delete", "no_link"],
+)
+def test_compact_packet_binding_rejects_its_relational_closure_corruption(
+    tmp_path: Path,
+    target: str,
+) -> None:
+    context = _context(tmp_path)
+    try:
+        packet = _service(context).recall(context.request).packet
+        connection = context.repository._store.connection
+        run_id = connection.execute(
+            "SELECT processing_run_id FROM recall_run_artifacts WHERE evidence_packet_id = ?",
+            (packet.evidence_packet_id,),
+        ).fetchone()[0]
+        if target == "terminal_status":
+            connection.execute(
+                "UPDATE processing_runs SET status = 'failed' WHERE processing_run_id = ?",
+                (run_id,),
+            )
+        elif target == "packet_json":
+            connection.execute("DROP TRIGGER evidence_packets_no_update")
+            connection.execute(
+                "UPDATE evidence_packets SET packet_json = '{}' WHERE evidence_packet_id = ?",
+                (packet.evidence_packet_id,),
+            )
+        elif target == "packet_item_score":
+            connection.execute("DROP TRIGGER packet_items_no_update")
+            connection.execute(
+                "UPDATE packet_items SET score_text = 'invalid' WHERE evidence_packet_id = ?",
+                (packet.evidence_packet_id,),
+            )
+        elif target == "packet_item_delete":
+            connection.execute("DROP TRIGGER packet_items_no_delete")
+            connection.execute(
+                "DELETE FROM packet_items WHERE evidence_packet_id = ? AND rank = 1",
+                (packet.evidence_packet_id,),
+            )
+        else:
+            connection.execute("DROP TRIGGER recall_run_artifacts_no_delete")
+            connection.execute(
+                "DELETE FROM recall_run_artifacts WHERE evidence_packet_id = ?",
+                (packet.evidence_packet_id,),
+            )
+
+        with pytest.raises(PersistenceIntegrityError):
+            context.backend.load_evidence_packet_binding(packet.evidence_packet_id)
     finally:
         context.repository.close()
 

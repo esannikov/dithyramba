@@ -3,6 +3,110 @@
 This file records package changes. Detailed experiment metrics and decision
 history belong in dated evaluation reports, not in the product changelog.
 
+## Unreleased
+
+### Added
+
+- Durable 0.2 `ResearchSession` journals with compact least-context agent turns,
+  exact command retry receipts, and cold-reopen state reconstruction.
+- Process-local `RecallScopeSession` reuse: one authorized fragment read-set and
+  in-memory FTS index can serve later questions in the same exact session scope
+  while every question retains its own durable packet and audit trail.
+- Thin newline-delimited JSON-RPC stdio MCP over the existing Python facade,
+  with six bounded research tools and no human acceptance or promotion tool.
+- GET-only Session Lens for briefs, chronological questions, packet-backed
+  evidence, drafts, gaps, rejected paths, and exact source inspection.
+- `AgentEvidencePacket/1.2` explicitly marks recall output as
+  `retrieved_candidates` and exposes compact source and SourceFamily dominance
+  diagnostics. Human-readable `/1.1` and legacy `/1.0` packets remain readable.
+
+- `AnswerProjection/1.0` and `PropositionCoverageGate`: an optional
+  display-governance layer that partitions the exact final answer into facts,
+  bounded syntheses, disclosed hypotheses, research questions, and framing.
+- The clean v1 schema baseline includes append-only `answer_projections` and
+  `answer_projection_receipts`, with canonical reopen, corruption checks,
+  Library isolation, and audit events.
+- Sparse `AtlasTraceSpan` bindings for Research Atlas answers and hypotheses.
+  Lens colours only exact source-traceable phrases; clicking one activates its
+  evidence chip and exact-passage inspector.
+- Falsifiable hypothesis probes with an explicit test question, falsifier, and
+  next evidence, while retaining exact premise claim routes.
+- Deterministic fail-closed checks for complete span coverage, stale answer and
+  receipt bindings, unsupported overclaim, uncertain roles, and policy drift.
+
+### Changed
+
+- `prepare_answer` now projects a `ready` result as an inclusion-minimal set of
+  exact Gate-matched fragments while preserving immutable retrieval, drilldown,
+  and rejected-candidate receipts. Candidate hygiene also detects wrapped
+  numbered bibliographies and raw PDF contents pages more reliably.
+- Rebuilt the public architecture figure and product documentation around the
+  durable evidence core plus bounded interactive session loop. Updated the
+  clean-install and wheel-closure checks to require the single packaged v1
+  schema baseline and retained research-session tables.
+- A six-session Mars screen measured a 23.85% mean warm-turn reduction while
+  preserving 17/17 comparable top-10 result lists, 6/6 exact retries, and 6/6
+  cold reopens with zero model tokens. Automatic relation-aware repair remains
+  out of production after a one-case challenger repaired only one of two query
+  variants.
+- Large-scope session completion now validates the shared immutable corpus
+  closure once per explicit live scope and revalidates selected stored
+  fragments on later questions. Modern Session Lens events reopen compact
+  command receipts and direct fragment metadata instead of reconstructing a
+  corpus-wide `ReadReceipt` to render a page.
+- Session Lens now distinguishes the source title from the exact file/URI
+  locator. It no longer labels a book or file title as the person who asserted
+  the passage, and it never exposes a full local filesystem path in the human
+  view. The same safe locator is now present in the stable JSON projection;
+  web locators retain their host and path while credentials, query strings,
+  and fragments stay hidden. A source without a stored title falls back to
+  this safe locator instead of exposing its raw canonical URI.
+
+- Hardened PDF ingest against recoverable NUL glyphs and invalid zero-area
+  boxes. Parser profile is now part of immutable source-representation
+  identity, so the same bytes under a different profile cannot silently reuse
+  stale fragments.
+- Advanced the bounded `large-document` profile to
+  `index/large-document/1.3`: valid sources up to 2,000 pages are admitted while
+  existing time, file-size, character, and worker-memory guards remain active.
+- Completed a clean M1 rebuild of 816 real PhD sources / 276,165 fragments.
+  Cold ingest took 2,882.42 seconds; an unchanged five-Collection repeat took
+  39.62 seconds with zero new versions or fragments. A 30-question local run
+  used zero model calls/tokens and passed 240/240 human-report source-card
+  checks. These are engineering and provenance results, not scholarly-accuracy
+  claims.
+- Documented separate independent-evidence and author-context scopes after a
+  mixed-scope control placed the researcher's own drafts in the first six
+  results. The existing snapshot/policy boundary resolved this without a new
+  runtime subsystem.
+
+- Simplified the research route to local FTS, bounded lexical expansion,
+  conditional QueryCloud, exact proof admission, and deterministic evidence
+  gates.
+- Reworked Lens into a sparse reading workspace: one central column, compact
+  route navigation, an inspector opened only by a selected exact trace or
+  source, and paginated full-corpus sources.
+- Added strict migration of legacy Atlas projections to the current schema
+  without rewriting the original artifact.
+- Replaced the proposed whole-answer equivalence rule with proposition-level
+  coverage. Factual spans remain strict; exploratory spans may be useful and
+  expressive without being promoted to fact.
+- Documented the default profile as lexical-first, evidence-first, and
+  embedding-optional. No claim is made that lexical retrieval wins every
+  semantic-recall case.
+- Added a public Mars IdeaTrace-24 evaluation card that separates the frozen
+  reasoning test from the earlier 53,747-unit retrieval calibration.
+- Preserved byte-compatible `CompactMemoryPacket/1.0` and `/1.1` identities by
+  omitting empty trace metadata and rejecting non-empty Lens spans when a
+  legacy connector cannot preserve them.
+
+### Removed
+
+- Removed Harrier from runtime architecture, provisioning, public interfaces,
+  and current documentation. Historical comparison results remain labelled as
+  retired evaluation evidence; model weights, caches, and case artifacts are
+  not part of the package.
+
 ## 0.1.0rc1 — 2026-07-31
 
 ### Added

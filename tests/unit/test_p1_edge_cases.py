@@ -459,7 +459,7 @@ def test_store_can_verify_existing_schema_without_applying_migrations(tmp_path: 
         pass
 
     with Store.open(database, apply_migrations=False) as store:
-        assert store.schema_version == 11
+        assert store.schema_version == 1
 
 
 def test_store_close_is_idempotent_and_closed_access_fails(tmp_path: Path) -> None:
@@ -636,14 +636,8 @@ def test_migration_discovery_ignores_non_sql_entries_and_accepts_traversable(
     packaged = discover_migrations(packaged_migration_source())
 
     assert migrations[0].version == 1
-    assert packaged[0].name == "0001_core.sql"
-    assert packaged[1].name == "0002_source_heads.sql"
-    assert packaged[2].name == "0003_recall_run_artifacts.sql"
-    assert packaged[3].name == "0004_meaning_core.sql"
-    assert packaged[4].name == "0005_hybrid_recall.sql"
-    assert packaged[5].name == "0006_structure_relations.sql"
-    assert packaged[6].name == "0007_semantic_span_vectors.sql"
-    assert packaged[7].name == "0008_relation_admission.sql"
+    assert packaged[0].name == "0001_v1.sql"
+    assert len(packaged) == 1
     assert migration_checksums(migrations) == {1: migrations[0].sha256}
 
 

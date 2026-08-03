@@ -35,6 +35,10 @@ class MigrationStateError(MigrationError):
     """The database migration history is malformed or unmanaged."""
 
 
+class LegacySchemaError(MigrationStateError):
+    """A pre-v1 Library was detected and must not be changed in place."""
+
+
 class MigrationChecksumError(MigrationStateError):
     """An applied migration no longer has its recorded checksum."""
 

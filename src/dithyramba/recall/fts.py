@@ -1,7 +1,7 @@
 """Fresh permitted-only SQLite FTS5 recall.
 
 ``PermittedFtsSession`` owns one request-scoped ``:memory:`` connection so an
-adaptive recall route can issue the original question plus a bounded number of
+expanded recall route can issue the original question plus a bounded number of
 repair queries without rebuilding the same authorized index.  The one-shot
 ``search_ephemeral_fts`` wrapper preserves the original public contract.  No
 index survives the session and no provider or network path exists here.

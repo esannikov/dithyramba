@@ -853,6 +853,141 @@ class LibraryRepository(AbstractContextManager["LibraryRepository"]):
             output_hash=output_hash,
         )
 
+    def find_reusable_unchanged_source(
+        self,
+        *,
+        collection_id: str,
+        collection_root_id: str,
+        source: SourceBytes,
+        parser_profile: str,
+        identity_declaration: SourceIdentityDeclaration | None = None,
+    ) -> PersistedSourceOutcome | None:
+        """Return an exact current Source without invoking its parser again.
+
+        This is deliberately a read-only fast path.  It applies only when the
+        Source is already a member of the requested Collection, its current
+        bytes and parser profile match, its lineage remains valid, and the
+        referenced Blob still verifies physically.  Any incomplete match falls
+        back to the ordinary parse-and-persist route.
+        """
+
+        if not isinstance(source, SourceBytes):
+            raise TypeError("find_reusable_unchanged_source requires SourceBytes")
+        profile = _validated_label(parser_profile, "parser profile")
+        root_id = _validated_label(collection_root_id, "Collection root ID")
+        if identity_declaration is not None and not isinstance(
+            identity_declaration, SourceIdentityDeclaration
+        ):
+            raise TypeError("identity_declaration must be SourceIdentityDeclaration or None")
+
+        connection = self._store.connection
+        collection_row = connection.execute(
+            """
+            SELECT c.kind, cr.resolved_path
+            FROM collections AS c
+            LEFT JOIN collection_roots AS cr
+              ON cr.collection_id = c.collection_id
+             AND cr.collection_root_id = ?
+            WHERE c.collection_id = ? AND c.library_id = ?
+            """,
+            (root_id, collection_id, self.library_id),
+        ).fetchone()
+        if collection_row is None:
+            raise CollectionNotFoundError(
+                f"Collection does not exist in Library {self.library_id}: {collection_id}"
+            )
+        if collection_row[1] is None:
+            raise PersistenceIntegrityError(
+                "Collection root does not belong to the ingest Collection"
+            )
+        persisted_root = Path(str(collection_row[1]))
+        if not persisted_root.is_absolute():
+            raise PersistenceIntegrityError("persisted Collection root is not absolute")
+        expected_uri = (persisted_root / Path(*PurePosixPath(source.relative_path).parts)).as_uri()
+        if source.canonical_uri != expected_uri:
+            raise PersistenceIntegrityError(
+                "captured Source URI does not match its exact Collection root and path"
+            )
+        membership_state = "holdout" if str(collection_row[0]) == "holdout" else "active"
+
+        row = connection.execute(
+            """
+            SELECT s.source_id, s.media_type, sh.source_version_id,
+                   sv.content_sha256, sv.parser_profile, sv.parse_status,
+                   membership.state
+            FROM sources AS s
+            JOIN source_heads AS sh ON sh.source_id = s.source_id
+            JOIN source_versions AS sv
+              ON sv.source_id = s.source_id
+             AND sv.source_version_id = sh.source_version_id
+            LEFT JOIN collection_memberships AS membership
+              ON membership.source_id = s.source_id
+             AND membership.collection_id = ?
+            WHERE s.library_id = ? AND s.canonical_uri = ?
+            """,
+            (collection_id, self.library_id, source.canonical_uri),
+        ).fetchone()
+        if row is None:
+            return None
+        if str(row[1]) != source.media_type.value:
+            raise PersistenceIntegrityError(
+                "persisted Source media type changed for the same canonical URI"
+            )
+        if (
+            str(row[3]) != source.content_sha256
+            or str(row[4]) != profile
+            or str(row[5]) != ParseStatus.PROCESSED.value
+            or row[6] is None
+        ):
+            return None
+        if str(row[6]) != membership_state:
+            raise PersistenceIntegrityError(
+                "existing Collection membership state differs from ingest scope"
+            )
+
+        source_id = str(row[0])
+        source_version_id = str(row[2])
+        if identity_declaration is None:
+            source_family_id, root_source_id, family_role = self._lineage_for_source(
+                connection, source_id
+            )
+        else:
+            source_family_id, root_source_id, family_role = (
+                self._declared_lineage_for_existing_source(
+                    connection,
+                    source_id=source_id,
+                    declaration=identity_declaration,
+                )
+            )
+            self._require_identity_binding(
+                connection,
+                source_id=source_id,
+                source_version_id=source_version_id,
+                declaration=identity_declaration,
+            )
+
+        fragment_count = int(
+            connection.execute(
+                """
+                SELECT count(*) FROM source_fragments
+                WHERE source_version_id = ?
+                """,
+                (source_version_id,),
+            ).fetchone()[0]
+        )
+        if fragment_count < 1:
+            raise PersistenceIntegrityError("processed SourceVersion has no SourceFragments")
+        self.get_blob(source.content_sha256)
+        return PersistedSourceOutcome(
+            IngestDisposition.UNCHANGED,
+            source_id,
+            source_version_id,
+            source_family_id,
+            root_source_id,
+            family_role,
+            fragment_count,
+        )
+
     def record_processed_source(
         self,
         *,
@@ -1036,7 +1171,8 @@ class LibraryRepository(AbstractContextManager["LibraryRepository"]):
                         )
                     version_rows = connection.execute(
                         """
-                        SELECT source_version_id, version_number, content_sha256
+                        SELECT source_version_id, version_number, content_sha256,
+                               parser_profile
                         FROM source_versions
                         WHERE source_id = ? ORDER BY version_number
                         """,
@@ -1046,7 +1182,8 @@ class LibraryRepository(AbstractContextManager["LibraryRepository"]):
                         raise PersistenceIntegrityError("persisted Source has no SourceVersion")
                     head = connection.execute(
                         """
-                        SELECT sh.source_version_id, sv.content_sha256
+                        SELECT sh.source_version_id, sv.content_sha256,
+                               sv.parser_profile
                         FROM source_heads AS sh
                         JOIN source_versions AS sv
                           ON sv.source_version_id = sh.source_version_id
@@ -1056,7 +1193,7 @@ class LibraryRepository(AbstractContextManager["LibraryRepository"]):
                     ).fetchone()
                     if head is None:
                         raise PersistenceIntegrityError("persisted Source has no source_heads row")
-                    if str(head[1]) == source.content_sha256:
+                    if str(head[1]) == source.content_sha256 and str(head[2]) == parser_profile:
                         if identity_declaration is not None:
                             self._require_identity_binding(
                                 connection,
@@ -1090,7 +1227,12 @@ class LibraryRepository(AbstractContextManager["LibraryRepository"]):
                             fragment_count,
                         )
                     historical = next(
-                        (row for row in version_rows if str(row[2]) == source.content_sha256),
+                        (
+                            row
+                            for row in version_rows
+                            if str(row[2]) == source.content_sha256
+                            and str(row[3]) == parser_profile
+                        ),
                         None,
                     )
                     if historical is not None:
@@ -1797,6 +1939,46 @@ class LibraryRepository(AbstractContextManager["LibraryRepository"]):
         if tuple(record.ordinal for record in records) != tuple(range(len(records))):
             raise PersistenceIntegrityError("SourceFragment ordinals are not contiguous")
         return tuple(records)
+
+    def get_source_fragment(self, source_fragment_id: str) -> SourceFragmentRecord:
+        """Load exact fragment metadata without materializing its source version.
+
+        Fragment text remains behind the authorized read gate. This method is
+        intentionally metadata-only and keeps packet/view projections O(1) per
+        selected fragment instead of scanning every fragment in a large source.
+        """
+
+        row = self._store.connection.execute(
+            """
+            SELECT sf.source_fragment_id, sf.source_version_id, sf.ordinal,
+                   sf.fragment_kind, sf.text_sha256, sf.source_address_json,
+                   sf.address_hash
+            FROM source_fragments AS sf
+            JOIN source_versions AS sv
+              ON sv.source_version_id = sf.source_version_id
+            JOIN sources AS s ON s.source_id = sv.source_id
+            WHERE sf.source_fragment_id = ? AND s.library_id = ?
+            """,
+            (source_fragment_id, self.library_id),
+        ).fetchone()
+        if row is None:
+            raise SourceNotFoundError(
+                f"SourceFragment does not exist in Library {self.library_id}: {source_fragment_id}"
+            )
+        address_json = str(row[5])
+        address = _load_canonical_object(address_json, "SourceAddress")
+        address_hash = _validated_sha256(str(row[6]), "SourceAddress hash")
+        if canonical_sha256_hex(address) != address_hash:
+            raise PersistenceIntegrityError("persisted SourceAddress hash mismatch")
+        return SourceFragmentRecord(
+            source_fragment_id=str(row[0]),
+            source_version_id=str(row[1]),
+            ordinal=int(row[2]),
+            fragment_kind=str(row[3]),
+            text_sha256=_validated_sha256(str(row[4]), "fragment text hash"),
+            source_address_json=address_json,
+            address_hash=address_hash,
+        )
 
     def freeze_snapshot(self, collection_ids: Iterable[str]) -> CorpusSnapshot:
         """Freeze the exact current heads for a validated Collection scope.

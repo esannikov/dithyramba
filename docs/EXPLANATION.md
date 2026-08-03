@@ -19,6 +19,36 @@ That chain is why the system is a memory rather than a search preset. It keeps
 the source, the relation between source and conclusion, the context in which
 the relation was accepted, and the history needed to replay or challenge it.
 
+## How it reduces context-window pressure
+
+Dithyramba does not enlarge a model's context window. It changes what must enter
+that window. A first local pass reads the permitted corpus and stores exact,
+addressable evidence. A continuing session then sends the agent only:
+
+- the bounded research brief;
+- a compact projection of recent questions, drafts, gaps, and rejected paths;
+- the exact passages selected for the current turn;
+- immutable IDs and hashes for the larger local audit record.
+
+The full corpus, full FTS candidate union, materialized read receipt, and entire
+conversation remain outside the prompt. A session-scoped FTS cache can reuse the
+same authorized read-set for later questions, but it is disposable and grants no
+new authority.
+
+```text
+agent question
+  → stdio MCP
+  → AgentResearchFacade
+  → exact session scope + local recall
+  → EvidencePacket
+  → compact evidence for the turn
+  → packet reference appended to the session journal
+  → human inspection in Lens session mode
+```
+
+Drafts and chat events explain the path of inquiry. They are not evidence unless
+the ordinary source, packet, gate, and human-review path supports them.
+
 ## The smallest useful unit
 
 The authoritative atom is not an embedding and not a generated summary. It is
@@ -48,23 +78,23 @@ Dithyramba therefore stores:
 
 - source bytes and exact hashes;
 - structured records and typed links in SQLite;
-- optional vectors as rebuildable indexes;
 - human decisions as separate append-only records.
 
-If a better embedding model appears, vectors can be rebuilt while source IDs,
-citations, and decisions stay intact.
+V1 deliberately carries no embedding or vector runtime. A future discovery
+plugin could be evaluated without changing source IDs, citations, or decisions.
 
 ## Three questions that must remain separate
 
 ### 1. Was it discovered?
 
-FTS, aliases, phrase repair, neighbouring fragments, a vector model, or a
+FTS, aliases, phrase repair, neighbouring fragments, or a
 derived query can place a fragment in a bounded candidate list.
 
 ### 2. Is it relevant?
 
-Harrier may rank that bounded list against the original human question. A high
-rank means the passage looks useful, not that it proves the answer.
+FTS rank, phrase overlap, aliases, and bounded query variants may order the
+candidate list. A high rank means the passage may be useful, not that it proves
+the answer.
 
 ### 3. Is the evidence sufficient?
 
@@ -75,27 +105,24 @@ direction, status, independent provenance group, or literal anchor.
 Only the third step can mark a requirement covered. If one part is missing,
 the result stays partial or becomes an `EvidenceGap`.
 
-## Why the adaptive route starts with FTS
+## Why the research route starts with FTS
 
 FTS is cheap, deterministic, local, and excellent for proper names, numbers,
 patent IDs, dates, quotations, and rare terms. It is also easy to audit.
 
-The adaptive route adds complexity only when needed:
+The route adds complexity only when needed:
 
 ```text
-FTS50
-  → controlled lexical repair
-  → Harrier ranking against q0
-  → Wide Gate
-  → FTS100 only if coverage is incomplete
-  → QueryCloud q1/q2 only if a named gap remains
-  → Harrier still ranks against q0
-  → Wide Gate again
+raw FTS candidates
+  → remove explicit reference/index/table/topic noise
+  → EvidenceCoverageGate
+  → search inside up to three already found works only when coverage is incomplete
+  → EvidenceCoverageGate again
+  → answer-ready preparation or an explicit gap/blocked result
 ```
 
-This avoids embedding the whole corpus merely to answer a few questions. The
-model processes a bounded candidate union, while exact FTS remains available
-without any model.
+This avoids embedding or reranking the whole corpus merely to answer a few
+questions. Exact FTS remains available without any model.
 
 ## What “Wide Gate” means
 
@@ -104,9 +131,8 @@ passage at rank 60 could be present in the candidate union but invisible to
 the proof check.
 
 The Wide Gate scans every body-proof-eligible passage in the bounded union.
-It may accept a lower-ranked exact proof, but the in-memory adaptive result
-exposes only the passages that satisfied requirements, not the text of the
-entire union. A persisted adaptive packet is still planned.
+It may accept a lower-ranked exact proof, but the result exposes only the
+passages that satisfied requirements, not the text of the entire union.
 
 This separates two budgets:
 
@@ -121,6 +147,27 @@ They can introduce a synonym, split evidence roles, or guard relation state.
 
 The original question remains unchanged. New candidates are reranked against
 that original question. Generated query text is never evidence.
+
+The agent-facing packet also says `admission_state: retrieved_candidates`.
+This is intentional: FTS can prove that a passage was retrieved from the
+permitted snapshot, but retrieval alone cannot prove that the passage supports
+the answer. The packet reports distinct sources, distinct SourceFamilies, and
+the largest number of selected fragments from one source or family so an agent
+can see source dominance before invoking `EvidenceCoverageGate`.
+These counts do not infer that differently encoded PDF and EPUB files are the
+same scholarly work. Cross-format editions must be declared in a pinned source
+identity manifest; otherwise a SourceFamily count can overstate independence.
+
+For an interactive answer, the agent calls `prepare_answer` with an explicit
+`EvidenceGateSpec`. Dithyramba removes only deterministic noise and tests the
+remaining exact fragments. If the broad result found a relevant book but not
+the passage named by the missing literal anchors, one bounded local FTS search
+runs inside at most three already found Sources. The Gate then runs again.
+
+`record_draft` requires this preparation and independently replays it. A
+`partial` or `insufficient` result cannot enter the session journal as a
+source-backed answer. This protects the answer route without claiming that the
+Gate understands or proves every sentence in the generated prose.
 
 ## Why provenance saves downstream context
 
@@ -174,22 +221,26 @@ chain readable:
 - timeline and connections;
 - technical details only on demand.
 
+When a question answer or hypothesis contains exact trace bindings, Lens
+underlines only those source-traceable phrases. Clicking one selects the named
+evidence chip and opens the bound passage. The rest of the prose is deliberately
+uncoloured: it may be useful framing, but the view does not pretend that it has
+the same proof route.
+
 The interface does not make evidence stronger. It makes the stored relation
 between conclusion and proof inspectable.
 
-## Why the stable CLI is still FTS-only
+## Why the stable CLI is FTS-first
 
-The adaptive route already works in memory, but a default persisted query must be
-replayable after the process exits. The versioned projection,
-external-reference, and proof-metadata contracts now exist, but the route must
-still bind and persist their exact instances together with every intermediate
-FTS and Harrier artifact, an immutable query plan, and a final packet. Cold
-reconstruction must then produce the same bytes and hashes.
+The default persisted query must be replayable after the process exits. FTS
+provides a local, deterministic candidate route whose exact scope and result
+can be stored with `EvidencePacket/1.0`. Bounded lexical variants and
+QueryCloud may widen discovery, but they do not replace the original question
+or become evidence.
 
-Until that closure exists, changing the default would create a feature that
-looks complete in a live session but cannot provide the same audit guarantee
-as `EvidencePacket/1.0`. The library-only boundary is therefore a quality
-decision, not a missing UI toggle.
+This keeps the auditable route small. A future discovery aid must demonstrate
+better evidence recall and preserve cold replay before it enters the default
+path.
 
 ## What Dithyramba cannot guarantee
 

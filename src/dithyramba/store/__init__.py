@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from dithyramba.store.database import Store, verify_integrity
     from dithyramba.store.errors import (
         IntegrityCheckError,
+        LegacySchemaError,
         MigrationApplyError,
         MigrationBackupRequiredError,
         MigrationChecksumError,
@@ -33,6 +34,7 @@ if TYPE_CHECKING:
 
 _EXPORT_MODULES = {
     "IntegrityCheckError": "dithyramba.store.errors",
+    "LegacySchemaError": "dithyramba.store.errors",
     "Migration": "dithyramba.store.migrations",
     "MigrationApplyError": "dithyramba.store.errors",
     "MigrationBackupRequiredError": "dithyramba.store.errors",
@@ -57,6 +59,7 @@ _EXPORT_MODULES = {
 
 __all__ = [
     "IntegrityCheckError",
+    "LegacySchemaError",
     "Migration",
     "MigrationApplyError",
     "MigrationBackupRequiredError",

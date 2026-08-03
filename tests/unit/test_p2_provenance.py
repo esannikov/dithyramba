@@ -1118,6 +1118,9 @@ def test_source_loaders_detect_corrupt_projections(tmp_path: Path) -> None:
         )
 
         fragment = repository.list_source_fragments(source_version_id)[0]
+        assert repository.get_source_fragment(fragment_id) == fragment
+        with pytest.raises(SourceNotFoundError, match="SourceFragment does not exist"):
+            repository.get_source_fragment("fragment_" + "f" * 32)
         connection.execute("DROP TRIGGER source_fragments_no_update")
         connection.execute(
             "UPDATE source_fragments SET address_hash = ? WHERE source_fragment_id = ?",
@@ -1125,6 +1128,8 @@ def test_source_loaders_detect_corrupt_projections(tmp_path: Path) -> None:
         )
         with pytest.raises(PersistenceIntegrityError, match="SourceAddress hash"):
             repository.list_source_fragments(source_version_id)
+        with pytest.raises(PersistenceIntegrityError, match="SourceAddress hash"):
+            repository.get_source_fragment(fragment_id)
         connection.execute(
             "UPDATE source_fragments SET address_hash = ?, ordinal = 2 "
             "WHERE source_fragment_id = ?",

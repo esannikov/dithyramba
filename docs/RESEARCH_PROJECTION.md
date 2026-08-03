@@ -57,7 +57,7 @@ details are folded into meaningful routes, not deleted.
 ## Run
 
 ```bash
-uv run dithyramba atlas \
+uv run dithyramba lens atlas \
   --manifest /absolute/case/path/research/atlas/manifest.json \
   --projection /absolute/case/path/research/projection/manifest.json \
   --artifact-root /absolute/case/path

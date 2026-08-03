@@ -38,7 +38,7 @@ from .models import (
     format_pdf_point,
 )
 
-PDF_PARSER_REVISION = "pdfplumber/0.11.10+page_text_page_close/1.1"
+PDF_PARSER_REVISION = "pdfplumber/0.11.10+page_text/1.3"
 _EXPECTED_PDFPLUMBER_VERSION = "0.11.10"
 _WORKER = Path(__file__).with_name("pdf_worker.py")
 _SKIP_CODES = {
