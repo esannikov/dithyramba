@@ -123,7 +123,7 @@ def test_large_document_profile_is_versioned_and_explicitly_bounded() -> None:
         max_pdf_pages=1_500,
         max_extracted_codepoints=20_000_000,
         timeout_seconds=180,
-        max_rss_mib=2_048,
+        max_rss_mib=2_560,
     )
 
 

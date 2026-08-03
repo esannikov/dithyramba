@@ -63,7 +63,7 @@ dithyramba source versions
 `--parser-profile large-document`. The default remains deliberately small and
 conservative. `large-document` is an explicit bounded profile for book-length
 PDF, Markdown, and text inputs: up to 512 MiB per file, 1,500 PDF pages,
-20 million extracted characters, 180 seconds, and 2,048 MiB worker RSS. It does
+20 million extracted characters, 180 seconds, and 2,560 MiB worker RSS. It does
 not remove parser limits or change source identity.
 
 ### Recall and review

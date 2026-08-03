@@ -16,7 +16,7 @@ from dithyramba.contracts import canonical_json_bytes, canonical_sha256_hex, sha
 
 SOURCE_ADDRESS_SCHEMA = "dithyramba.source_address/1.0"
 PARSER_PROFILE = "index/1.1"
-LARGE_DOCUMENT_PARSER_PROFILE = "index/large-document/1.1"
+LARGE_DOCUMENT_PARSER_PROFILE = "index/large-document/1.2"
 
 _SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 _POINT_PATTERN = re.compile(r"^-?(?:0|[1-9][0-9]*)\.[0-9]{3}$")
@@ -86,7 +86,7 @@ def parser_profile(name: str) -> tuple[str, ParserLimits]:
                 max_pdf_pages=1_500,
                 max_extracted_codepoints=20_000_000,
                 timeout_seconds=180,
-                max_rss_mib=2_048,
+                max_rss_mib=2_560,
             ),
         )
     raise ValueError("unknown parser profile; expected default or large-document")
