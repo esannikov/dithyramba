@@ -820,7 +820,7 @@ CREATE TABLE source_versions (
     parse_status TEXT NOT NULL CHECK (parse_status IN ('processed', 'skipped', 'failed')),
     failure_code TEXT,
     UNIQUE (source_id, version_number),
-    UNIQUE (source_id, content_sha256)
+    UNIQUE (source_id, content_sha256, parser_profile)
 );
 
 CREATE TABLE sources (
@@ -1868,4 +1868,3 @@ CREATE TRIGGER time_contexts_no_update BEFORE UPDATE ON time_contexts BEGIN SELE
 CREATE TRIGGER voices_no_delete BEFORE DELETE ON voices BEGIN SELECT RAISE(ABORT, 'voices is append-only'); END;
 
 CREATE TRIGGER voices_no_update BEFORE UPDATE ON voices BEGIN SELECT RAISE(ABORT, 'voices is append-only'); END;
-

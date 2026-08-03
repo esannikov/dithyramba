@@ -86,7 +86,7 @@ def parser_profile(name: str) -> tuple[str, ParserLimits]:
                 max_pdf_pages=1_500,
                 max_extracted_codepoints=20_000_000,
                 timeout_seconds=180,
-                max_rss_mib=1_536,
+                max_rss_mib=2_048,
             ),
         )
     raise ValueError("unknown parser profile; expected default or large-document")

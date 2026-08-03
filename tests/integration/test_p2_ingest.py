@@ -206,7 +206,7 @@ def test_changed_source_still_runs_parser_and_creates_a_version(
         assert _counts(repository)["source_versions"] == 2
 
 
-def test_different_parser_profile_never_uses_unchanged_fast_path(
+def test_different_parser_profile_creates_and_reuses_a_new_representation(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -219,7 +219,9 @@ def test_different_parser_profile_never_uses_unchanged_fast_path(
         data_root=tmp_path / "data",
     ) as repository:
         collection = _collection(repository, source_root)
-        IngestService(repository).ingest_collection(collection.config.collection_id)
+        original = (
+            IngestService(repository).ingest_collection(collection.config.collection_id).outcomes[0]
+        )
         parser_calls = 0
 
         def counted_parser(
@@ -233,13 +235,43 @@ def test_different_parser_profile_never_uses_unchanged_fast_path(
             return parse_source(source, limits, pdf_temp_root=pdf_temp_root)
 
         monkeypatch.setattr("dithyramba.ingest.service.parse_source", counted_parser)
-        repeated = IngestService(
+        alternate_service = IngestService(
             repository,
             profile_version="index/2.0-test-profile",
-        ).ingest_collection(collection.config.collection_id)
+        )
+        reprocessed = alternate_service.ingest_collection(collection.config.collection_id).outcomes[
+            0
+        ]
 
         assert parser_calls == 1
-        assert repeated.outcomes[0].disposition is IngestDisposition.UNCHANGED
+        assert reprocessed.disposition is IngestDisposition.CHANGED
+        assert reprocessed.source_version_id != original.source_version_id
+        assert _counts(repository)["source_versions"] == 2
+        current = next(
+            version
+            for version in repository.list_source_versions(original.source_id or "")
+            if version.is_current
+        )
+        assert current.parser_profile == "index/2.0-test-profile"
+
+        reused = alternate_service.ingest_collection(collection.config.collection_id)
+        assert parser_calls == 1
+        assert reused.outcomes[0].disposition is IngestDisposition.UNCHANGED
+        assert reused.outcomes[0].source_version_id == reprocessed.source_version_id
+
+        restored = (
+            IngestService(repository).ingest_collection(collection.config.collection_id).outcomes[0]
+        )
+        assert parser_calls == 2
+        assert restored.disposition is IngestDisposition.REVERTED
+        assert restored.source_version_id == original.source_version_id
+
+        default_reused = IngestService(repository).ingest_collection(
+            collection.config.collection_id
+        )
+        assert parser_calls == 2
+        assert default_reused.outcomes[0].disposition is IngestDisposition.UNCHANGED
+        assert default_reused.outcomes[0].source_version_id == original.source_version_id
 
 
 def test_corrupt_reusable_blob_fails_closed_before_parser(

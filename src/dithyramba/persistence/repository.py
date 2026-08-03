@@ -1171,7 +1171,8 @@ class LibraryRepository(AbstractContextManager["LibraryRepository"]):
                         )
                     version_rows = connection.execute(
                         """
-                        SELECT source_version_id, version_number, content_sha256
+                        SELECT source_version_id, version_number, content_sha256,
+                               parser_profile
                         FROM source_versions
                         WHERE source_id = ? ORDER BY version_number
                         """,
@@ -1181,7 +1182,8 @@ class LibraryRepository(AbstractContextManager["LibraryRepository"]):
                         raise PersistenceIntegrityError("persisted Source has no SourceVersion")
                     head = connection.execute(
                         """
-                        SELECT sh.source_version_id, sv.content_sha256
+                        SELECT sh.source_version_id, sv.content_sha256,
+                               sv.parser_profile
                         FROM source_heads AS sh
                         JOIN source_versions AS sv
                           ON sv.source_version_id = sh.source_version_id
@@ -1191,7 +1193,7 @@ class LibraryRepository(AbstractContextManager["LibraryRepository"]):
                     ).fetchone()
                     if head is None:
                         raise PersistenceIntegrityError("persisted Source has no source_heads row")
-                    if str(head[1]) == source.content_sha256:
+                    if str(head[1]) == source.content_sha256 and str(head[2]) == parser_profile:
                         if identity_declaration is not None:
                             self._require_identity_binding(
                                 connection,
@@ -1225,7 +1227,12 @@ class LibraryRepository(AbstractContextManager["LibraryRepository"]):
                             fragment_count,
                         )
                     historical = next(
-                        (row for row in version_rows if str(row[2]) == source.content_sha256),
+                        (
+                            row
+                            for row in version_rows
+                            if str(row[2]) == source.content_sha256
+                            and str(row[3]) == parser_profile
+                        ),
                         None,
                     )
                     if historical is not None:
