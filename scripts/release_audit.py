@@ -68,6 +68,7 @@ REQUIRED_PUBLIC_PATHS = {
     "verification/__init__.py",
     "verification/generate_synthetic_1000.py",
     "verification/run_public_replay.py",
+    "verification/run_v1_fresh_corpus.py",
     "verification/synthetic_1000_manifest.json",
 }
 RETIRED_PUBLIC_PATHS = {
