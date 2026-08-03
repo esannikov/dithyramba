@@ -853,6 +853,141 @@ class LibraryRepository(AbstractContextManager["LibraryRepository"]):
             output_hash=output_hash,
         )
 
+    def find_reusable_unchanged_source(
+        self,
+        *,
+        collection_id: str,
+        collection_root_id: str,
+        source: SourceBytes,
+        parser_profile: str,
+        identity_declaration: SourceIdentityDeclaration | None = None,
+    ) -> PersistedSourceOutcome | None:
+        """Return an exact current Source without invoking its parser again.
+
+        This is deliberately a read-only fast path.  It applies only when the
+        Source is already a member of the requested Collection, its current
+        bytes and parser profile match, its lineage remains valid, and the
+        referenced Blob still verifies physically.  Any incomplete match falls
+        back to the ordinary parse-and-persist route.
+        """
+
+        if not isinstance(source, SourceBytes):
+            raise TypeError("find_reusable_unchanged_source requires SourceBytes")
+        profile = _validated_label(parser_profile, "parser profile")
+        root_id = _validated_label(collection_root_id, "Collection root ID")
+        if identity_declaration is not None and not isinstance(
+            identity_declaration, SourceIdentityDeclaration
+        ):
+            raise TypeError("identity_declaration must be SourceIdentityDeclaration or None")
+
+        connection = self._store.connection
+        collection_row = connection.execute(
+            """
+            SELECT c.kind, cr.resolved_path
+            FROM collections AS c
+            LEFT JOIN collection_roots AS cr
+              ON cr.collection_id = c.collection_id
+             AND cr.collection_root_id = ?
+            WHERE c.collection_id = ? AND c.library_id = ?
+            """,
+            (root_id, collection_id, self.library_id),
+        ).fetchone()
+        if collection_row is None:
+            raise CollectionNotFoundError(
+                f"Collection does not exist in Library {self.library_id}: {collection_id}"
+            )
+        if collection_row[1] is None:
+            raise PersistenceIntegrityError(
+                "Collection root does not belong to the ingest Collection"
+            )
+        persisted_root = Path(str(collection_row[1]))
+        if not persisted_root.is_absolute():
+            raise PersistenceIntegrityError("persisted Collection root is not absolute")
+        expected_uri = (persisted_root / Path(*PurePosixPath(source.relative_path).parts)).as_uri()
+        if source.canonical_uri != expected_uri:
+            raise PersistenceIntegrityError(
+                "captured Source URI does not match its exact Collection root and path"
+            )
+        membership_state = "holdout" if str(collection_row[0]) == "holdout" else "active"
+
+        row = connection.execute(
+            """
+            SELECT s.source_id, s.media_type, sh.source_version_id,
+                   sv.content_sha256, sv.parser_profile, sv.parse_status,
+                   membership.state
+            FROM sources AS s
+            JOIN source_heads AS sh ON sh.source_id = s.source_id
+            JOIN source_versions AS sv
+              ON sv.source_id = s.source_id
+             AND sv.source_version_id = sh.source_version_id
+            LEFT JOIN collection_memberships AS membership
+              ON membership.source_id = s.source_id
+             AND membership.collection_id = ?
+            WHERE s.library_id = ? AND s.canonical_uri = ?
+            """,
+            (collection_id, self.library_id, source.canonical_uri),
+        ).fetchone()
+        if row is None:
+            return None
+        if str(row[1]) != source.media_type.value:
+            raise PersistenceIntegrityError(
+                "persisted Source media type changed for the same canonical URI"
+            )
+        if (
+            str(row[3]) != source.content_sha256
+            or str(row[4]) != profile
+            or str(row[5]) != ParseStatus.PROCESSED.value
+            or row[6] is None
+        ):
+            return None
+        if str(row[6]) != membership_state:
+            raise PersistenceIntegrityError(
+                "existing Collection membership state differs from ingest scope"
+            )
+
+        source_id = str(row[0])
+        source_version_id = str(row[2])
+        if identity_declaration is None:
+            source_family_id, root_source_id, family_role = self._lineage_for_source(
+                connection, source_id
+            )
+        else:
+            source_family_id, root_source_id, family_role = (
+                self._declared_lineage_for_existing_source(
+                    connection,
+                    source_id=source_id,
+                    declaration=identity_declaration,
+                )
+            )
+            self._require_identity_binding(
+                connection,
+                source_id=source_id,
+                source_version_id=source_version_id,
+                declaration=identity_declaration,
+            )
+
+        fragment_count = int(
+            connection.execute(
+                """
+                SELECT count(*) FROM source_fragments
+                WHERE source_version_id = ?
+                """,
+                (source_version_id,),
+            ).fetchone()[0]
+        )
+        if fragment_count < 1:
+            raise PersistenceIntegrityError("processed SourceVersion has no SourceFragments")
+        self.get_blob(source.content_sha256)
+        return PersistedSourceOutcome(
+            IngestDisposition.UNCHANGED,
+            source_id,
+            source_version_id,
+            source_family_id,
+            root_source_id,
+            family_role,
+            fragment_count,
+        )
+
     def record_processed_source(
         self,
         *,

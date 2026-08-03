@@ -5,22 +5,27 @@ import sqlite3
 import stat
 import threading
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
 from dithyramba.collections import CollectionConfig, CollectionKind, build_collection_root
 from dithyramba.contracts import sha256_hex
+from dithyramba.ingest.errors import SourceChangedDuringIngestError
 from dithyramba.ingest.models import ParseResult, ParserLimits, SourceBytes
 from dithyramba.ingest.parsers import parse_source
 from dithyramba.ingest.reader import read_source_bytes
 from dithyramba.ingest.service import IngestService
 from dithyramba.library import LibraryConfig
 from dithyramba.persistence import (
+    CollectionNotFoundError,
     CollectionRecord,
     LibraryRepository,
     PersistenceConflictError,
+    PersistenceIntegrityError,
     ProcessingRunStatus,
     SourceFamilyRole,
     initialize_library,
@@ -129,6 +134,295 @@ def test_add_unchanged_change_and_revert_preserve_immutable_history(tmp_path: Pa
             event.event_type == "source_head.reverted"
             for event in repository.pending_outbox_events()
         )
+
+
+def test_unchanged_source_reuses_verified_fragments_without_parser(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root = tmp_path / "source"
+    source_root.mkdir()
+    (source_root / "paper.md").write_text(
+        "# Stable\n\nThis exact passage is already indexed.\n",
+        encoding="utf-8",
+    )
+    library = LibraryConfig(name="Unchanged fast path")
+
+    with initialize_library(library, data_root=tmp_path / "data") as repository:
+        collection = _collection(repository, source_root)
+        service = IngestService(repository)
+        added = service.ingest_collection(collection.config.collection_id)
+        original = added.outcomes[0]
+        before = _counts(repository)
+
+        def parser_must_not_run(*_args: object, **_kwargs: object) -> ParseResult:
+            raise AssertionError("unchanged Source must not invoke its parser")
+
+        monkeypatch.setattr("dithyramba.ingest.service.parse_source", parser_must_not_run)
+        repeated = service.ingest_collection(collection.config.collection_id)
+
+        outcome = repeated.outcomes[0]
+        assert outcome.disposition is IngestDisposition.UNCHANGED
+        assert outcome.source_version_id == original.source_version_id
+        assert outcome.fragment_count == original.fragment_count
+        assert _counts(repository) == before
+
+
+def test_changed_source_still_runs_parser_and_creates_a_version(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root = tmp_path / "source"
+    source_root.mkdir()
+    path = source_root / "paper.md"
+    path.write_text("# Draft\n\nOriginal claim.\n", encoding="utf-8")
+
+    with initialize_library(
+        LibraryConfig(name="Changed source parser path"),
+        data_root=tmp_path / "data",
+    ) as repository:
+        collection = _collection(repository, source_root)
+        service = IngestService(repository)
+        first = service.ingest_collection(collection.config.collection_id).outcomes[0]
+        parser_calls = 0
+
+        def counted_parser(
+            source: SourceBytes,
+            limits: ParserLimits,
+            *,
+            pdf_temp_root: Path | None = None,
+        ) -> ParseResult:
+            nonlocal parser_calls
+            parser_calls += 1
+            return parse_source(source, limits, pdf_temp_root=pdf_temp_root)
+
+        monkeypatch.setattr("dithyramba.ingest.service.parse_source", counted_parser)
+        path.write_text("# Draft\n\nCorrected claim.\n", encoding="utf-8")
+        changed = service.ingest_collection(collection.config.collection_id).outcomes[0]
+
+        assert parser_calls == 1
+        assert changed.disposition is IngestDisposition.CHANGED
+        assert changed.source_version_id != first.source_version_id
+        assert _counts(repository)["source_versions"] == 2
+
+
+def test_different_parser_profile_never_uses_unchanged_fast_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root = tmp_path / "source"
+    source_root.mkdir()
+    (source_root / "paper.md").write_text("# Stable\n\nExact text.\n", encoding="utf-8")
+
+    with initialize_library(
+        LibraryConfig(name="Parser profile boundary"),
+        data_root=tmp_path / "data",
+    ) as repository:
+        collection = _collection(repository, source_root)
+        IngestService(repository).ingest_collection(collection.config.collection_id)
+        parser_calls = 0
+
+        def counted_parser(
+            source: SourceBytes,
+            limits: ParserLimits,
+            *,
+            pdf_temp_root: Path | None = None,
+        ) -> ParseResult:
+            nonlocal parser_calls
+            parser_calls += 1
+            return parse_source(source, limits, pdf_temp_root=pdf_temp_root)
+
+        monkeypatch.setattr("dithyramba.ingest.service.parse_source", counted_parser)
+        repeated = IngestService(
+            repository,
+            profile_version="index/2.0-test-profile",
+        ).ingest_collection(collection.config.collection_id)
+
+        assert parser_calls == 1
+        assert repeated.outcomes[0].disposition is IngestDisposition.UNCHANGED
+
+
+def test_corrupt_reusable_blob_fails_closed_before_parser(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root = tmp_path / "source"
+    source_root.mkdir()
+    (source_root / "paper.md").write_text("# Stable\n\nExact text.\n", encoding="utf-8")
+
+    with initialize_library(
+        LibraryConfig(name="Fast-path Blob integrity"),
+        data_root=tmp_path / "data",
+    ) as repository:
+        collection = _collection(repository, source_root)
+        service = IngestService(repository)
+        first = service.ingest_collection(collection.config.collection_id).outcomes[0]
+        source = repository.get_source(first.source_id or "")
+        current_version = next(
+            version
+            for version in repository.list_source_versions(source.source_id)
+            if version.is_current
+        )
+        blob = repository.get_blob(current_version.content_sha256)
+        blob.path.write_bytes(b"corrupt")
+
+        def parser_must_not_run(*_args: object, **_kwargs: object) -> ParseResult:
+            raise AssertionError("corrupt reusable Blob must fail before parser fallback")
+
+        monkeypatch.setattr("dithyramba.ingest.service.parse_source", parser_must_not_run)
+        failed = service.ingest_collection(collection.config.collection_id)
+
+        assert failed.run.status is ProcessingRunStatus.FAILED
+        assert failed.outcomes[0].terminal_outcome is TerminalInputOutcome.FAILED
+        assert failed.outcomes[0].failure_code == "ingest_persistence_failed"
+        assert failed.outcomes[0].infrastructure_failure is True
+
+
+def test_unchanged_fast_path_rejects_invalid_repository_boundaries(tmp_path: Path) -> None:
+    source_root = tmp_path / "source"
+    source_root.mkdir()
+    (source_root / "paper.md").write_text("# Boundary\n\nExact text.\n", encoding="utf-8")
+
+    with initialize_library(
+        LibraryConfig(name="Fast-path repository boundaries"),
+        data_root=tmp_path / "data",
+    ) as repository:
+        collection = _collection(repository, source_root)
+        root_id = collection.collection_root_ids[0]
+        root = collection.config.roots[0]
+        source = read_source_bytes(root, "paper.md", ParserLimits())
+        call = repository.find_reusable_unchanged_source
+
+        with pytest.raises(TypeError, match="requires SourceBytes"):
+            call(
+                collection_id=collection.config.collection_id,
+                collection_root_id=root_id,
+                source=cast(Any, object()),
+                parser_profile="index/1.0",
+            )
+        with pytest.raises(TypeError, match="identity_declaration"):
+            call(
+                collection_id=collection.config.collection_id,
+                collection_root_id=root_id,
+                source=source,
+                parser_profile="index/1.0",
+                identity_declaration=cast(Any, object()),
+            )
+        with pytest.raises(CollectionNotFoundError):
+            call(
+                collection_id="collection_absent",
+                collection_root_id=root_id,
+                source=source,
+                parser_profile="index/1.0",
+            )
+        with pytest.raises(PersistenceIntegrityError, match="does not belong"):
+            call(
+                collection_id=collection.config.collection_id,
+                collection_root_id="root_absent",
+                source=source,
+                parser_profile="index/1.0",
+            )
+
+        connection = repository._store.connection
+        connection.execute(
+            "UPDATE collection_roots SET resolved_path = ? WHERE collection_root_id = ?",
+            ("relative", root_id),
+        )
+        with pytest.raises(PersistenceIntegrityError, match="not absolute"):
+            call(
+                collection_id=collection.config.collection_id,
+                collection_root_id=root_id,
+                source=source,
+                parser_profile="index/1.0",
+            )
+        connection.execute(
+            "UPDATE collection_roots SET resolved_path = ? WHERE collection_root_id = ?",
+            (str(source_root.resolve()), root_id),
+        )
+        with pytest.raises(PersistenceIntegrityError, match="does not match"):
+            call(
+                collection_id=collection.config.collection_id,
+                collection_root_id=root_id,
+                source=replace(source, canonical_uri=(tmp_path / "other.md").as_uri()),
+                parser_profile="index/1.0",
+            )
+
+
+def test_unchanged_fast_path_rejects_corrupt_logical_state(tmp_path: Path) -> None:
+    source_root = tmp_path / "source"
+    source_root.mkdir()
+    (source_root / "paper.md").write_text("# State\n\nExact text.\n", encoding="utf-8")
+
+    with initialize_library(
+        LibraryConfig(name="Fast-path logical integrity"),
+        data_root=tmp_path / "data",
+    ) as repository:
+        collection = _collection(repository, source_root)
+        IngestService(repository).ingest_collection(collection.config.collection_id)
+        root_id = collection.collection_root_ids[0]
+        source = read_source_bytes(collection.config.roots[0], "paper.md", ParserLimits())
+        call = repository.find_reusable_unchanged_source
+        connection = repository._store.connection
+        source_id = repository.list_sources(collection_id=collection.config.collection_id)[
+            0
+        ].source_id
+
+        connection.execute("DROP TRIGGER sources_no_update")
+        connection.execute(
+            "UPDATE sources SET media_type = 'text/plain' WHERE source_id = ?",
+            (source_id,),
+        )
+        with pytest.raises(PersistenceIntegrityError, match="media type changed"):
+            call(
+                collection_id=collection.config.collection_id,
+                collection_root_id=root_id,
+                source=source,
+                parser_profile="index/1.0",
+            )
+        connection.execute(
+            "UPDATE sources SET media_type = 'text/markdown' WHERE source_id = ?",
+            (source_id,),
+        )
+        connection.execute(
+            "UPDATE collection_memberships SET state = 'excluded' WHERE source_id = ?",
+            (source_id,),
+        )
+        with pytest.raises(PersistenceIntegrityError, match="membership state differs"):
+            call(
+                collection_id=collection.config.collection_id,
+                collection_root_id=root_id,
+                source=source,
+                parser_profile="index/1.0",
+            )
+
+
+def test_unchanged_fast_path_rechecks_source_after_blob_verification(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root = tmp_path / "source"
+    source_root.mkdir()
+    (source_root / "paper.md").write_text("# Stable\n\nExact text.\n", encoding="utf-8")
+
+    with initialize_library(
+        LibraryConfig(name="Fast-path mutation check"),
+        data_root=tmp_path / "data",
+    ) as repository:
+        collection = _collection(repository, source_root)
+        service = IngestService(repository)
+        service.ingest_collection(collection.config.collection_id)
+
+        def changed_after_read(*_args: object, **_kwargs: object) -> None:
+            raise SourceChangedDuringIngestError("source changed after reusable lookup")
+
+        monkeypatch.setattr(
+            "dithyramba.ingest.service.validate_source_unchanged",
+            changed_after_read,
+        )
+        failed = service.ingest_collection(collection.config.collection_id)
+
+        assert failed.outcomes[0].terminal_outcome is TerminalInputOutcome.FAILED
+        assert failed.outcomes[0].failure_code == "source_changed_during_ingest"
 
 
 def test_duplicate_bytes_at_new_uri_share_blob_and_root_family(tmp_path: Path) -> None:
