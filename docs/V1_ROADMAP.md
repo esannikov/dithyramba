@@ -40,14 +40,14 @@ database, API key, or network service.
 | Unchanged repeat ingest | 100% reused in 265-, 400-, and 816-source runs |
 | Deterministic replay | 16/16 sampled and 30/30 fresh-corpus cases |
 | Default model budget | 0 calls; 0 tokens |
-| Engineering gate | 1,912 tests; 95.15% combined coverage |
+| Engineering gate | 1,914 collected; 1,912 passed; 2 host-dependent skips; 95.15% combined coverage |
 
 These are engineering and retrieval measurements. They do not establish source
 truth, scholarly validity, or the quality of a generated conclusion. Scale
 maxima may come from different runs. Detailed
 protocols and limitations are kept in [EVALUATION.md](EVALUATION.md).
 
-## Remaining before v1
+## Remaining before stable 1.0.0
 
 1. Keep Linux, macOS, browser, dependency, and distribution CI green on the
    release commit.

@@ -172,12 +172,13 @@ def main(
 
 @app.command()
 def about() -> None:
-    """Describe the current pre-alpha source preview and its limits."""
+    """Describe the current v1 release candidate and its limits."""
 
     typer.echo(
-        "Dithyramba 0.1.0rc1 is a pre-alpha source preview with a persisted, "
-        "replayable local FTS evidence route. It is not yet a validated memory system; "
-        "graph recall and synthesis remain experimental or incomplete."
+        f"Dithyramba {__version__} is the v1 release candidate with a persisted, "
+        "replayable local FTS evidence route. Engineering acceptance does not establish "
+        "research truth or independent human validation; optional synthesis and concept "
+        "views remain review-only."
     )
 
 

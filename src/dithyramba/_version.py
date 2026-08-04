@@ -1,3 +1,3 @@
-"""Single source of the package version during pre-alpha development."""
+"""Single runtime source of the Dithyramba package version."""
 
-__version__ = "0.1.0rc1"
+__version__ = "1.0.0rc1"

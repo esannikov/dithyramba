@@ -132,7 +132,7 @@ The run used approximately 188,106 input and 37,992 output model tokens across
 five development passes. Deterministic span, coverage, persistence, and closure
 checks themselves used no model tokens. This is model-judged internal
 diagnostic evidence, not an independent benchmark. See the
-[full protocol, all questions, answers, and limits](MARS_IDEATRACE_24.md).
+[full historical protocol, all questions, answers, and limits](history/evaluations/MARS_IDEATRACE_24.md).
 
 ### Parisian Ten structured records
 
@@ -199,7 +199,7 @@ without human adjudication, so the result is diagnostic rather than final.
 
 These figures belong to an earlier Qwen/graph/BGE development route, not the
 current default FTS path. They are retained as evaluation history and should
-not be read as the performance of `0.1.0rc1`. A later coverage-gate replay on
+not be read as the performance of the current v1 package. A later coverage-gate replay on
 four known failures across three lanes produced six preserved gaps, two
 partials, four insufficients, and no unsupported `ready` promotion.
 
@@ -494,11 +494,11 @@ replace Dithyramba's default PDF route.
 
 ## Engineering verification
 
-The current v1 candidate collects 1,948 engineering tests. In its
+The current v1 candidate collects 1,914 engineering tests. In its
 canonical local gate:
 
-- 1,946 passed with two host-dependent skips;
-- branch-aware combined coverage was `95.26%` at a strict `95.00%` gate;
+- 1,912 passed with two host-dependent skips;
+- branch-aware combined coverage was `95.15%` at a strict `95.00%` gate;
 - terminology, format, lint, and strict typing passed;
 - the dependency audit found no known vulnerabilities;
 - a separate sdist-to-wheel closure installed non-editably in isolated Python

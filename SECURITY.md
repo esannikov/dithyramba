@@ -1,7 +1,8 @@
 # Security policy
 
-Dithyramba is a local pre-alpha. Please do not use it as the sole control for
-classified, regulated, clinical, legal, or otherwise high-risk material.
+Dithyramba `1.0.0rc1` is a local release candidate. Please do not use it as the
+sole control for classified, regulated, clinical, legal, or otherwise high-risk
+material.
 
 ## Reporting a vulnerability
 
@@ -17,7 +18,7 @@ and include:
 - whether source text, local paths, authorization state, or network exposure is
   involved.
 
-No response-time SLA is promised during pre-alpha. Confirmed issues that cross a
+No response-time SLA is promised during the release-candidate period. Confirmed issues that cross a
 Library boundary, bypass policy compilation, expose a non-loopback service, or
 leak protected source content receive highest priority.
 

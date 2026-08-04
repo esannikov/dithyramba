@@ -1,7 +1,7 @@
 # Dithyramba reference
 
-This reference describes the `0.1.0rc1` package metadata plus the current v1
-release candidate. The command itself is authoritative for exact
+This reference describes `1.0.0rc1`, the current v1 release candidate. The
+command itself is authoritative for exact
 options and defaults:
 
 ```bash
@@ -21,7 +21,7 @@ uv run dithyramba <command> --help
 | Embedding or reranking runtime | not included in v1 |
 | Optional ontology extra | `numpy>=2,<3`; `scikit-learn>=1.8,<2` |
 | Current database schema | one v1 baseline (`0001_v1.sql`) |
-| Package version | `0.1.0rc1` |
+| Package version | `1.0.0rc1` |
 
 ## Command inventory
 
@@ -138,10 +138,6 @@ not part of the runtime wheel and not a second implementation of the memory.
 case set, and semantic entailment result. It makes no provider call and emits a
 canonical closure receipt. A non-passed closure exits non-zero.
 
-Provisioning requires an explicit network permission for first download. An
-offline call verifies a cached pinned revision. A provisioned model is not
-automatically enabled in the default recall route.
-
 ## Loopback HTTP surface
 
 ```bash
@@ -169,7 +165,9 @@ checks.
 | `GET`/`POST` | `/v1/review-decisions...` | inspect or append scoped review decisions |
 
 Library creation and migration remain CLI-only. The HTTP models are executable
-pre-alpha contracts, not a public long-term compatibility promise.
+v1 release-candidate contracts. Their declared schema identifiers keep their
+documented meaning, while transport details may still change before stable
+`1.0.0`.
 
 ## Core input formats
 
@@ -186,8 +184,9 @@ promote the projection to source evidence by itself.
 
 ## Versioned core contracts
 
-These schemas are versioned within the source preview. Their version labels do
-not create a compatibility promise beyond the declared `0.1.x` preview.
+These schemas are versioned within the v1 release candidate. A schema identifier
+keeps its documented byte meaning; a meaning change requires a new identifier.
+The complete public compatibility promise will be frozen at stable `1.0.0`.
 
 | Contract | Schema | Purpose |
 |---|---|---|
@@ -254,8 +253,8 @@ new version. Applied migrations remain immutable.
 | `CompactMemoryPacket` | `dithyramba.compact_memory_packet/1.1` | library artifact |
 | `CompactConnectorPacket` | `dithyramba.compact_connector_packet/1.0` | library artifact |
 
-These contracts are executable and tested, but they do not imply a stable
-CLI/HTTP compatibility promise.
+These contracts are executable and tested. Library-only call shapes may still
+change before stable `1.0.0`; persisted schema meaning may not.
 
 `AnswerProjection` never changes `ResearchAnswer/1.0`. It binds exact character
 spans of the displayed answer to accepted claims and labels them as fact,
@@ -297,7 +296,7 @@ GET-only and does not promote candidates or mutate a Library.
 | `ExternalReferenceMap` | `dithyramba.external_reference_map/1.0` | tested library artifact; not run-bound |
 | `ProofMetadataManifest` | `dithyramba.proof_metadata_manifest/1.0` | tested library artifact; not persisted |
 
-These contracts are present and tested in the source preview. They fail closed
+These contracts are present and tested in the v1 release candidate. They fail closed
 when an external fragment projection no longer matches Dithyramba's exact
 source identity or proof metadata.
 
@@ -342,15 +341,17 @@ parameters, not a public persisted request contract.
 The gate is deterministic and provider-free. It does not estimate truth
 probability.
 
-## Model profiles
+## Retrieval profile
 
 | Profile | Role | Current status |
 |---|---|---|
 | none / FTS5 | exact lexical recall | default |
-| multilingual E5-small | compact dense control; rejected as the tested global cartography geometry | optional |
 
-Model scores never set `body_proof_eligible`, source authority, independence,
-or a human ReviewDecision.
+The v1 package contains no embedding model, reranker, vector store, model
+provisioner, or model cache. Historical Harrier and dense-retrieval experiments
+remain evaluation records only. Candidate rank never sets
+`body_proof_eligible`, source authority, independence, or a human
+`ReviewDecision`.
 
 ## Data and isolation rules
 

@@ -233,8 +233,8 @@ diagnostics; it still omits the materialized corpus-wide read manifest. Neither
 surface exposes acceptance, operator decisions, or closure. Lens session mode renders the
 brief, chronological journal, gaps, drafts, rejected paths, and exact
 packet-backed passages without becoming another truth store. See
-[the interactive-memory design record](INTERACTIVE_RESEARCH_MEMORY_SPEC.md)
-and its [completed implementation roadmap](ROADMAP_0.2.md).
+[the historical interactive-memory design record](history/INTERACTIVE_RESEARCH_MEMORY_0.2.md)
+and its [completed implementation roadmap](history/ROADMAP_0.2.md).
 
 ### Gate-bound answer route
 

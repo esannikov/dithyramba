@@ -26,5 +26,6 @@ def test_about_is_calibrated() -> None:
     result = runner.invoke(app, ["about"])
 
     assert result.exit_code == 0
-    assert "pre-alpha" in result.stdout
-    assert "not yet a validated memory system" in result.stdout
+    assert f"Dithyramba {__version__}" in result.stdout
+    assert "v1 release candidate" in result.stdout
+    assert "does not establish research truth" in result.stdout
