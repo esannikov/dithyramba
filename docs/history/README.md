@@ -11,7 +11,7 @@ For current facts, use:
 - [architecture](../ARCHITECTURE.md) for the current system boundary;
 - [evaluation](../EVALUATION.md) for measured evidence and limitations;
 - [v1 roadmap](../V1_ROADMAP.md) for the remaining stable-release gates;
-- [1.0.0rc1 release notes](../RELEASE_NOTES_1.0.0rc1.md) for the current candidate.
+- [1.0.0rc2 release notes](../RELEASE_NOTES_1.0.0rc2.md) for the current candidate.
 
 ## Preserved milestones
 

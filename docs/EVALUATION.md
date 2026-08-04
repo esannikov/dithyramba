@@ -494,11 +494,11 @@ replace Dithyramba's default PDF route.
 
 ## Engineering verification
 
-The current v1 candidate collects 1,914 engineering tests. In its
+The current v1 candidate collects 1,924 engineering tests. In its
 canonical local gate:
 
-- 1,912 passed with two host-dependent skips;
-- branch-aware combined coverage was `95.15%` at a strict `95.00%` gate;
+- 1,922 passed with two host-dependent skips;
+- branch-aware combined coverage was `95.16%` at a strict `95.00%` gate;
 - terminology, format, lint, and strict typing passed;
 - the dependency audit found no known vulnerabilities;
 - a separate sdist-to-wheel closure installed non-editably in isolated Python

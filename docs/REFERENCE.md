@@ -1,6 +1,6 @@
 # Dithyramba reference
 
-This reference describes `1.0.0rc1`, the current v1 release candidate. The
+This reference describes `1.0.0rc2`, the current v1 release candidate. The
 command itself is authoritative for exact
 options and defaults:
 
@@ -21,7 +21,7 @@ uv run dithyramba <command> --help
 | Embedding or reranking runtime | not included in v1 |
 | Optional ontology extra | `numpy>=2,<3`; `scikit-learn>=1.8,<2` |
 | Current database schema | one v1 baseline (`0001_v1.sql`) |
-| Package version | `1.0.0rc1` |
+| Package version | `1.0.0rc2` |
 
 ## Command inventory
 
@@ -179,8 +179,11 @@ documented meaning, while transport details may still change before stable
 | `.epub` | book Connector only | spine item and local range |
 | `.fb2` | book Connector only | XML structure and local range |
 
-The book Connector returns Markdown plus a canonical sidecar. It does not
-promote the projection to source evidence by itself.
+The book Connector returns readable Markdown plus a canonical sidecar with
+typed units and exact local ranges. The `books/1.2` profile preserves common
+EPUB and FB2 structural blocks; an unknown text-bearing block is disclosed as
+partial projection coverage instead of being silently omitted. The Connector
+does not promote the projection to source evidence by itself.
 
 ## Versioned core contracts
 

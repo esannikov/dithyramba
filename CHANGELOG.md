@@ -7,6 +7,32 @@ history belong in dated evaluation reports, not in the product changelog.
 
 No unreleased changes are recorded yet.
 
+## 1.0.0rc2 — 2026-08-04
+
+### Changed
+
+- Book projection now preserves EPUB tables, definition lists, notes, captions,
+  and FB2 tables as typed evidence units. Unknown text-bearing blocks are
+  disclosed as partial coverage instead of being silently discarded.
+- Projected Markdown no longer injects internal unit-marker comments into
+  evidence text; exact locators remain in the immutable sidecar.
+- Evidence and candidate-quality checks now share one deterministic lexical
+  fold. Literal anchors tolerate case and diacritic variants while retaining
+  word boundaries, so a short anchor cannot match inside a longer word.
+- Evidence requirements now need a positive selector, and internally
+  contradictory Source/SourceFamily/independence mappings fail closed.
+- The interactive route performs bounded in-source repair only for `partial`
+  or `insufficient` answerable evidence. Preserved and challenged corpus gaps
+  remain explicit review states instead of triggering an irrelevant repair.
+
+### Compatibility
+
+- No database migration or public schema change is required. Existing
+  Libraries remain readable.
+- Re-project EPUB and FB2 sources to receive the `books/1.2` completeness
+  behavior. Immutable historical packets and strict pre-write replay remain
+  unchanged.
+
 ## 1.0.0rc1 — 2026-08-04
 
 ### Added

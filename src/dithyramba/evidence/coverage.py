@@ -25,11 +25,11 @@ from dithyramba.ingest import (
     MarkdownSourceAddress,
     PdfSourceAddress,
 )
+from dithyramba.lexical import fold_lexical_text, folded_literal_present_in_folded_text
 
 _KEY_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,127}$")
 _FRAGMENT_ID_PATTERN = re.compile(r"^fragment_[a-z0-9]+(?:_[a-z0-9]+)*$")
 _REFERENCE_PATTERN = re.compile(r"^[a-z][a-z0-9]+(?:_[a-z0-9]+)*$")
-_SPACE_PATTERN = re.compile(r"\s+")
 
 
 class EvidenceGateContractError(ValueError):
@@ -192,18 +192,18 @@ class EvidenceRequirement(_FrozenContract):
 
     @model_validator(mode="after")
     def _has_a_real_condition(self) -> EvidenceRequirement:
-        selectors = (
+        positive_selectors = (
             self.allowed_source_ids,
             self.source_kinds_any,
             self.source_families_any,
             self.authorities_any,
             self.anchor_groups,
             self.required_tags,
-            self.forbidden_anchors,
         )
-        if not any(selectors):
+        if not any(positive_selectors):
             raise EvidenceGateContractError(
-                "EvidenceRequirement must declare at least one exact condition"
+                "EvidenceRequirement must declare at least one exact condition, "
+                "including one positive condition"
             )
         return self
 
@@ -408,6 +408,7 @@ class EvidenceCoverageGate:
         fragment_ids = [candidate.source_fragment_id for candidate in candidates]
         if len(set(fragment_ids)) != len(fragment_ids):
             raise EvidenceGateContractError("candidate fragment IDs must be unique")
+        _validate_candidate_lineage(candidates)
         ordered = tuple(
             sorted(
                 candidates,
@@ -544,15 +545,20 @@ def _assess_candidate(
     ):
         rejection_codes.append("wrong_authority")
 
-    normalized_text = _match_text(candidate.text)
+    normalized_text = fold_lexical_text(candidate.text)
     for index, group in enumerate(requirement.anchor_groups, start=1):
-        if not any(_match_text(anchor) in normalized_text for anchor in group):
+        if not any(
+            folded_literal_present_in_folded_text(normalized_text, anchor) for anchor in group
+        ):
             rejection_codes.append(f"missing_anchor_group_{index}")
     candidate_tags = {_match_text(tag) for tag in candidate.evidence_tags}
     for tag in requirement.required_tags:
         if _match_text(tag) not in candidate_tags:
             rejection_codes.append(f"missing_tag_{tag}")
-    if any(_match_text(anchor) in normalized_text for anchor in requirement.forbidden_anchors):
+    if any(
+        folded_literal_present_in_folded_text(normalized_text, anchor)
+        for anchor in requirement.forbidden_anchors
+    ):
         rejection_codes.append("forbidden_anchor_present")
     return CandidateAssessment(
         source_fragment_id=candidate.source_fragment_id,
@@ -587,10 +593,30 @@ def _matches_selector(value: str, choices: tuple[str, ...]) -> bool:
 
 
 def _match_text(value: str) -> str:
-    """Casefold and collapse layout noise without inventing semantic equivalence."""
+    """Fold selector text with the shared lexical comparison profile."""
 
-    normalized = unicodedata.normalize("NFKC", value).casefold().replace("\u00ad", "")
-    return _SPACE_PATTERN.sub(" ", normalized).strip()
+    return fold_lexical_text(value)
+
+
+def _validate_candidate_lineage(candidates: tuple[EvidenceCandidate, ...]) -> None:
+    """Reject internally contradictory caller-supplied lineage projections."""
+
+    by_source: dict[str, tuple[str, str]] = {}
+    by_family: dict[str, str] = {}
+    for candidate in candidates:
+        source_lineage = (candidate.source_family, candidate.independence_group)
+        previous_source_lineage = by_source.setdefault(candidate.source_id, source_lineage)
+        if previous_source_lineage != source_lineage:
+            raise EvidenceGateContractError(
+                "one source_id cannot declare conflicting source family or independence groups"
+            )
+        previous_family_group = by_family.setdefault(
+            candidate.source_family, candidate.independence_group
+        )
+        if previous_family_group != candidate.independence_group:
+            raise EvidenceGateContractError(
+                "one source_family cannot declare multiple independence groups"
+            )
 
 
 def _require_reference(value: str, label: str) -> str:

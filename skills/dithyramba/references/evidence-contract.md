@@ -45,6 +45,16 @@ them the primary label shown to a researcher.
 explicit structural requirements supplied to it. It does not prove that a
 source is true, independent, complete, unbiased, or accepted by a human.
 
+Each requirement needs at least one positive selector. Forbidden text alone is
+not evidence. Literal anchors are case- and diacritic-insensitive but remain
+word-bounded: the gate does not silently add synonyms or semantic equivalence.
+
+The gate also rejects contradictory Source/SourceFamily/independence mappings
+inside one candidate set. This prevents accidental double-counting, but it does
+not authenticate labels invented by an external caller. The normal
+`prepare_answer` route derives lineage from the verified Library repository;
+direct users of the pure evaluator must establish equivalent trust themselves.
+
 ## Synthesis discipline
 
 Let the answer breathe by separating three layers:

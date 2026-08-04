@@ -32,9 +32,12 @@ false positives include:
 - a minimum number of independent provenance groups.
 
 Every anchor group is an OR-list, while all groups in one requirement are
-required. All populated metadata selectors are also required. Text matching is
-Unicode-normalized, case-insensitive, whitespace-collapsed exact substring
-matching. It deliberately does not perform semantic inference.
+required. All populated metadata selectors are also required. Every
+requirement must contain at least one positive selector; a forbidden phrase by
+itself cannot establish evidence. Text matching is Unicode-folded,
+case-insensitive, diacritic-insensitive, whitespace-collapsed literal matching
+with word boundaries. It deliberately does not perform stemming, synonym
+expansion, or semantic inference.
 
 ## Decisions
 
@@ -85,7 +88,15 @@ result = EvidenceCoverageGate(spec).evaluate(candidates)
 
 `EvidenceCandidate` requires exact fragment text, a canonical `SourceAddress`,
 source-role metadata, and an independence group. Candidate order does not
-change the canonical result; rank remains part of the input.
+change the canonical result; rank remains part of the input. The evaluator
+rejects internally contradictory lineage declarations: one Source cannot
+change family or independence group inside a candidate set, and one family
+cannot be split across several independence groups.
+
+This is a consistency check, not external identity verification. The protected
+interactive route derives Source and SourceFamily lineage from the repository.
+Applications that call the pure evaluator directly remain responsible for the
+truth of their supplied lineage labels.
 
 ## Interactive answer boundary
 
@@ -98,9 +109,10 @@ facade and stdio MCP now bind it to the answer route:
 2. `prepare_answer` removes deterministic bibliography, index, table, and
    no-overlap noise;
 3. the Gate evaluates the exact remaining fragments;
-4. if an answerable question is incomplete and the missing requirement has
-   literal anchors, a bounded FTS repair searches inside at most three Sources
-   already found by the broad recall;
+4. if an answerable question is `partial` or `insufficient` and the missing
+   requirement has literal anchors, a bounded FTS repair searches inside at
+   most three Sources already found by the broad recall; a deliberately
+   preserved or newly challenged corpus gap does not trigger this repair;
 5. the Gate evaluates the combined exact candidates again;
 6. when the result is `ready`, the answer packet is reduced to an
    inclusion-minimal set of Gate-matched fragments: removing any remaining

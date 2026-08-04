@@ -38,7 +38,7 @@ def _candidate(
     text: str,
     rank: int = 1,
     kind: str = "patent",
-    family: str = "patent",
+    family: str | None = None,
     authority: str = "primary_legal_record",
     group: str | None = None,
     tags: tuple[str, ...] = (),
@@ -50,7 +50,7 @@ def _candidate(
         text=text,
         source_address=_address(start=rank * 100, end=rank * 100 + len(text)),
         source_kind=kind,
-        source_family=family,
+        source_family=f"family_{source}" if family is None else family,
         authority=authority,
         independence_group=source if group is None else group,
         evidence_tags=tags,
@@ -296,6 +296,76 @@ def test_forbidden_anchor_blocks_directionally_wrong_fragment() -> None:
     assert "forbidden_anchor_present" in (
         result.requirements[0].closest_candidates[0].rejection_codes
     )
+
+
+def test_negative_only_requirement_is_rejected_before_evaluation() -> None:
+    with pytest.raises((EvidenceGateContractError, ValidationError), match="positive condition"):
+        EvidenceRequirement(
+            key="negative_only",
+            label="Absence alone cannot establish evidence",
+            forbidden_anchors=("forbidden phrase",),
+        )
+
+
+def test_anchor_matching_is_diacritic_insensitive_but_word_bounded() -> None:
+    requirement = EvidenceRequirement(
+        key="location",
+        label="The exact place is present",
+        anchor_groups=(("cote",),),
+    )
+    accented = _candidate(
+        fragment="fragment_accented",
+        source="source_accented",
+        text="The event occurred on the côte.",
+    )
+    substring_only = _candidate(
+        fragment="fragment_substring",
+        source="source_substring",
+        text="The coteau appears in a different account.",
+        rank=2,
+    )
+
+    result = EvidenceCoverageGate(_spec(requirement)).evaluate((substring_only, accented))
+
+    assert result.decision is EvidenceGateDecision.READY
+    assert result.requirements[0].matched_fragment_ids == ("fragment_accented",)
+
+
+def test_conflicting_caller_asserted_lineage_is_rejected() -> None:
+    requirement = EvidenceRequirement(
+        key="corroboration",
+        label="A supported claim",
+        anchor_groups=(("supported claim",),),
+    )
+    first = _candidate(
+        fragment="fragment_lineage_one",
+        source="source_lineage",
+        text="Supported claim.",
+        family="family_lineage",
+        group="root_one",
+    )
+    conflicting_source = _candidate(
+        fragment="fragment_lineage_two",
+        source="source_lineage",
+        text="Supported claim.",
+        rank=2,
+        family="family_lineage",
+        group="root_two",
+    )
+    conflicting_family = _candidate(
+        fragment="fragment_lineage_three",
+        source="source_other",
+        text="Supported claim.",
+        rank=3,
+        family="family_lineage",
+        group="root_two",
+    )
+    gate = EvidenceCoverageGate(_spec(requirement))
+
+    with pytest.raises(EvidenceGateContractError, match="one source_id"):
+        gate.evaluate((first, conflicting_source))
+    with pytest.raises(EvidenceGateContractError, match="one source_family"):
+        gate.evaluate((first, conflicting_family))
 
 
 def test_selectors_and_tags_are_checked_and_receipt_is_deterministic() -> None:

@@ -303,9 +303,9 @@ class AgentResearchFacade:
         gate_result = EvidenceCoverageGate(gate_spec).evaluate(candidates)
         drilldown_projection: AgentSourceDrilldown | None = None
 
-        if gate_result.decision not in {
-            EvidenceGateDecision.READY,
-            EvidenceGateDecision.GAP_PRESERVED,
+        if gate_result.decision in {
+            EvidenceGateDecision.PARTIAL,
+            EvidenceGateDecision.INSUFFICIENT,
         }:
             source_ids = _first_source_ids(
                 tuple(reference.source_id for _fragment, reference in broad_items),
