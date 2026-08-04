@@ -1,5 +1,11 @@
 # Dithyramba v1 runtime inventory
 
+> Historical cleanup record captured before the v1 core reduction. Its branch,
+> file counts, dependency counts, and test totals describe that earlier
+> checkpoint, not the current `1.0.0rc1` package. Use
+> [`../REFERENCE.md`](../REFERENCE.md), [`../EVALUATION.md`](../EVALUATION.md),
+> and [`../V1_ROADMAP.md`](../V1_ROADMAP.md) for current facts.
+
 ## Purpose
 
 This is the deletion boundary for v1. It records what the verified package

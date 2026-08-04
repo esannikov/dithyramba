@@ -16,7 +16,8 @@ on their behalf—who return to the same body of sources over time. It turns a
 local corpus into versioned, addressable evidence packets that can be inspected,
 replayed, challenged, and reused without asking a model to reread everything.
 
-> **Current status:** v1 release candidate. The stable path is a local,
+> **Current status:** `1.0.0rc1`, the v1 release candidate. The stable path is a
+> local,
 > replayable source-to-evidence memory with CLI, stdio MCP, and a read-only
 > Lens. Optional synthesis and navigation views remain review-only: they cannot
 > turn generated text into accepted evidence.
@@ -170,7 +171,7 @@ representation and keeps the previous one available for exact replay.
 | Surface | Role | Maturity |
 |---|---|---|
 | CLI | Library setup, ingest, snapshot, FTS recall, packet inspection and replay, review, backup and restore | default public path |
-| `EvidencePacket/1.0` | persisted, source-closed retrieval result | versioned preview contract |
+| `EvidencePacket/1.0` | persisted, source-closed retrieval result | versioned v1 contract |
 | Loopback HTTP service | local programmatic access to one pinned Library | implemented; not remotely exposed |
 | stdio MCP | bounded session, recall, answer preparation, gated draft, gap, and rejected-path tools over the Python facade | implemented; no acceptance or promotion tools |
 | Lens | one CLI/API surface with library, session, atlas, concepts, and flow modes | implemented GET-only projections |
@@ -215,7 +216,7 @@ the system rather than individual projects.
 | Two labeled retrieval suites | exact fragment @10: 58–82%; correct source @10: 87–96% | The right document is often found before the exact passage; passage drill-down remains necessary. |
 | Deterministic replay | 16/16 sampled cold replays and 30/30 fresh-corpus replays | Stored packets and source addresses can be reproduced exactly. |
 | Default model cost | 0 model calls; 0 model tokens | Ingest, FTS recall, gates, packets, and replay are local and deterministic. |
-| Engineering gate | 1,912 tests; 95.15% combined coverage | The current implementation is broadly exercised; this does not validate research conclusions. |
+| Engineering gate | 1,914 collected; 1,912 passed; 2 host-dependent skips; 95.15% combined coverage | The current implementation is broadly exercised; this does not validate research conclusions. |
 
 The retrieval ranges combine different frozen internal test sets and are not a
 cross-domain leaderboard; the scale maxima also come from different runs. An
@@ -240,7 +241,7 @@ results, and limitations remain in the [evaluation record](docs/EVALUATION.md).
 ```text
 src/dithyramba/        package and CLI
 tests/                 unit, integration, smoke, API, and browser checks
-migrations/            versioned SQLite schema mirrors
+migrations/            migration policy and pointer to the packaged SQL baseline
 fixtures/              rights-safe synthetic regression corpora
 verification/          deterministic public evidence-path replay
 examples/              small CC0 corpus used by the local demo
@@ -266,7 +267,9 @@ responsibility of each directory and package group.
 - [CLI and contract reference](docs/REFERENCE.md)
 - [Evidence coverage explained](docs/EVIDENCE_COVERAGE_GATE.md)
 - [Evidence-grounded reasoning and IdeaTrace](docs/REASONING.md)
-- [0.1.0rc1 release notes](docs/RELEASE_NOTES_0.1.0rc1.md)
+- [1.0.0rc1 release notes](docs/RELEASE_NOTES_1.0.0rc1.md)
+- [Historical design and release records](docs/history/README.md)
+- [Roadmap to stable 1.0.0](docs/V1_ROADMAP.md)
 - [Development and verification](docs/DEVELOPMENT.md)
 - [Repository and module guide](docs/REPOSITORY_GUIDE.md)
 - [Evaluation evidence and limitations](docs/EVALUATION.md)
@@ -292,15 +295,16 @@ uv build
 ./scripts/acceptance.sh --quick
 ```
 
-The current candidate passes strict typing, terminology checks, 1,912 tests,
-and 95.15% combined coverage locally. Clean-install acceptance verifies the
-schema, Lens assets, deterministic replay, and both source and wheel builds in
-an isolated environment.
+The current candidate collects 1,914 tests: 1,912 pass and two host-dependent
+checks skip in the canonical local environment. It also passes strict typing,
+terminology checks, and the 95.15% combined-coverage gate. Clean-install
+acceptance verifies the schema, Lens assets, deterministic replay, and both
+source and wheel builds in an isolated environment.
 
 Passing these checks shows that the implementation behaves as specified by its
 tests. It does not establish historical or scientific truth, nor superiority
 over other research systems. Commit-bound verification results will be recorded
-with the first public pre-release after the clean-install run.
+with each published pre-release after the clean-install run.
 
 ## License
 

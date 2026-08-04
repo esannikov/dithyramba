@@ -89,8 +89,8 @@ natural-language quality or research truth.
 - **Agent or systems specialist:** [Architecture](ARCHITECTURE.md) and
   [reference](REFERENCE.md)
 - **Reasoning integrator:** [Evidence-grounded reasoning](REASONING.md)
-- **Interactive-memory integrator:** [design record](INTERACTIVE_RESEARCH_MEMORY_SPEC.md)
-  and [implementation history](ROADMAP_0.2.md)
+- **Interactive-memory integrator:** [historical design record](history/INTERACTIVE_RESEARCH_MEMORY_0.2.md)
+  and [implementation history](history/ROADMAP_0.2.md)
 - **Codex operator:** [Dithyramba skill](../skills/dithyramba/SKILL.md)
 - **Research-method reader:** [Explanation](EXPLANATION.md) and
   [evaluation limits](EVALUATION.md)
@@ -111,8 +111,10 @@ contracts and design decisions inspectable:
 | [AnswerCoverageGate](ANSWER_COVERAGE_GATE.md) | Did a proposed answer use every required accepted facet? |
 | [Compact research memory](COMPACT_RESEARCH_MEMORY.md) | How are small source-closed packets routed and validated? |
 | [Research View](RESEARCH_PROJECTION.md) | How can wider candidate material remain visible without becoming accepted evidence? |
-| [Interactive research memory design](INTERACTIVE_RESEARCH_MEMORY_SPEC.md) | How can an agent continue research without turning chat into evidence or duplicating the truth layer? |
-| [Interactive-memory implementation history](ROADMAP_0.2.md) | In what dependency order were sessions, persistence, agent tools, review, and evaluation built? |
+| [Interactive research memory design](history/INTERACTIVE_RESEARCH_MEMORY_0.2.md) | Historical record: how was continuing agent research separated from evidence and acceptance? |
+| [Interactive-memory implementation history](history/ROADMAP_0.2.md) | Historical record: in what order were sessions, persistence, tools, review, and evaluation built? |
+| [Current v1 release notes](RELEASE_NOTES_1.0.0rc1.md) | What is included in the present package candidate? |
+| [Historical records](history/README.md) | Which documents describe superseded package and architecture milestones? |
 
 ## Maintenance rule
 

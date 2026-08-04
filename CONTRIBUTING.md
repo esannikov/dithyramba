@@ -1,7 +1,7 @@
 # Contributing
 
-Dithyramba is in pre-alpha. Small, evidence-backed changes are easier to review
-than broad framework additions.
+Dithyramba `1.0.0rc1` is a release candidate. Small, evidence-backed changes are
+easier to review than broad framework additions.
 
 ## Before changing code
 

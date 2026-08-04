@@ -1,6 +1,6 @@
 # Development
 
-Dithyramba package metadata is `0.1.0rc1`; the current branch is the v1 release
+Dithyramba package metadata is `1.0.0rc1`; the package is the v1 release
 candidate with one clean SQLite baseline and interactive sessions. This guide
 covers work from a repository checkout; it does not define a public
 compatibility promise.
@@ -185,9 +185,9 @@ low-level migration/test/backup seam and must not become a corpus-facing API.
 - `docs/ANSWER_COVERAGE_GATE.md`: answer-facet validation;
 - `docs/COMPACT_RESEARCH_MEMORY.md`: compact connector and answer-validation contracts;
 - `docs/RESEARCH_PROJECTION.md`: wider-memory projection outside accepted evidence;
-- `docs/INTERACTIVE_RESEARCH_MEMORY_SPEC.md`: implemented 0.2 session and
+- `docs/history/INTERACTIVE_RESEARCH_MEMORY_0.2.md`: historical 0.2 session and
   persistence contracts, role boundaries, and acceptance criteria;
-- `docs/ROADMAP_0.2.md`: dependency-ordered implementation and release gates for
+- `docs/history/ROADMAP_0.2.md`: historical dependency-ordered implementation and release gates for
   interactive research memory;
 - `docs/EVALUATION.md`: corpus scales, results, negative findings, and limits;
 - `docs/ACCEPTANCE.md`: clean-install release verification;
@@ -197,8 +197,9 @@ low-level migration/test/backup seam and must not become a corpus-facing API.
 
 ## Release boundary
 
-This repository is a pre-alpha source preview. Clean-install acceptance
+This repository is the `1.0.0rc1` release candidate. Clean-install acceptance
 establishes that the checkout, demo, tests, build, wheel, and sdist agree in one
 recorded environment. It does not establish semantic accuracy, source truth,
 human usefulness, production security, or compatibility beyond the declared
-preview contracts.
+v1 release-candidate contracts. Stable `1.0.0` still requires the published
+fresh-install gate recorded in [V1_ROADMAP.md](V1_ROADMAP.md).

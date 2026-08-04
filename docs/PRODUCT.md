@@ -7,9 +7,10 @@ creative corpora. It turns explicitly scoped source fragments into typed,
 reviewable memory objects without collapsing source, interpretation, hypothesis,
 and human decision into one truth layer.
 
-The current release line is pre-alpha. Product surfaces must describe what the
-running system proves; they must not imply public validation, autonomous learning,
-or semantic confidence that has not been measured.
+The current release line is `1.0.0rc1`, the v1 release candidate. Product
+surfaces must describe what the running system proves; they must not imply
+public validation, autonomous learning, or semantic confidence that has not
+been measured.
 
 The v1 line includes bounded research sessions so an agent can
 continue an investigation from compact state and exact artifact references.

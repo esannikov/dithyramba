@@ -5,6 +5,10 @@ history belong in dated evaluation reports, not in the product changelog.
 
 ## Unreleased
 
+No unreleased changes are recorded yet.
+
+## 1.0.0rc1 — 2026-08-04
+
 ### Added
 
 - `dithyramba library describe`: a read-only, source-text-free overview of one
@@ -14,7 +18,7 @@ history belong in dated evaluation reports, not in the product changelog.
   bounded MCP research, evidence-state language, progress reporting, and human
   review boundaries without duplicating the Python core.
 
-- Durable 0.2 `ResearchSession` journals with compact least-context agent turns,
+- Durable v1 `ResearchSession` journals with compact least-context agent turns,
   exact command retry receipts, and cold-reopen state reconstruction.
 - Process-local `RecallScopeSession` reuse: one authorized fragment read-set and
   in-memory FTS index can serve later questions in the same exact session scope

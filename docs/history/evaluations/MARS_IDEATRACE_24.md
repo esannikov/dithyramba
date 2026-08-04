@@ -1,5 +1,9 @@
 # Mars IdeaTrace-24 evaluation card
 
+> Historical, case-specific development evaluation. It is not a shipped corpus,
+> product module, or current cross-domain quality claim. Current evaluation
+> boundaries are summarized in [`../../EVALUATION.md`](../../EVALUATION.md).
+
 This internal development evaluation asks a narrow question: once the relevant
 passages have already been selected, does an inspectable reasoning artifact
 help Dithyramba detect and repair answers that say more than their evidence?
