@@ -285,17 +285,18 @@ The cache is an expendable capability, not durable memory:
   revalidate every selected fragment before commit;
 - a restart simply rebuilds it from the immutable source and policy record.
 
-The M1 PhD stress corpus measured 56.887 s to prepare 263,363 permitted
-fragments, 72.647 s for the first strict completion, and 13.557 s for a second
-question in the same session. This does not make cold startup instant; it makes
-repeated work proportional to the bounded query and selected proof instead of
-revalidating the full corpus closure on every turn.
+The first question in a large Library still pays the full authorization and
+index-build cost. Later questions in the same explicit session reuse that
+bounded scope, so repeated work is proportional to the query and selected
+evidence rather than the whole Library.
 
 ### Agent and human adapters
 
 ```text
-Python AgentResearchFacade
-  ├─ stdio MCP: agent tools; JSON-RPC protocol on stdout, logs on stderr
+optional Codex skill (thin orchestration, no research logic)
+  ├─ CLI: Library lifecycle, describe, doctor, ingest, snapshot, backup
+  ├─ Python AgentResearchFacade
+  │    └─ stdio MCP: bounded agent tools; JSON-RPC stdout, logs stderr
   └─ Lens: GET-only library/session/atlas/concepts/flow modes
 ```
 
@@ -305,11 +306,16 @@ without duplicating research logic. It exposes `open_session`, `recall`,
 `reject_path`. It does not expose candidate acceptance, human decisions,
 promotion, or closure.
 
+The optional skill selects among those existing surfaces and supplies workflow
+and evidence-language guidance. It does not read SQLite directly, implement
+retrieval, or add another persistence layer. `library describe` gives it a
+source-text-free orientation packet before any bounded research session opens.
+
 Modern Lens session events reuse the compact command receipt and direct
 fragment metadata lookup. Full packet reconstruction remains available for
 audit and as a legacy fallback, but it is no longer part of ordinary page
-rendering. On the same M1 corpus, a 24-fragment session projection measured
-0.062–0.064 s with a stable hash and zero model calls.
+rendering. Lens projections remain deterministic, source-addressed, and free of
+model calls.
 
 ## Storage model
 

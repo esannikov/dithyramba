@@ -457,6 +457,41 @@ from which the current `pdfplumber` route extracted 566 pages. The candidate is
 therefore recorded only as a possible future fast-first subprocess with an
 automatic fallback and paired completeness gate.
 
+## M1 Cinema strict text-native screen
+
+An additional real-corpus screen tested an isolated optional preprocessing
+route for film and screenwriting literature. It is reported separately from the
+default parser because the candidate route deliberately excluded every file
+that requested OCR, looked mixed or scanned, or returned a structural error.
+
+| Measurement | Observed result |
+|---|---:|
+| Candidate files inspected | 365 |
+| Admitted text-native/prepared sources | 265 |
+| Explicit exclusions | 100 |
+| Candidate bytes | 1,765,950,412 |
+| Prepared characters | 33,710,000 |
+| Parser preparation | 37.58 s |
+| Cold Dithyramba ingest | 15.88 s |
+| Unchanged repeat | 265/265 in 9.77 s |
+| Stored fragments | 134,771 |
+| Collections / snapshot members | 5 / 265 |
+| Complete memory cycle | 44.61 s |
+| Model calls / model tokens | 0 / 0 |
+
+The complete cycle included Library initialization, ingest, unchanged repeat,
+two doctor checks, snapshot freeze, and portable backup. The final SQLite quick
+check and Dithyramba doctor passed; all 265 derived hashes matched and no NUL
+metadata remained. The test found two general engineering issues: backup output
+must be owner-only, and imported PDF titles need control-character
+normalization. Both were corrected before the clean rebuild.
+
+This screen demonstrates fast bounded intake when a researcher accepts strict
+exclusion. It does not prove that the 100 excluded books were unimportant, that
+the parser is complete, or that the resulting corpus supports a particular
+research conclusion. The optional preprocessor remains isolated and does not
+replace Dithyramba's default PDF route.
+
 ## Engineering verification
 
 The current v1 candidate collects 1,948 engineering tests. In its

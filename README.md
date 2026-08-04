@@ -16,14 +16,10 @@ on their behalf—who return to the same body of sources over time. It turns a
 local corpus into versioned, addressable evidence packets that can be inspected,
 replayed, challenged, and reused without asking a model to reread everything.
 
-> **Current status:** package metadata remains `0.1.0rc1`; this branch is the
-> v1 release candidate. The source-to-evidence core is local, persisted, and
-> replayable. One clean v1 schema baseline includes durable multi-turn research
-> sessions around that same core, with a process-local authorized FTS cache,
-> thin stdio MCP transport, compact agent context, and a GET-only Lens.
-> QueryCloud, candidate ontology, and evidence-grounded synthesis remain
-> experimental and cannot promote themselves into accepted memory.
-> Clean-checkout distribution and installation remain release gates.
+> **Current status:** v1 release candidate. The stable path is a local,
+> replayable source-to-evidence memory with CLI, stdio MCP, and a read-only
+> Lens. Optional synthesis and navigation views remain review-only: they cannot
+> turn generated text into accepted evidence.
 
 ## Why it exists
 
@@ -183,12 +179,12 @@ representation and keeps the previous one available for exact replay.
 | Evidence-grounded reasoning | short public IdeaTrace steps closed over exact semantic receipts | experimental contracts, persistence, and CLI verifier |
 | Rich answer projection | persisted proposition-level fact, synthesis, hypothesis, question, and framing governance; exact Lens span-to-source routes | experimental durable contract and deterministic gate |
 
-## Experimental boundary
+## Optional research aids
 
-The model-free research route can combine bounded FTS expansion, deterministic
-lexical repair, an optional two-query QueryCloud, and
-`EvidenceCoverageGate`. QueryCloud remains opt-in because its complete plan and
-intermediate artifacts are not yet persisted for cold exact replay.
+The default route is deliberately small: local FTS finds candidates and
+`EvidenceCoverageGate` checks whether the requested evidence roles are present.
+If a literal query is insufficient, bounded query expansion or QueryCloud may
+try a few explicit variants.
 
 ```text
 raw FTS candidates
@@ -200,105 +196,32 @@ raw FTS candidates
   → answer-ready preparation or explicit blocked/gap state
 ```
 
-Generated query variants are discovery aids, never evidence. A rank score says
-that a passage may be relevant; only exact passage content can satisfy an
-explicit evidence requirement. Human acceptance remains a separate decision.
-Agent-facing packets therefore expose `admission_state: retrieved_candidates`
-plus compact source-diversity diagnostics; they never relabel retrieval hits as
-verified support before the Gate. The interactive route now exposes
-`prepare_answer`; `record_draft` requires that exact preparation to replay as
-`ready`, so a raw packet cannot enter the journal as a source-backed answer.
-The gate proves declared evidence-role coverage, not semantic entailment of the
-final prose or human acceptance.
-The original retrieval and local-search receipts remain immutable; only the
-agent-facing ready projection is compacted. Subject-domain and evidence-role
-anchors that must describe the same claim are required to co-occur inside one
-requirement and one fragment. Optional post-generation
-`ClaimEvidenceEntailmentGate` and `PropositionCoverageGate` checks remain a
-separate disclosed boundary for final prose.
-The v1 package deliberately contains no embedding model, reranker, vector store,
-or model-provisioning command. Historical comparisons remain evaluation evidence,
-not an installable runtime path.
+Query variants, rankings, concept maps, IdeaTrace, and answer projections are
+navigation or drafting aids. Every factual path must still close over exact
+source fragments, and every promotion remains a human decision. The default
+package contains no embedding model, reranker, vector store, or model download.
+The detailed contracts are documented separately for integrators.
 
-Evidence-grounded reasoning is a separate post-answer path. It stores only
-public statements, named operations, premise links, concise warrants, gaps, and
-exact receipt bindings. It does not store private chain-of-thought text. The v1
-baseline persists the candidate trace and deterministic closure receipt in two
-append-only tables and adds append-only answer projections with their
-judgment receipts; a passed closure or proposition projection is only
-`review_eligible`.
+## Evidence at a glance
 
-Candidate Ontology is the smaller replacement for the rejected global-map
-experiment. It starts from one named scope and a compact expansion of its
-vocabulary, uses one FTS search to form a source-balanced neighbourhood, and
-extracts source-grounded candidate concepts. Separate query branches are a
-repair for an ambiguous scope or a measured gap, not the default. No generative
-model is required. Every concept and every visible relation closes over exact
-source fragments; the projection remains a navigation aid, never accepted
-memory or proof.
+The public repository ships only rights-safe fixtures. Private research texts
+are not distributed; their runs are summarized as ranges so the README describes
+the system rather than individual projects.
 
-Concept Lens separates the automatic projection from its human explanation.
-The required ontology JSON remains deterministic and machine-generated. An
-optional ontology-bound presentation JSON may give the seven areas readable
-titles, orientation questions, short explanations, and a useful entry concept.
-Changing this view does not rewrite the ontology or its evidence.
-
-```text
-scope + compact expansion → one local FTS neighbourhood → candidate concepts
-  → exact co-occurrence links → Dithyramba Lens
-  → selected question → evidence recall and coverage gate
-  → optional branch repair only for a named gap
-```
-
-The earlier global vector profiles remain documented as a negative result:
-they produced corpus-dependent mega-clusters, excessive noise, or strong sample
-sensitivity. They are no longer a product module. The stable product route
-remains question-led recall; scoped ontology only helps a person decide what to
-inspect next.
-
-## Evidence so far
-
-Dithyramba separates public reproducibility from internal development evidence.
-The repository ships rights-safe CC0 fixtures and a deterministic synthetic
-workload. Larger research corpora are summarized below but are not distributed
-because their source rights and project boundaries differ.
-
-| Corpus or test surface | Scale | What the test showed |
+| Universal measure | Observed range or result | What it establishes |
 |---|---:|---|
-| Public synthetic | 12 multilingual fragments and queries; 1,000 generated fragments with 20 probes | Current staging replay returned 12/12 expected multilingual sources at top 10; the 1,000-fragment pipeline selected the exact expected fragment with one stable packet hash and zero provider calls. |
-| Mars working corpus | 2,051 sources; 53,747 retrieval units; about 103.8M characters; 72 bilingual cases | The current model-free route with bounded flat expansion and exact proof admission placed the exact fragment in the top 10 for 42/51 positive cases (82.4%) and the correct source for 49/51 (96.1%). The complete replay was byte-identical and used zero generative calls or tokens. |
-| Mars multi-session cache | 2,047 Library sources; 53,747 normalized units; 6 three-turn research sessions plus 1 isolated repair session | One authorized read and one FTS build served all three questions in each session. Warm turns averaged 38.76 s versus 50.90 s for first turns (23.85% lower); 17/17 comparable top-10 lists were unchanged, retries and cold reopen were 6/6 exact, and model tokens were zero. A one-case relation repair was rejected from production because only 1/2 variants recovered the miss. |
-| M1 PhD interactive stress corpus | 622 active sources; 263,363 exact fragments; about 243.1M codepoints | Cold scope preparation took 56.887 s and the first fully audited completion 72.647 s; a second question in the same explicit session took 13.557 s. Lens session mode projected 24 exact evidence fragments in 0.062–0.064 s. All runtime stages used zero LLM calls or tokens; these timings do not establish scholarly relevance. |
-| M1 PhD clean v1 rebuild | 829 supported physical files; 816 unique sources; 276,165 exact fragments; 30 questions / 90 deterministic searches | Cold ingest completed in 2,882.42 s (48:02). Repeating all five unchanged Collections took 39.62 s and created zero new versions or fragments. The 30-question run completed in 1,986.22 s, produced 240 source cards from 139 works, passed 240/240 locator/bibliography checks, and used zero model calls or tokens. `30/30 ready` means literal requirement coverage, not answer truth. |
-| M1 PhD scholarly holdout | 24 frozen questions; 72 predeclared queries; corrected scope of 615 sources / 259,165 fragments | The zero-model local run finished in 1,219.752 s. Conservative agent audit found direct support in 20/72 top-three positions (27.8%) and useful evidence in 61/120 top-five positions (50.8%). Cleaning seven author-side or duplicated SourceFamilies improved scope integrity and speed but did not improve relevance. These are development labels, not independent human validation. |
-| Mars IdeaTrace-24 | 24 frozen evidence packets: 6 direct, 6 multi-source, 6 contested, 6 unsupported traps | With retrieval held constant, one gate-directed repair improved complete evidence closure from 6/18 to 16/18, complete answers from 21/24 to 23/24, and answer-status correctness from 22/24 to 24/24. Safe abstention remained 6/6; one semantic overclaim and one exact-quote mismatch remained blocked. |
-| Parisian Ten structured records | 28,006 records from 40 files and 7 source families; 56 bilingual queries | Prepared memory packets delivered the complete evidence set in 56/56 queries. At the same per-query evidence budget, raw FTS delivered all required records in 43/56, hybrid search in 42/56, and E5 in 37/56. |
-| Van Gogh equal-source A/B | 18 Markdown files; 4 tasks | Compact packets returned 16/16 exact quotations and 13/13 required facets versus 3/7 and 2/13 for direct search. A later claim-level audit still marked only 5/14 claims directly supported and only 1/4 answers ready for promotion without revision. |
-| Tesla historical evaluation | 50 sources; 6,183 fragments; 40 questions | An earlier model-heavy route recovered the correct source in the top 10 for 86.7% of required evidence roles, but the exact required fragment for only 58.1%; deliberate-gap recognition was 40.0%. These numbers do not describe the current default route. |
-| Artists retrieval stress test | 404 Markdown files; 31.2 MB; about 2.40M words; 48,072 fragments; 18 questions | Exact address-group recovery at top 10 ranged from 17/31 for FTS to 25/31 for the best tested reranking lane. The test exposed parser, isolation, and late-fragment issues; it did not establish a semantic winner. |
-| Maulstick knowledge connector | 383 section/file units; 36 craft cases | Median context fell from 21,174 to 1,147 tokens (−94.6%), but required-anchor coverage also fell from 49/77 to 43/77. The result was `ITERATE`, not lossless compression. |
-| Directing and screenwriting craft corpora | 268 admitted sources; 107,031 fragments; 120 frozen query-language rows | Stable FTS completed 120/120 rows and 16/16 sampled cold replays without provider calls. A historical reranker trial helped one late passage and one homonym-heavy list but still left unsafe passages and could not repair two zero-candidate questions; that model route is now retired. |
-| Scoped dialogue-directing ontology | 7 foundational books; 5,432 extracted fragments; 5 retrieval routes at 180 and 360 selected fragments | One flat expanded FTS query produced 10/10 diagnostic facets with all seven sources. Multi-query fusion and balanced branches produced 9/10; the retired model-assisted comparator produced 8/10. The complete rerun was byte-identical and used zero generative calls or tokens; human coherence remains unmeasured. |
+| Persisted Library scale | 3–2,047 sources; 7–276,165 exact fragments | The same schema and workflow operate from a demo to a large mixed library. |
+| Incremental ingest | 100% of unchanged inputs reused in 265-, 400-, and 816-source runs | Repeating an unchanged corpus created zero new source versions or fragments. |
+| Two labeled retrieval suites | exact fragment @10: 58–82%; correct source @10: 87–96% | The right document is often found before the exact passage; passage drill-down remains necessary. |
+| Deterministic replay | 16/16 sampled cold replays and 30/30 fresh-corpus replays | Stored packets and source addresses can be reproduced exactly. |
+| Default model cost | 0 model calls; 0 model tokens | Ingest, FTS recall, gates, packets, and replay are local and deterministic. |
+| Engineering gate | 1,912 tests; 95.15% combined coverage | The current implementation is broadly exercised; this does not validate research conclusions. |
 
-These are internal development and calibration results, not an independent
-cross-domain benchmark. Retrieval metrics do not establish source truth,
-claim-to-citation entailment, or human usefulness. See the
-[evaluation record](docs/EVALUATION.md) for protocols, additional Tesla and
-Artists corpus scales, negative results, and limitations.
-
-The most useful numbers are deliberately kept separate:
-
-- **exact fragment @10:** whether the needed passage appeared among the first
-  ten candidates;
-- **correct source @10:** whether the right document appeared even when the
-  exact passage did not;
-- **full evidence coverage:** whether every required part of the question had
-  an inspectable supporting passage;
-- **safe abstention:** whether a gap or unrelated query stayed unsupported;
-- **claim support:** whether the wording of a proposed answer said no more than
-  its displayed evidence;
-- **context reduction:** useful only when reported beside retained evidence
-  coverage, because a smaller packet can also omit the decisive passage.
+The retrieval ranges combine different frozen internal test sets and are not a
+cross-domain leaderboard; the scale maxima also come from different runs. An
+exact passage proves what a source says, not that the source or a proposed
+conclusion is true. Detailed protocols, negative
+results, and limitations remain in the [evaluation record](docs/EVALUATION.md).
 
 ## Trust boundaries
 
@@ -323,11 +246,13 @@ verification/          deterministic public evidence-path replay
 examples/              small CC0 corpus used by the local demo
 schemas/               contract inventory policy, not duplicate schemas
 scripts/               demo and clean-machine acceptance tools
+skills/dithyramba/     thin Codex orchestration skill and evidence guidance
 docs/                  concepts, workflow, reference, and development guide
 .github/                continuous-integration and issue templates
 ```
 
-Only `src/dithyramba/` is installed into the runtime wheel. The other
+Only `src/dithyramba/` is installed into the runtime wheel. The Codex skill is
+an optional source-repository integration resource; the other
 directories support learning, development, reproducibility, and release
 verification. See the [repository guide](docs/REPOSITORY_GUIDE.md) for the
 responsibility of each directory and package group.
@@ -335,12 +260,12 @@ responsibility of each directory and package group.
 ## Documentation
 
 - [Start with your own corpus](docs/HOW_TO_USE.md)
+- [Codex skill orchestration](skills/dithyramba/SKILL.md)
 - [Understand the architecture](docs/ARCHITECTURE.md)
 - [How source-grounded memory works](docs/EXPLANATION.md)
 - [CLI and contract reference](docs/REFERENCE.md)
 - [Evidence coverage explained](docs/EVIDENCE_COVERAGE_GATE.md)
 - [Evidence-grounded reasoning and IdeaTrace](docs/REASONING.md)
-- [Mars IdeaTrace-24 evaluation card](docs/MARS_IDEATRACE_24.md)
 - [0.1.0rc1 release notes](docs/RELEASE_NOTES_0.1.0rc1.md)
 - [Development and verification](docs/DEVELOPMENT.md)
 - [Repository and module guide](docs/REPOSITORY_GUIDE.md)
@@ -367,20 +292,10 @@ uv build
 ./scripts/acceptance.sh --quick
 ```
 
-For this v1 candidate, the canonical local gate passed 1,946 tests with two
-host-dependent skips. Strict typing, zero terminology findings, 95.26%
-branch-aware combined coverage, and the dependency audit also passed.
-The fresh-corpus acceptance added 400 previously unseen sources (2,800
-fragments), reused all 400 unchanged sources on the second ingest, and returned
-the expected top-one document, exact source address, and byte-exact replay for
-30/30 questions with zero model calls or tokens.
-The separate M1 real-corpus rebuild exercised 816 unique sources and 276,165
-fragments, including a valid 1,698-page volume, then reproduced one independent
-evidence packet with the same SHA-256. That result tests ingest, scope, and
-replay under real source variation; it does not establish scholarly accuracy.
-Distribution closure verifies the single clean v1 schema baseline, the Lens
-assets, and that the wheel is built from the sdist and imports from an isolated
-non-editable environment.
+The current candidate passes strict typing, terminology checks, 1,912 tests,
+and 95.15% combined coverage locally. Clean-install acceptance verifies the
+schema, Lens assets, deterministic replay, and both source and wheel builds in
+an isolated environment.
 
 Passing these checks shows that the implementation behaves as specified by its
 tests. It does not establish historical or scientific truth, nor superiority

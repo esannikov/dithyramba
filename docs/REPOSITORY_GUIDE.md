@@ -14,6 +14,11 @@ examples, and GitHub automation are repository resources. They help people
 understand and verify the project, but they are not imported into a normal
 Dithyramba runtime.
 
+`skills/dithyramba/` is an optional Codex orchestration layer distributed with
+the source repository. It tells an agent when to use the CLI, MCP adapter, and
+Lens and keeps evidence-state language consistent. It contains no retrieval,
+storage, ranking, or review implementation of its own.
+
 The source distribution is broader because it must let a maintainer inspect,
 rebuild, and verify the same wheel from source.
 
@@ -29,6 +34,7 @@ rebuild, and verify the same wheel from source.
 | `migrations/` | Human policy and pointer to the packaged v1 SQL baseline | no |
 | `schemas/` | Policy for versioned schemas and a pointer to executable contracts | no |
 | `scripts/` | Demo, release audit, distribution inspection, and clean-install gate | no |
+| `skills/dithyramba/` | Optional thin Codex orchestration skill plus focused lifecycle, MCP, and evidence references | no |
 | `docs/` | User workflow, product/design rationale, contracts, architecture, evaluation, and development | no |
 | `.github/` | Continuous integration plus issue and pull-request templates | no |
 | `pyproject.toml` | Package metadata, dependencies, build, lint, typing, and test configuration | no |
@@ -85,6 +91,7 @@ natural-language quality or research truth.
 - **Reasoning integrator:** [Evidence-grounded reasoning](REASONING.md)
 - **Interactive-memory integrator:** [design record](INTERACTIVE_RESEARCH_MEMORY_SPEC.md)
   and [implementation history](ROADMAP_0.2.md)
+- **Codex operator:** [Dithyramba skill](../skills/dithyramba/SKILL.md)
 - **Research-method reader:** [Explanation](EXPLANATION.md) and
   [evaluation limits](EVALUATION.md)
 - **Contributor:** [Development](DEVELOPMENT.md),
@@ -104,7 +111,6 @@ contracts and design decisions inspectable:
 | [AnswerCoverageGate](ANSWER_COVERAGE_GATE.md) | Did a proposed answer use every required accepted facet? |
 | [Compact research memory](COMPACT_RESEARCH_MEMORY.md) | How are small source-closed packets routed and validated? |
 | [Research View](RESEARCH_PROJECTION.md) | How can wider candidate material remain visible without becoming accepted evidence? |
-| [Mars IdeaTrace-24](MARS_IDEATRACE_24.md) | What did the first frozen multi-source reasoning diagnostic test, improve, and leave unresolved? |
 | [Interactive research memory design](INTERACTIVE_RESEARCH_MEMORY_SPEC.md) | How can an agent continue research without turning chat into evidence or duplicating the truth layer? |
 | [Interactive-memory implementation history](ROADMAP_0.2.md) | In what dependency order were sessions, persistence, agent tools, review, and evaluation built? |
 

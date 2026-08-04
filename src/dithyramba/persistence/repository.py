@@ -101,6 +101,9 @@ from .models import (
     AuthorizedRead,
     BackupRecord,
     CollectionRecord,
+    CorpusSnapshotSummary,
+    LibraryCounts,
+    LibraryDescription,
     LibraryRecord,
     OutboxEvent,
     OutboxExportResult,
@@ -388,6 +391,128 @@ class LibraryRepository(AbstractContextManager["LibraryRepository"]):
         )
         if current != self.library:
             raise PersistenceIntegrityError("Library identity changed after repository open")
+
+    def describe(self, *, recent_run_limit: int = 10) -> LibraryDescription:
+        """Return one verified, source-text-free overview for operators and agents."""
+
+        if type(recent_run_limit) is not int or not 1 <= recent_run_limit <= 100:
+            raise ValueError("recent_run_limit must be an integer from 1 through 100")
+        self.verify()
+        connection = self._store.connection
+        counts = LibraryCounts(
+            collections=_scoped_count(
+                connection,
+                "SELECT COUNT(*) FROM collections WHERE library_id = ?",
+                self.library_id,
+            ),
+            access_policies=_scoped_count(
+                connection,
+                "SELECT COUNT(*) FROM access_policies WHERE library_id = ?",
+                self.library_id,
+            ),
+            sources=_scoped_count(
+                connection,
+                "SELECT COUNT(*) FROM sources WHERE library_id = ?",
+                self.library_id,
+            ),
+            source_versions=_scoped_count(
+                connection,
+                """
+                SELECT COUNT(*) FROM source_versions AS sv
+                JOIN sources AS s ON s.source_id = sv.source_id
+                WHERE s.library_id = ?
+                """,
+                self.library_id,
+            ),
+            source_fragments=_scoped_count(
+                connection,
+                """
+                SELECT COUNT(*) FROM source_fragments AS sf
+                JOIN source_versions AS sv ON sv.source_version_id = sf.source_version_id
+                JOIN sources AS s ON s.source_id = sv.source_id
+                WHERE s.library_id = ?
+                """,
+                self.library_id,
+            ),
+            collection_memberships=_scoped_count(
+                connection,
+                """
+                SELECT COUNT(*) FROM collection_memberships AS cm
+                JOIN collections AS c ON c.collection_id = cm.collection_id
+                JOIN sources AS s ON s.source_id = cm.source_id
+                WHERE c.library_id = ? AND s.library_id = ?
+                """,
+                self.library_id,
+                self.library_id,
+            ),
+            corpus_snapshots=_scoped_count(
+                connection,
+                "SELECT COUNT(*) FROM corpus_snapshots WHERE library_id = ?",
+                self.library_id,
+            ),
+            snapshot_members=_scoped_count(
+                connection,
+                """
+                SELECT COUNT(*) FROM snapshot_members AS sm
+                JOIN corpus_snapshots AS cs
+                  ON cs.corpus_snapshot_id = sm.corpus_snapshot_id
+                WHERE cs.library_id = ?
+                """,
+                self.library_id,
+            ),
+            evidence_packets=_scoped_count(
+                connection,
+                """
+                SELECT COUNT(*) FROM evidence_packets AS ep
+                JOIN query_requests AS qr ON qr.query_request_id = ep.query_request_id
+                WHERE qr.library_id = ?
+                """,
+                self.library_id,
+            ),
+            research_sessions=_scoped_count(
+                connection,
+                "SELECT COUNT(*) FROM research_sessions WHERE library_id = ?",
+                self.library_id,
+            ),
+            processing_runs=_scoped_count(connection, "SELECT COUNT(*) FROM processing_runs"),
+        )
+        snapshot_rows = connection.execute(
+            """
+            SELECT corpus_snapshot_id, created_at
+            FROM corpus_snapshots
+            WHERE library_id = ?
+            ORDER BY created_at DESC, corpus_snapshot_id
+            """,
+            (self.library_id,),
+        ).fetchall()
+        snapshots = []
+        for row in snapshot_rows:
+            snapshot = self.get_corpus_snapshot(str(row[0]))
+            snapshots.append(
+                CorpusSnapshotSummary(
+                    corpus_snapshot_id=snapshot.corpus_snapshot_id,
+                    manifest_hash=snapshot.manifest_hash,
+                    collection_ids=snapshot.collection_ids,
+                    member_count=len(snapshot.members),
+                    created_at=_validated_timestamp(str(row[1])),
+                )
+            )
+        run_rows = connection.execute(
+            """
+            SELECT processing_run_id FROM processing_runs
+            ORDER BY started_at DESC, processing_run_id
+            LIMIT ?
+            """,
+            (recent_run_limit,),
+        ).fetchall()
+        return LibraryDescription(
+            library=self.library,
+            counts=counts,
+            collections=self.list_collections(),
+            access_policies=self.list_access_policies(),
+            snapshots=tuple(snapshots),
+            recent_processing_runs=tuple(self.get_processing_run(str(row[0])) for row in run_rows),
+        )
 
     def close(self) -> None:
         """Invalidate ephemeral read capabilities and close SQLite."""
@@ -3353,6 +3478,19 @@ def _exclusive_event_file(path: Path) -> Iterator[int]:
 
 def _canonical_text(value: object) -> str:
     return canonical_json_bytes(value).decode("utf-8")
+
+
+def _scoped_count(
+    connection: sqlite3.Connection,
+    statement: str,
+    *parameters: str,
+) -> int:
+    """Run one fixed aggregate query and validate its scalar result."""
+
+    row = connection.execute(statement, parameters).fetchone()
+    if row is None or len(row) != 1 or type(row[0]) is not int or int(row[0]) < 0:
+        raise PersistenceIntegrityError("Library description count is invalid")
+    return int(row[0])
 
 
 def _canonical_ingest_coverage_from_payload(

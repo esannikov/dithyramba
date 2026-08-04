@@ -1,0 +1,62 @@
+# MCP research adapter
+
+The MCP server is a local stdio adapter over the same Dithyramba core. It is not
+a second memory engine. Configure one server per explicit Library and keep its
+scope visible in the server name.
+
+## Start manually
+
+```bash
+dithyramba mcp \
+  --library library-id \
+  --data-home /absolute/runtime-root \
+  --agent-id agent:codex
+```
+
+The client launches this command and communicates through newline-delimited
+JSON-RPC over stdin/stdout. Do not put ordinary log messages on stdout.
+
+## Codex configuration pattern
+
+```toml
+[mcp_servers.dithyramba_example]
+command = "/absolute/path/to/dithyramba"
+args = [
+  "mcp",
+  "--library", "library-id",
+  "--data-home", "/absolute/runtime-root",
+  "--agent-id", "agent:codex",
+]
+```
+
+Restart the MCP client after changing its configuration. Keep source roots and
+credentials out of the configuration unless a tool explicitly requires them.
+
+## Tool sequence
+
+The adapter exposes exactly seven bounded tools:
+
+1. `open_session` — bind the question, intended use, success criteria,
+   Collections, AccessPolicy, and immutable snapshot.
+2. `recall` — retrieve permitted candidates and persist the reproducible route.
+3. `session_context` — reconstruct compact durable state for a later turn.
+4. `prepare_answer` — select candidates, apply hygiene, and evaluate evidence
+   coverage before generation.
+5. `record_draft` — replay the exact preparation and persist a draft answer.
+6. `record_gap` — record what evidence is missing and why the answer is blocked.
+7. `reject_path` — mark a misleading research route without deleting history.
+
+The adapter intentionally does not expose source deletion, policy mutation,
+candidate acceptance, human review decisions, session closure, or promotion to
+truth. Perform lifecycle work through the CLI and human review through the
+documented review surface.
+
+## Failure handling
+
+- If the server cannot verify the Library, stop and run `library doctor`.
+- If the policy or snapshot does not cover the request, open a correctly scoped
+  session; do not silently widen the old one.
+- If `prepare_answer` blocks, record a gap or recall a specifically missing
+  evidence role.
+- If `record_draft` rejects a preparation, call `prepare_answer` again and pass
+  its complete current result without editing it.

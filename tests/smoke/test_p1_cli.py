@@ -12,6 +12,7 @@ import pytest
 from typer.testing import CliRunner
 
 from dithyramba.cli import _fts5_available, app
+from dithyramba.persistence import open_library
 
 runner = CliRunner()
 
@@ -146,6 +147,137 @@ def test_library_init_list_and_both_doctor_surfaces(tmp_path: Path) -> None:
     )
     assert root_doctor.exit_code == 0
     assert "status: ok" in root_doctor.stdout
+
+
+def test_library_describe_reconstructs_operator_state_without_source_text(
+    tmp_path: Path,
+) -> None:
+    state = _bootstrap(tmp_path)
+    empty = _invoke_json(
+        [
+            "library",
+            "describe",
+            "--library",
+            state.library_id,
+            "--data-home",
+            str(state.data_home),
+        ]
+    )
+    assert empty["schema"] == "dithyramba.library_description/1.0"
+    assert empty["health"] == {
+        "external_services_contacted": False,
+        "fts5_available": _fts5_available(),
+        "schema_fingerprint": cast(dict[str, object], empty["health"])["schema_fingerprint"],
+        "schema_version": 1,
+        "status": "ok",
+    }
+    assert empty["counts"] == {
+        "access_policies": 0,
+        "collection_memberships": 0,
+        "collections": 0,
+        "corpus_snapshots": 0,
+        "evidence_packets": 0,
+        "processing_runs": 0,
+        "research_sessions": 0,
+        "snapshot_members": 0,
+        "source_fragments": 0,
+        "source_versions": 0,
+        "sources": 0,
+    }
+    assert empty["backup_tracking"] == {
+        "mode": "external_bundle",
+        "registered_in_library": False,
+    }
+
+    collection = _add_collection(state, name="Evidence", root=state.corpus_root)
+    collection_id = cast(str, collection["collection_id"])
+    (state.corpus_root / "evidence.md").write_text(
+        "# Evidence\n\nOne exact source-grounded statement.\n",
+        encoding="utf-8",
+    )
+    _invoke_json(
+        [
+            "index",
+            "--library",
+            state.library_id,
+            "--collection",
+            collection_id,
+            "--data-home",
+            str(state.data_home),
+        ]
+    )
+    policy = _invoke_json(
+        [
+            "access-policy",
+            "create",
+            "Local research",
+            "--library",
+            state.library_id,
+            "--purpose",
+            "research",
+            "--allow-collection",
+            collection_id,
+            "--data-home",
+            str(state.data_home),
+        ]
+    )
+    snapshot = _invoke_json(
+        [
+            "collection",
+            "freeze",
+            "--library",
+            state.library_id,
+            "--collection",
+            collection_id,
+            "--data-home",
+            str(state.data_home),
+        ]
+    )
+
+    described = _invoke_json(
+        [
+            "library",
+            "describe",
+            "--library",
+            state.library_id,
+            "--data-home",
+            str(state.data_home),
+            "--recent-runs",
+            "1",
+        ]
+    )
+    counts = cast(dict[str, int], described["counts"])
+    assert counts == {
+        "access_policies": 1,
+        "collection_memberships": 1,
+        "collections": 1,
+        "corpus_snapshots": 1,
+        "evidence_packets": 0,
+        "processing_runs": 1,
+        "research_sessions": 0,
+        "snapshot_members": 1,
+        "source_fragments": counts["source_fragments"],
+        "source_versions": 1,
+        "sources": 1,
+    }
+    assert counts["source_fragments"] > 0
+    assert (
+        cast(list[dict[str, object]], described["access_policies"])[0]["access_policy_id"]
+        == policy["access_policy_id"]
+    )
+    assert (
+        cast(list[dict[str, object]], described["snapshots"])[0]["corpus_snapshot_id"]
+        == snapshot["corpus_snapshot_id"]
+    )
+    assert cast(list[dict[str, object]], described["snapshots"])[0]["member_count"] == 1
+    assert len(cast(list[dict[str, object]], described["recent_processing_runs"])) == 1
+    assert "One exact source-grounded statement" not in json.dumps(described)
+
+    with (
+        open_library(state.library_id, data_root=state.data_home) as repository,
+        pytest.raises(ValueError, match="recent_run_limit"),
+    ):
+        repository.describe(recent_run_limit=0)
 
 
 def test_collection_add_and_list_preserve_roots_and_globs(tmp_path: Path) -> None:

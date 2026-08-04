@@ -50,6 +50,7 @@ from dithyramba.mcp_stdio import run_stdio_mcp
 from dithyramba.persistence import (
     AccessPolicyRecord,
     CollectionRecord,
+    LibraryDescription,
     LibraryRecord,
     LibraryRepository,
     PersistenceError,
@@ -61,6 +62,7 @@ from dithyramba.persistence import (
 )
 from dithyramba.provenance import (
     IngestBatchResult,
+    ProcessingRunRecord,
     ProvenanceError,
     SourceRecord,
     SourceVersionRecord,
@@ -359,6 +361,56 @@ def library_list(
             f"{record['library_id']}\t{record['name']}\t{record['path']}" for record in libraries
         )
         or ("No Libraries.",),
+    )
+
+
+@library_app.command("describe")
+@_guard
+def library_describe(
+    library: Annotated[str, typer.Option("--library", help="Explicit Library ID.")],
+    data_home: Annotated[
+        Path | None,
+        typer.Option(
+            "--data-home",
+            help="Absolute application-data root; defaults to the OS Dithyramba directory.",
+        ),
+    ] = None,
+    recent_runs: Annotated[
+        int,
+        typer.Option(
+            "--recent-runs",
+            min=1,
+            max=100,
+            help="Number of recent ProcessingRuns to include.",
+        ),
+    ] = 10,
+    json_output: Annotated[bool, typer.Option("--json", help="Emit canonical JSON.")] = False,
+) -> None:
+    """Describe one verified Library without reading source text."""
+
+    with open_library(library, data_root=data_home) as repository:
+        description = repository.describe(recent_run_limit=recent_runs)
+        payload = _library_description_payload(
+            description,
+            schema_version=repository.schema_version,
+            schema_fingerprint=repository.schema_fingerprint,
+        )
+    counts = description.counts
+    _emit(
+        payload,
+        json_output=json_output,
+        human_lines=(
+            f"library_id: {library}",
+            f"name: {description.library.config.name}",
+            "status: ok",
+            f"collections: {counts.collections}",
+            f"sources: {counts.sources}",
+            f"source_fragments: {counts.source_fragments}",
+            f"snapshots: {counts.corpus_snapshots}",
+            f"research_sessions: {counts.research_sessions}",
+            "external_services_contacted: false",
+            "backup_tracking: external_bundle",
+        ),
     )
 
 
@@ -1744,6 +1796,74 @@ def _library_record_payload(record: LibraryRecord) -> dict[str, object]:
         "logical_identity_hash": record.logical_identity_hash,
         "name": record.config.name,
         "path": str(record.paths.root),
+    }
+
+
+def _library_description_payload(
+    description: LibraryDescription,
+    *,
+    schema_version: int,
+    schema_fingerprint: str,
+) -> dict[str, object]:
+    if type(description) is not LibraryDescription:
+        raise TypeError("Library description requires an exact LibraryDescription")
+    counts = description.counts
+    return {
+        "schema": "dithyramba.library_description/1.0",
+        "library": _library_record_payload(description.library),
+        "health": {
+            "status": "ok",
+            "schema_version": schema_version,
+            "schema_fingerprint": schema_fingerprint,
+            "fts5_available": _fts5_available(),
+            "external_services_contacted": False,
+        },
+        "counts": {
+            "collections": counts.collections,
+            "access_policies": counts.access_policies,
+            "sources": counts.sources,
+            "source_versions": counts.source_versions,
+            "source_fragments": counts.source_fragments,
+            "collection_memberships": counts.collection_memberships,
+            "corpus_snapshots": counts.corpus_snapshots,
+            "snapshot_members": counts.snapshot_members,
+            "evidence_packets": counts.evidence_packets,
+            "research_sessions": counts.research_sessions,
+            "processing_runs": counts.processing_runs,
+        },
+        "collections": [_collection_payload(record) for record in description.collections],
+        "access_policies": [_policy_payload(record) for record in description.access_policies],
+        "snapshots": [
+            {
+                "corpus_snapshot_id": record.corpus_snapshot_id,
+                "manifest_hash": record.manifest_hash,
+                "collection_ids": list(record.collection_ids),
+                "member_count": record.member_count,
+                "created_at": record.created_at,
+            }
+            for record in description.snapshots
+        ],
+        "recent_processing_runs": [
+            _processing_run_payload(record) for record in description.recent_processing_runs
+        ],
+        "backup_tracking": {
+            "mode": "external_bundle",
+            "registered_in_library": False,
+        },
+    }
+
+
+def _processing_run_payload(record: ProcessingRunRecord) -> dict[str, object]:
+    return {
+        "processing_run_id": record.processing_run_id,
+        "kind": record.kind,
+        "status": record.status.value,
+        "code_version": record.code_version,
+        "profile_version": record.profile_version,
+        "started_at": record.started_at,
+        "finished_at": record.finished_at,
+        "error_code": record.error_code,
+        "output_hash": record.output_hash,
     }
 
 

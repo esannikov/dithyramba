@@ -192,13 +192,11 @@ query strings, and fragments. The same safe locator is included in the stable
 JSON projection. If the Source has no stored title, the human label falls back
 to this locator rather than the raw canonical URI.
 
-On the M1 PhD stress corpus (622 active sources and 263,363 exact fragments), a
-two-question process measured 56.887 s to prepare the cold scope, 72.647 s for
-the first fully audited completion, and 13.557 s for the second question in the
-same authorized session. Session Lens projected four journal events and 24
-evidence fragments in 0.062–0.064 s with a stable projection hash. These are
-operational measurements, not retrieval-quality or scholarly-validity claims;
-all phases used zero LLM calls or tokens.
+Large-Library testing confirmed the intended shape: cold scope preparation is
+the expensive step, later questions reuse the same authorized session, and
+Session Lens renders the compact journal without reconstructing the entire
+corpus audit. These are operational properties, not retrieval-quality or
+research-validity claims; the stable path uses zero model calls or tokens.
 
 ## Failure semantics
 

@@ -40,6 +40,19 @@ uv run dithyramba library doctor \
   --data-home /absolute/private/dithyramba
 ```
 
+For a compact resumable overview that does not read source text:
+
+```bash
+uv run dithyramba library describe \
+  --library <library-id> \
+  --data-home /absolute/private/dithyramba \
+  --json
+```
+
+This is the best first call for an agent: it reports counts, Collections,
+policies, snapshots, and recent processing runs before any corpus passage is
+loaded into context.
+
 ## 3. Add one or more Collections
 
 A Collection is a logical scope inside the Library. Keep primary material and
