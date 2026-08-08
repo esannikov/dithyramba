@@ -216,7 +216,7 @@ the system rather than individual projects.
 | Two labeled retrieval suites | exact fragment @10: 58–82%; correct source @10: 87–96% | The right document is often found before the exact passage; passage drill-down remains necessary. |
 | Deterministic replay | 16/16 sampled cold replays and 30/30 fresh-corpus replays | Stored packets and source addresses can be reproduced exactly. |
 | Default model cost | 0 model calls; 0 model tokens | Ingest, FTS recall, gates, packets, and replay are local and deterministic. |
-| Engineering gate | 1,924 collected; 1,922 passed; 2 host-dependent skips; 95.16% combined coverage | The current implementation is broadly exercised; this does not validate research conclusions. |
+| Engineering gate | 1,927 collected; 1,925 passed; 2 host-dependent skips; 95.18% combined coverage | The current implementation is broadly exercised; this does not validate research conclusions. |
 
 The retrieval ranges combine different frozen internal test sets and are not a
 cross-domain leaderboard; the scale maxima also come from different runs. An
@@ -295,9 +295,9 @@ uv build
 ./scripts/acceptance.sh --quick
 ```
 
-The current candidate collects 1,924 tests: 1,922 pass and two host-dependent
+The current candidate collects 1,927 tests: 1,925 pass and two host-dependent
 checks skip in the canonical local environment. It also passes strict typing,
-terminology checks, and the 95.16% combined-coverage gate. Clean-install
+terminology checks, and the 95.18% combined-coverage gate. Clean-install
 acceptance verifies the schema, Lens assets, deterministic replay, and both
 source and wheel builds in an isolated environment.
 
