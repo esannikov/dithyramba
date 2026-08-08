@@ -107,7 +107,11 @@ class CandidateNoiseReason(StrEnum):
 
 
 class CandidateQualityAssessment(BaseModel):
-    """Auditable, content-addressable decision for one retrieved fragment."""
+    """Auditable, content-addressable quality decision for one retrieved fragment.
+
+    The retained v1 ``admitted`` field means eligible to be offered to the
+    EvidenceCoverageGate. It does not mean evidence acceptance or human review.
+    """
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 

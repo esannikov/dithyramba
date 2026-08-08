@@ -30,6 +30,7 @@ from dithyramba.lexical import fold_lexical_text, folded_literal_present_in_fold
 _KEY_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,127}$")
 _FRAGMENT_ID_PATTERN = re.compile(r"^fragment_[a-z0-9]+(?:_[a-z0-9]+)*$")
 _REFERENCE_PATTERN = re.compile(r"^[a-z][a-z0-9]+(?:_[a-z0-9]+)*$")
+_SPACE_PATTERN = re.compile(r"\s+")
 
 
 class EvidenceGateContractError(ValueError):
@@ -63,7 +64,11 @@ class _FrozenContract(BaseModel):
 
 
 class EvidenceCandidate(_FrozenContract):
-    """One exact retrieved fragment plus source-role metadata used by the gate."""
+    """One exact retrieved fragment plus source-role metadata used by the gate.
+
+    ``source_family`` retains its v1 public name but contains the canonical
+    SourceFamily identifier, equivalent to ``source_family_id`` elsewhere.
+    """
 
     rank: int = Field(ge=1, le=10_000)
     source_fragment_id: str
@@ -192,18 +197,18 @@ class EvidenceRequirement(_FrozenContract):
 
     @model_validator(mode="after")
     def _has_a_real_condition(self) -> EvidenceRequirement:
-        positive_selectors = (
+        selectors = (
             self.allowed_source_ids,
             self.source_kinds_any,
             self.source_families_any,
             self.authorities_any,
             self.anchor_groups,
             self.required_tags,
+            self.forbidden_anchors,
         )
-        if not any(positive_selectors):
+        if not any(selectors):
             raise EvidenceGateContractError(
-                "EvidenceRequirement must declare at least one exact condition, "
-                "including one positive condition"
+                "EvidenceRequirement must declare at least one exact condition"
             )
         return self
 
@@ -241,7 +246,9 @@ class EvidenceGateSpec(_FrozenContract):
     expected_answerability: EvidenceAnswerability
     requirements: tuple[EvidenceRequirement, ...]
     min_total_independent_groups: int = Field(default=1, ge=1, le=50)
-    matching_profile: Literal["exact_fragment_unicode_v1"] = "exact_fragment_unicode_v1"
+    matching_profile: Literal["exact_fragment_unicode_v1", "exact_fragment_unicode_v2"] = (
+        "exact_fragment_unicode_v2"
+    )
 
     @field_validator("query_key")
     @classmethod
@@ -275,6 +282,21 @@ class EvidenceGateSpec(_FrozenContract):
         if len({item.key for item in ordered}) != len(ordered):
             raise EvidenceGateContractError("requirement keys must be unique")
         return ordered
+
+    @model_validator(mode="after")
+    def _profile_contract(self) -> EvidenceGateSpec:
+        if self.matching_profile == "exact_fragment_unicode_v2":
+            negative_only = tuple(
+                requirement.key
+                for requirement in self.requirements
+                if not _has_positive_condition(requirement)
+            )
+            if negative_only:
+                raise EvidenceGateContractError(
+                    "exact_fragment_unicode_v2 requires a positive condition in every requirement: "
+                    + ", ".join(negative_only)
+                )
+        return self
 
     def semantic_payload(self) -> dict[str, object]:
         return {
@@ -408,7 +430,8 @@ class EvidenceCoverageGate:
         fragment_ids = [candidate.source_fragment_id for candidate in candidates]
         if len(set(fragment_ids)) != len(fragment_ids):
             raise EvidenceGateContractError("candidate fragment IDs must be unique")
-        _validate_candidate_lineage(candidates)
+        if self._spec.matching_profile == "exact_fragment_unicode_v2":
+            _validate_candidate_lineage(candidates)
         ordered = tuple(
             sorted(
                 candidates,
@@ -474,7 +497,14 @@ class EvidenceCoverageGate:
         requirement: EvidenceRequirement,
         candidates: tuple[EvidenceCandidate, ...],
     ) -> RequirementCoverage:
-        assessments = tuple(_assess_candidate(requirement, candidate) for candidate in candidates)
+        assessments = tuple(
+            _assess_candidate(
+                requirement,
+                candidate,
+                matching_profile=self._spec.matching_profile,
+            )
+            for candidate in candidates
+        )
         matched_candidates = tuple(
             candidate
             for candidate, assessment in zip(candidates, assessments, strict=True)
@@ -528,6 +558,8 @@ class EvidenceCoverageGate:
 def _assess_candidate(
     requirement: EvidenceRequirement,
     candidate: EvidenceCandidate,
+    *,
+    matching_profile: str,
 ) -> CandidateAssessment:
     rejection_codes: list[str] = []
     if requirement.allowed_source_ids and candidate.source_id not in requirement.allowed_source_ids:
@@ -545,18 +577,16 @@ def _assess_candidate(
     ):
         rejection_codes.append("wrong_authority")
 
-    normalized_text = fold_lexical_text(candidate.text)
+    normalized_text = _fold_literal_text(candidate.text, matching_profile)
     for index, group in enumerate(requirement.anchor_groups, start=1):
-        if not any(
-            folded_literal_present_in_folded_text(normalized_text, anchor) for anchor in group
-        ):
+        if not any(_literal_present(normalized_text, anchor, matching_profile) for anchor in group):
             rejection_codes.append(f"missing_anchor_group_{index}")
     candidate_tags = {_match_text(tag) for tag in candidate.evidence_tags}
     for tag in requirement.required_tags:
         if _match_text(tag) not in candidate_tags:
             rejection_codes.append(f"missing_tag_{tag}")
     if any(
-        folded_literal_present_in_folded_text(normalized_text, anchor)
+        _literal_present(normalized_text, anchor, matching_profile)
         for anchor in requirement.forbidden_anchors
     ):
         rejection_codes.append("forbidden_anchor_present")
@@ -593,9 +623,35 @@ def _matches_selector(value: str, choices: tuple[str, ...]) -> bool:
 
 
 def _match_text(value: str) -> str:
-    """Fold selector text with the shared lexical comparison profile."""
+    """Preserve the v1 selector comparison used by versioned requirements."""
 
+    normalized = unicodedata.normalize("NFKC", value).casefold().replace("\u00ad", "")
+    return _SPACE_PATTERN.sub(" ", normalized).strip()
+
+
+def _fold_literal_text(value: str, matching_profile: str) -> str:
+    if matching_profile == "exact_fragment_unicode_v1":
+        return _match_text(value)
     return fold_lexical_text(value)
+
+
+def _literal_present(folded_text: str, literal: str, matching_profile: str) -> bool:
+    if matching_profile == "exact_fragment_unicode_v1":
+        return _match_text(literal) in folded_text
+    return folded_literal_present_in_folded_text(folded_text, literal)
+
+
+def _has_positive_condition(requirement: EvidenceRequirement) -> bool:
+    return any(
+        (
+            requirement.allowed_source_ids,
+            requirement.source_kinds_any,
+            requirement.source_families_any,
+            requirement.authorities_any,
+            requirement.anchor_groups,
+            requirement.required_tags,
+        )
+    )
 
 
 def _validate_candidate_lineage(candidates: tuple[EvidenceCandidate, ...]) -> None:

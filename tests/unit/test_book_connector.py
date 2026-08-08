@@ -154,10 +154,10 @@ def test_epub_preserves_structural_text_without_polluting_markdown() -> None:
             (
                 "OEBPS/chapter.xhtml",
                 _xhtml(
-                    "<table><tr><td>Measured value</td></tr></table>"
-                    "<dl><dt>Term</dt><dd>Definition</dd></dl>"
-                    "<aside>Scholarly note</aside>"
-                    "<figure><figcaption>Archive caption</figcaption></figure>"
+                    "<table><tr><td><p>Measured value</p></td></tr></table>"
+                    "<dl><dt><p>Term</p></dt><dd><p>Definition</p></dd></dl>"
+                    "<aside><p>Scholarly note</p></aside>"
+                    "<figure><figcaption><p>Archive caption</p></figcaption></figure>"
                 ),
             )
         ]

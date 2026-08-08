@@ -185,6 +185,10 @@ EPUB and FB2 structural blocks; an unknown text-bearing block is disclosed as
 partial projection coverage instead of being silently omitted. The Connector
 does not promote the projection to source evidence by itself.
 
+This book-projection `partial` means representational loss recorded in the
+Connector receipt. It is separate from the evidence gate's `partial`, which
+means that only some declared evidence roles are covered.
+
 ## Versioned core contracts
 
 These schemas are versioned within the v1 release candidate. A schema identifier
@@ -343,6 +347,12 @@ parameters, not a public persisted request contract.
 
 The gate is deterministic and provider-free. It does not estimate truth
 probability.
+
+The default `exact_fragment_unicode_v2` profile uses word-bounded matching,
+preserves non-Latin meaning-bearing marks, requires a positive condition, and
+validates caller-supplied lineage consistency. Explicit v1 replays preserve
+their prior behavior. `EvidenceCandidate.source_family` retains its v1 public
+name but carries the canonical `source_family_id`.
 
 ## Retrieval profile
 

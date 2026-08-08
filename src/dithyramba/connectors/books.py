@@ -974,19 +974,12 @@ def _xml_text_units(
     allowed_blocks = frozenset(block_kinds)
     paths = _xml_paths(root)
     elements = list(root.iter())
-    contains_block: dict[int, bool] = {}
-    for element in reversed(elements):
-        contains_block[id(element)] = any(
-            _local_name(child.tag) in allowed_blocks or contains_block[id(child)]
-            for child in element
-        )
     units: list[_Unit] = []
     selected_element_ids: set[int] = set()
+    covered_element_ids: set[int] = set()
     for element in elements:
         local = _local_name(element.tag)
-        if local not in allowed_blocks:
-            continue
-        if contains_block[id(element)]:
+        if local not in allowed_blocks or id(element) in covered_element_ids:
             continue
         kind = block_kinds[local]
         text = _normalized_text(
@@ -1009,6 +1002,7 @@ def _xml_text_units(
             )
         )
         selected_element_ids.add(id(element))
+        covered_element_ids.update(id(descendant) for descendant in element.iter())
     dropped_tags = _dropped_text_tags(root, selected_element_ids)
     return units, dropped_tags
 

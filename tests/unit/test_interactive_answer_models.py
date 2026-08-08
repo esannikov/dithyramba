@@ -291,7 +291,7 @@ def test_ready_compaction_keeps_required_independent_sources_and_missing_input()
         ("schema", "schema_id"),
         ("duplicate_candidates", "unique fragment IDs"),
         ("duplicate_assessments", "unique fragment IDs"),
-        ("assessment_mismatch", "quality-admitted fragments"),
+        ("assessment_mismatch", "quality-eligible fragments"),
         ("gate_mismatch", "gate_result"),
         ("mode", "response_mode"),
         ("hash", "preparation_hash"),

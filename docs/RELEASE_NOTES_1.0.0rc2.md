@@ -13,11 +13,16 @@ evidence admission.
   omission is named in the processing receipt.
 - Internal Markdown unit comments no longer appear in evidence text. Unit type,
   source coordinate, and character span remain available in the sidecar.
-- One shared lexical profile now serves candidate hygiene and evidence anchors.
-  It is deterministic, case- and diacritic-insensitive, and word-bounded.
-- A negative-only requirement is invalid. Candidate sets with contradictory
+- One shared `nfkd_latin_marks_casefold_v2` lexical fold now serves candidate
+  hygiene and evidence anchors. It is deterministic, case-insensitive, strips
+  Latin diacritics, preserves meaning-bearing marks in Ukrainian and other
+  non-Latin scripts, and remains word-bounded.
+- `exact_fragment_unicode_v2` is the default gate profile. A negative-only
+  requirement is invalid under v2, and candidate sets with contradictory
   SourceFamily or independence lineage fail closed before coverage is counted.
-- The interactive repair branch runs only when an answerable requirement is
+  Explicit `exact_fragment_unicode_v1` replays keep their previous substring,
+  negative-only, and caller-supplied lineage semantics.
+- The interactive source-local drilldown runs only when an answerable requirement is
   genuinely incomplete. Corpus-gap review states are preserved as such.
 
 ## Trust boundary
@@ -35,3 +40,8 @@ checks, access policies, and immutable historical packets are unchanged.
 No schema migration is required. Install the updated package and re-index EPUB
 or FB2 sources when the richer `books/1.2` projection is desired. Existing
 Libraries and prior packet identities remain readable.
+
+For v1 compatibility, `EvidenceCandidate.source_family` keeps its public field
+name while containing the canonical `source_family_id` used elsewhere. Likewise,
+`CandidateQualityAssessment.admitted` means that a fragment is quality-eligible
+to be offered to the gate; it is not evidence acceptance or human review.

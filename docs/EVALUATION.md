@@ -384,10 +384,10 @@ diversity are diagnostics, not answer confidence. The labels are a conservative
 agent audit and require independent human adjudication before any external
 validity claim.
 
-The run caused one product contract repair: `AgentEvidencePacket/1.2` labels
+The run caused one product contract correction: `AgentEvidencePacket/1.2` labels
 raw recall as `retrieved_candidates` and carries exact source/family dominance
 diagnostics. It does not claim that ranking precision improved. Planned repairs
-remain bounded. The answer-route repair now exists: deterministic bibliography/
+remain bounded. The answer-route drilldown now exists: deterministic bibliography/
 index/table/topic-noise guards, conditional source-local drilldown, and
 interactive `EvidenceCoverageGate` binding. Reviewed cross-format source
 identity and human calibration remain open; the engineering checks below do

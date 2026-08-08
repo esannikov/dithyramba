@@ -7,7 +7,7 @@ history belong in dated evaluation reports, not in the product changelog.
 
 No unreleased changes are recorded yet.
 
-## 1.0.0rc2 — 2026-08-04
+## 1.0.0rc2 — 2026-08-08
 
 ### Changed
 
@@ -16,19 +16,26 @@ No unreleased changes are recorded yet.
   disclosed as partial coverage instead of being silently discarded.
 - Projected Markdown no longer injects internal unit-marker comments into
   evidence text; exact locators remain in the immutable sidecar.
-- Evidence and candidate-quality checks now share one deterministic lexical
-  fold. Literal anchors tolerate case and diacritic variants while retaining
-  word boundaries, so a short anchor cannot match inside a longer word.
-- Evidence requirements now need a positive selector, and internally
-  contradictory Source/SourceFamily/independence mappings fail closed.
-- The interactive route performs bounded in-source repair only for `partial`
+- Evidence and candidate-quality checks now share the deterministic
+  `nfkd_latin_marks_casefold_v2` lexical fold. Literal anchors tolerate case and
+  Latin diacritic variants while preserving meaning-bearing marks in Ukrainian
+  and other non-Latin scripts. Word boundaries prevent short anchors from
+  matching inside longer words.
+- `exact_fragment_unicode_v2` is the default gate profile. It requires a
+  positive selector and rejects contradictory Source/SourceFamily/independence
+  mappings. Explicit `exact_fragment_unicode_v1` replays retain the previous
+  substring and negative-only semantics.
+- The interactive route performs bounded in-source drilldown only for `partial`
   or `insufficient` answerable evidence. Preserved and challenged corpus gaps
-  remain explicit review states instead of triggering an irrelevant repair.
+  remain explicit review states instead of triggering an irrelevant drilldown.
 
 ### Compatibility
 
 - No database migration or public schema change is required. Existing
   Libraries remain readable.
+- The v1 `EvidenceCandidate.source_family` field retains its public name and
+  contains the canonical `source_family_id`; `CandidateQualityAssessment.admitted`
+  means quality-eligible for gate evaluation, not evidence or human acceptance.
 - Re-project EPUB and FB2 sources to receive the `books/1.2` completeness
   behavior. Immutable historical packets and strict pre-write replay remain
   unchanged.

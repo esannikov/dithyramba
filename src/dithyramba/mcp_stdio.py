@@ -116,7 +116,7 @@ _TOOLS = (
     _ToolSpec(
         "prepare_answer",
         "Prepare evidence-backed answer",
-        "Filter candidates, repair inside found works, and run EvidenceCoverageGate.",
+        "Filter candidates, drill down inside found works, and run EvidenceCoverageGate.",
         _PrepareAnswerInput,
     ),
     _ToolSpec(
