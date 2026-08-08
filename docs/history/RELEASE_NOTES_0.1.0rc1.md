@@ -2,7 +2,7 @@
 
 > Historical release note. It describes the `0.1.0rc1` package boundary and
 > is not the current package version. Current release notes are in
-> [`../RELEASE_NOTES_1.0.0rc1.md`](../RELEASE_NOTES_1.0.0rc1.md). It retains
+> [`../RELEASE_NOTES_1.0.0rc2.md`](../RELEASE_NOTES_1.0.0rc2.md). It retains
 > its original migration-era verification receipt. The current v1 candidate
 > packages the retained tables in one clean schema baseline and adds scoped
 > cache reuse, stdio MCP, and Session Lens; see the

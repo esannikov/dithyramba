@@ -442,6 +442,25 @@ The decisive tactic is triangulated eyeline control.
                     ),
                 ),
             )
+        challenged_gap = facade.prepare_answer(
+            opened.session_id,
+            evidence_event_id=turn.evidence_event_id,
+            gate_spec=EvidenceGateSpec(
+                query_key="challenged_gap",
+                question="dialogue staging power",
+                expected_answerability=EvidenceAnswerability.NOT_IN_CORPUS,
+                requirements=(
+                    EvidenceRequirement(
+                        key="existing_support",
+                        label="Evidence that challenges the expected gap",
+                        allowed_source_ids=(source_id,),
+                        anchor_groups=(("dialogue staging",), ("power",)),
+                    ),
+                ),
+            ),
+        )
+        assert challenged_gap.gate_result.decision is EvidenceGateDecision.GAP_CHALLENGED
+        assert challenged_gap.drilldown is None
         ready = facade.prepare_answer(
             opened.session_id,
             evidence_event_id=turn.evidence_event_id,

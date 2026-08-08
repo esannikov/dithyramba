@@ -9,10 +9,11 @@ evidence gate.  The rules are deliberately conservative and provider-free.
 from __future__ import annotations
 
 import re
-import unicodedata
 from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from dithyramba.lexical import fold_lexical_text
 
 _TOKEN_PATTERN = re.compile(r"[^\W_]+", re.UNICODE)
 _YEAR_PATTERN = re.compile(r"\b(?:1[5-9]|20)\d{2}[a-z]?\b", re.IGNORECASE)
@@ -106,7 +107,11 @@ class CandidateNoiseReason(StrEnum):
 
 
 class CandidateQualityAssessment(BaseModel):
-    """Auditable, content-addressable decision for one retrieved fragment."""
+    """Auditable, content-addressable quality decision for one retrieved fragment.
+
+    The retained v1 ``admitted`` field means eligible to be offered to the
+    EvidenceCoverageGate. It does not mean evidence acceptance or human review.
+    """
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
@@ -253,7 +258,7 @@ def _has_topic_drift(*, question: str, normalized_text: str) -> bool:
     query_tokens = meaningful_query_tokens(question)
     if not query_tokens:
         return False
-    text_tokens = set(_tokens(normalized_text))
+    text_tokens = set(_TOKEN_PATTERN.findall(normalized_text))
     return not text_tokens.intersection(query_tokens)
 
 
@@ -262,4 +267,4 @@ def _tokens(value: str) -> tuple[str, ...]:
 
 
 def _normalized_text(value: str) -> str:
-    return unicodedata.normalize("NFKC", value).casefold().replace("\u00ad", " ").strip()
+    return fold_lexical_text(value)

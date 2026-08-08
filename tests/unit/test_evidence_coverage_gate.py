@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from typing import Literal
 
 import pytest
 from pydantic import ValidationError
@@ -38,7 +39,7 @@ def _candidate(
     text: str,
     rank: int = 1,
     kind: str = "patent",
-    family: str = "patent",
+    family: str | None = None,
     authority: str = "primary_legal_record",
     group: str | None = None,
     tags: tuple[str, ...] = (),
@@ -50,7 +51,7 @@ def _candidate(
         text=text,
         source_address=_address(start=rank * 100, end=rank * 100 + len(text)),
         source_kind=kind,
-        source_family=family,
+        source_family=f"family_{source}" if family is None else family,
         authority=authority,
         independence_group=source if group is None else group,
         evidence_tags=tags,
@@ -61,6 +62,9 @@ def _spec(
     *requirements: EvidenceRequirement,
     answerability: EvidenceAnswerability = EvidenceAnswerability.ANSWERABLE,
     min_groups: int = 1,
+    matching_profile: Literal[
+        "exact_fragment_unicode_v1", "exact_fragment_unicode_v2"
+    ] = "exact_fragment_unicode_v2",
 ) -> EvidenceGateSpec:
     return EvidenceGateSpec(
         query_key="q_test",
@@ -68,6 +72,7 @@ def _spec(
         expected_answerability=answerability,
         requirements=tuple(requirements),
         min_total_independent_groups=min_groups,
+        matching_profile=matching_profile,
     )
 
 
@@ -296,6 +301,138 @@ def test_forbidden_anchor_blocks_directionally_wrong_fragment() -> None:
     assert "forbidden_anchor_present" in (
         result.requirements[0].closest_candidates[0].rejection_codes
     )
+
+
+def test_negative_only_requirement_is_preserved_in_v1_but_rejected_in_v2() -> None:
+    requirement = EvidenceRequirement(
+        key="negative_only",
+        label="Legacy absence-only selector",
+        forbidden_anchors=("forbidden phrase",),
+    )
+    candidate = _candidate(
+        fragment="fragment_legacy_negative",
+        source="source_legacy_negative",
+        text="A different phrase is present.",
+    )
+
+    legacy = EvidenceCoverageGate(
+        _spec(requirement, matching_profile="exact_fragment_unicode_v1")
+    ).evaluate((candidate,))
+
+    assert legacy.decision is EvidenceGateDecision.READY
+    with pytest.raises((EvidenceGateContractError, ValidationError), match="positive condition"):
+        _spec(requirement)
+
+
+def test_anchor_matching_is_diacritic_insensitive_but_word_bounded() -> None:
+    requirement = EvidenceRequirement(
+        key="location",
+        label="The exact place is present",
+        anchor_groups=(("cote",),),
+    )
+    accented = _candidate(
+        fragment="fragment_accented",
+        source="source_accented",
+        text="The event occurred on the côte.",
+    )
+    substring_only = _candidate(
+        fragment="fragment_substring",
+        source="source_substring",
+        text="The coteau appears in a different account.",
+        rank=2,
+    )
+
+    result = EvidenceCoverageGate(_spec(requirement)).evaluate((substring_only, accented))
+
+    assert result.decision is EvidenceGateDecision.READY
+    assert result.requirements[0].matched_fragment_ids == ("fragment_accented",)
+
+
+def test_v1_substring_semantics_are_replayable_while_v2_is_word_bounded() -> None:
+    requirement = EvidenceRequirement(
+        key="short_anchor",
+        label="A short literal anchor",
+        anchor_groups=(("art",),),
+    )
+    candidate = _candidate(
+        fragment="fragment_substring_only",
+        source="source_substring_only",
+        text="A Kantian artist appears in the index.",
+    )
+
+    legacy = EvidenceCoverageGate(
+        _spec(requirement, matching_profile="exact_fragment_unicode_v1")
+    ).evaluate((candidate,))
+    current = EvidenceCoverageGate(_spec(requirement)).evaluate((candidate,))
+
+    assert legacy.decision is EvidenceGateDecision.READY
+    assert current.decision is EvidenceGateDecision.INSUFFICIENT
+
+
+def test_v2_does_not_merge_ukrainian_letters_during_anchor_matching() -> None:
+    requirement = EvidenceRequirement(
+        key="kyiv",
+        label="The Ukrainian place name is exact",
+        anchor_groups=(("Київ",),),
+    )
+    misspelled = _candidate(
+        fragment="fragment_kyiv_misspelled",
+        source="source_kyiv_misspelled",
+        text="Архівний запис: Киів.",
+    )
+    exact = _candidate(
+        fragment="fragment_kyiv_exact",
+        source="source_kyiv_exact",
+        text="Архівний запис: Київ.",
+        rank=2,
+    )
+
+    result = EvidenceCoverageGate(_spec(requirement)).evaluate((misspelled, exact))
+
+    assert result.decision is EvidenceGateDecision.READY
+    assert result.requirements[0].matched_fragment_ids == ("fragment_kyiv_exact",)
+
+
+def test_conflicting_caller_asserted_lineage_is_rejected() -> None:
+    requirement = EvidenceRequirement(
+        key="corroboration",
+        label="A supported claim",
+        anchor_groups=(("supported claim",),),
+    )
+    first = _candidate(
+        fragment="fragment_lineage_one",
+        source="source_lineage",
+        text="Supported claim.",
+        family="family_lineage",
+        group="root_one",
+    )
+    conflicting_source = _candidate(
+        fragment="fragment_lineage_two",
+        source="source_lineage",
+        text="Supported claim.",
+        rank=2,
+        family="family_lineage",
+        group="root_two",
+    )
+    conflicting_family = _candidate(
+        fragment="fragment_lineage_three",
+        source="source_other",
+        text="Supported claim.",
+        rank=3,
+        family="family_lineage",
+        group="root_two",
+    )
+    gate = EvidenceCoverageGate(_spec(requirement))
+
+    with pytest.raises(EvidenceGateContractError, match="one source_id"):
+        gate.evaluate((first, conflicting_source))
+    with pytest.raises(EvidenceGateContractError, match="one source_family"):
+        gate.evaluate((first, conflicting_family))
+
+    legacy = EvidenceCoverageGate(
+        _spec(requirement, matching_profile="exact_fragment_unicode_v1")
+    ).evaluate((first, conflicting_source))
+    assert legacy.decision is EvidenceGateDecision.READY
 
 
 def test_selectors_and_tags_are_checked_and_receipt_is_deterministic() -> None:

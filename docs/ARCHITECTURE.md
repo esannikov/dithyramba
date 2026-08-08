@@ -252,13 +252,13 @@ AgentEvidencePacket(retrieved_candidates)
 
 The quality guards remove only explicit bibliography/reference headings,
 index-like layouts, table fragments, and candidates with no meaningful query
-overlap. They do not rewrite the persisted ranking receipt. Source-local repair
+overlap. They do not rewrite the persisted ranking receipt. Source-local drilldown
 reuses the exact session scope and searches only already authorized fragments;
 its result is bound into `AgentAnswerPreparation/1.0` and cannot replace the
 original EvidencePacket.
 
 `record_draft` accepts an answer only with an exact preparation. The facade
-repeats filtering, local repair, and the Gate immediately before appending the
+repeats filtering, local drilldown, and the Gate immediately before appending the
 draft, then attaches the original packet and matched exact fragments to the
 session event. A blocked preparation cannot be recorded as an answer. This
 controls the Dithyramba journal boundary; it cannot prevent an external model

@@ -573,7 +573,7 @@ class AgentAnswerPreparation(_InteractiveModel):
             item.source_fragment_id for item in self.quality_assessments if item.admitted
         }
         if {item.source_fragment_id for item in self.candidates} != admitted_ids:
-            raise ValueError("answer candidates must equal quality-admitted fragments")
+            raise ValueError("answer candidates must equal quality-eligible fragments")
         recomputed = EvidenceCoverageGate(self.gate_spec).evaluate(self.candidates)
         if recomputed != self.gate_result:
             raise ValueError("gate_result does not match exact answer candidates")

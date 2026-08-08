@@ -32,9 +32,15 @@ false positives include:
 - a minimum number of independent provenance groups.
 
 Every anchor group is an OR-list, while all groups in one requirement are
-required. All populated metadata selectors are also required. Text matching is
-Unicode-normalized, case-insensitive, whitespace-collapsed exact substring
-matching. It deliberately does not perform semantic inference.
+required. All populated metadata selectors are also required. The default
+`exact_fragment_unicode_v2` profile requires at least one positive selector; a
+forbidden phrase by itself cannot establish evidence. It performs
+case-insensitive, whitespace-collapsed literal matching with word boundaries,
+removes Latin diacritics, and preserves meaning-bearing marks in non-Latin
+scripts. It deliberately does not perform stemming, synonym expansion, or
+semantic inference. Explicit `exact_fragment_unicode_v1` replays retain their
+previous substring and negative-only behavior so historical spec hashes do not
+change meaning.
 
 ## Decisions
 
@@ -84,8 +90,18 @@ result = EvidenceCoverageGate(spec).evaluate(candidates)
 ```
 
 `EvidenceCandidate` requires exact fragment text, a canonical `SourceAddress`,
-source-role metadata, and an independence group. Candidate order does not
-change the canonical result; rank remains part of the input.
+source-role metadata, and an independence group. Its retained v1 field
+`source_family` contains the canonical SourceFamily ID, equivalent to
+`source_family_id` elsewhere. Candidate order does not
+change the canonical result; rank remains part of the input. The evaluator
+under the v2 profile rejects internally contradictory lineage declarations: one Source cannot
+change family or independence group inside a candidate set, and one family
+cannot be split across several independence groups.
+
+This is a consistency check, not external identity verification. The protected
+interactive route derives Source and SourceFamily lineage from the repository.
+Applications that call the pure evaluator directly remain responsible for the
+truth of their supplied lineage labels.
 
 ## Interactive answer boundary
 
@@ -96,11 +112,13 @@ facade and stdio MCP now bind it to the answer route:
 1. `recall` returns `AgentEvidencePacket/1.2` with
    `admission_state: retrieved_candidates`;
 2. `prepare_answer` removes deterministic bibliography, index, table, and
-   no-overlap noise;
+   no-overlap noise; the retained assessment field `admitted` means only
+   quality-eligible to be offered to the Gate;
 3. the Gate evaluates the exact remaining fragments;
-4. if an answerable question is incomplete and the missing requirement has
-   literal anchors, a bounded FTS repair searches inside at most three Sources
-   already found by the broad recall;
+4. if an answerable question is `partial` or `insufficient` and the missing
+   requirement has literal anchors, a bounded FTS drilldown searches inside at
+   most three Sources already found by the broad recall; a deliberately
+   preserved or newly challenged corpus gap does not trigger this drilldown;
 5. the Gate evaluates the combined exact candidates again;
 6. when the result is `ready`, the answer packet is reduced to an
    inclusion-minimal set of Gate-matched fragments: removing any remaining
@@ -143,6 +161,10 @@ For generated prose, the optional `ClaimEvidenceEntailmentGate` and
 `PropositionCoverageGate` provide a separate post-generation boundary. They do
 not turn retrieval scores or literal role coverage into truth; their result and
 any model or human reviewer used by the application must remain disclosed.
+
+`partial` here is an evidence-role coverage decision. It is distinct from a
+book Connector's `partial` projection status, which means that some source text
+could not be represented and was disclosed in the projection receipt.
 
 Corpus-specific replays and measurements remain development evidence. They do
 not establish general retrieval quality or evidence sufficiency.

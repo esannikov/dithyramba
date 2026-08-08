@@ -17,6 +17,7 @@ import sys
 import tempfile
 import unicodedata
 import zipfile
+from collections.abc import Mapping
 from contextlib import suppress
 from dataclasses import dataclass
 from enum import StrEnum
@@ -40,8 +41,35 @@ from dithyramba.ingest.models import (
 from dithyramba.ingest.pdf import PDF_PARSER_REVISION, parse_pdf_source
 
 BOOK_PROJECTION_SCHEMA = "dithyramba.book_projection/1.0"
-BOOK_CONNECTOR_REVISION = "books/1.1"
+BOOK_CONNECTOR_REVISION = "books/1.2"
 _DOCLING_SIDECAR_CONTRACT = "dithyramba.book_docling_sidecar/1.0"
+_EPUB_BLOCK_KINDS: Mapping[str, str] = MappingProxyType(
+    {
+        "h1": "heading",
+        "h2": "heading",
+        "h3": "heading",
+        "h4": "heading",
+        "h5": "heading",
+        "h6": "heading",
+        "p": "paragraph",
+        "li": "list_item",
+        "blockquote": "quotation",
+        "pre": "preformatted",
+        "table": "table",
+        "dl": "definition_list",
+        "aside": "note",
+        "figcaption": "caption",
+    }
+)
+_FB2_BLOCK_KINDS: Mapping[str, str] = MappingProxyType(
+    {
+        "p": "paragraph",
+        "subtitle": "heading",
+        "text-author": "attribution",
+        "v": "verse",
+        "table": "table",
+    }
+)
 _XML_PROLOG_PREFIX = re.compile(
     rb"^(?:\xef\xbb\xbf)?[\x20\t\r\n]*(?:<\?xml[\x20\t\r\n]+[^?<>]*\?>[\x20\t\r\n]*)?$",
     re.ASCII,
@@ -737,7 +765,7 @@ def _project_epub(data: bytes, profile: BookProjectionProfile) -> tuple[list[_Un
                 profile.max_xml_elements,
                 allow_standard_xhtml_doctype=True,
             )
-            document_units = _xml_text_units(
+            document_units, dropped_tags = _xml_text_units(
                 document,
                 locator_base={
                     "archive_path": member_path,
@@ -745,6 +773,7 @@ def _project_epub(data: bytes, profile: BookProjectionProfile) -> tuple[list[_Un
                     "spine_index": spine_index,
                 },
             )
+            warnings.extend(f"dropped_block:{tag}:spine:{spine_index}" for tag in dropped_tags)
             if not document_units:
                 warnings.append(f"empty_spine_item:{spine_index}")
             units.extend(document_units)
@@ -762,11 +791,12 @@ def _project_fb2(data: bytes, profile: BookProjectionProfile) -> tuple[list[_Uni
     if not bodies:
         raise _ProjectionFailure("invalid_fb2_body", "FB2 contains no body")
     for body_index, body in enumerate(bodies):
-        body_units = _xml_text_units(
+        body_units, dropped_tags = _xml_text_units(
             body,
             locator_base={"body_index": body_index, "kind": "fb2"},
-            allowed_blocks=frozenset({"p", "subtitle", "text-author", "v"}),
+            block_kinds=_FB2_BLOCK_KINDS,
         )
+        warnings.extend(f"dropped_block:{tag}:body:{body_index}" for tag in dropped_tags)
         if not body_units:
             warnings.append(f"empty_body:{body_index}")
         units.extend(body_units)
@@ -939,29 +969,25 @@ def _xml_text_units(
     root: Any,
     *,
     locator_base: dict[str, object],
-    allowed_blocks: frozenset[str] = frozenset(
-        {"h1", "h2", "h3", "h4", "h5", "h6", "p", "li", "blockquote", "pre"}
-    ),
-) -> list[_Unit]:
+    block_kinds: Mapping[str, str] = _EPUB_BLOCK_KINDS,
+) -> tuple[list[_Unit], tuple[str, ...]]:
+    allowed_blocks = frozenset(block_kinds)
     paths = _xml_paths(root)
     elements = list(root.iter())
-    contains_block: dict[int, bool] = {}
-    for element in reversed(elements):
-        contains_block[id(element)] = any(
-            _local_name(child.tag) in allowed_blocks or contains_block[id(child)]
-            for child in element
-        )
     units: list[_Unit] = []
+    selected_element_ids: set[int] = set()
+    covered_element_ids: set[int] = set()
     for element in elements:
         local = _local_name(element.tag)
-        if local not in allowed_blocks:
+        if local not in allowed_blocks or id(element) in covered_element_ids:
             continue
-        if contains_block[id(element)]:
-            continue
-        text = _normalized_text(element)
+        kind = block_kinds[local]
+        text = _normalized_text(
+            element,
+            separate_descendants=kind in {"table", "definition_list"},
+        )
         if not text:
             continue
-        kind = "heading" if local.startswith("h") or local == "subtitle" else "paragraph"
         locator = dict(locator_base)
         locator["xml_path"] = paths[id(element)]
         element_id = element.attrib.get("id")
@@ -975,7 +1001,30 @@ def _xml_text_units(
                 locator=MappingProxyType(locator),
             )
         )
-    return units
+        selected_element_ids.add(id(element))
+        covered_element_ids.update(id(descendant) for descendant in element.iter())
+    dropped_tags = _dropped_text_tags(root, selected_element_ids)
+    return units, dropped_tags
+
+
+def _dropped_text_tags(root: Any, selected_element_ids: set[int]) -> tuple[str, ...]:
+    """Report text nodes that are not covered by any projected unit."""
+
+    dropped: set[str] = set()
+    pending = [root]
+    while pending:
+        element = pending.pop()
+        if id(element) in selected_element_ids:
+            continue
+        local = _local_name(element.tag)
+        if element.text is not None and element.text.strip():
+            dropped.add(local)
+        children = list(element)
+        pending.extend(reversed(children))
+        for child in children:
+            if child.tail is not None and child.tail.strip():
+                dropped.add(local)
+    return tuple(sorted(dropped, key=lambda value: value.encode("utf-8")))
 
 
 def _xml_paths(root: Any) -> dict[int, str]:
@@ -1015,8 +1064,9 @@ def _path_tag(namespace: str, local: str) -> str:
     return f"{{{namespace}}}{local}" if namespace else local
 
 
-def _normalized_text(element: Any) -> str:
-    text = " ".join("".join(element.itertext()).split())
+def _normalized_text(element: Any, *, separate_descendants: bool = False) -> str:
+    parts = tuple(element.itertext())
+    text = " ".join((" ".join(parts) if separate_descendants else "".join(parts)).split())
     return unicodedata.normalize("NFC", text).strip()
 
 
@@ -1045,7 +1095,7 @@ def _render_markdown(source_name: str, units: list[_Unit]) -> tuple[str, list[di
     offset = len(chunks[0])
     sidecar_units: list[dict[str, object]] = []
     for ordinal, unit in enumerate(units):
-        prefix = "## " if unit.kind == "heading" else f"<!-- unit:{ordinal} {unit.label} -->\n"
+        prefix = "## " if unit.kind == "heading" else ""
         chunks.append(prefix)
         offset += len(prefix)
         text_start = offset

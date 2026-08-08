@@ -1,6 +1,6 @@
 # Contributing
 
-Dithyramba `1.0.0rc1` is a release candidate. Small, evidence-backed changes are
+Dithyramba `1.0.0rc2` is a release candidate. Small, evidence-backed changes are
 easier to review than broad framework additions.
 
 ## Before changing code

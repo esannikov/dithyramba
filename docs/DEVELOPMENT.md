@@ -1,6 +1,6 @@
 # Development
 
-Dithyramba package metadata is `1.0.0rc1`; the package is the v1 release
+Dithyramba package metadata is `1.0.0rc2`; the package is the v1 release
 candidate with one clean SQLite baseline and interactive sessions. This guide
 covers work from a repository checkout; it does not define a public
 compatibility promise.
@@ -197,7 +197,7 @@ low-level migration/test/backup seam and must not become a corpus-facing API.
 
 ## Release boundary
 
-This repository is the `1.0.0rc1` release candidate. Clean-install acceptance
+This repository is the `1.0.0rc2` release candidate. Clean-install acceptance
 establishes that the checkout, demo, tests, build, wheel, and sdist agree in one
 recorded environment. It does not establish semantic accuracy, source truth,
 human usefulness, production security, or compatibility beyond the declared

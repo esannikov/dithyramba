@@ -447,7 +447,7 @@ class RecallService:
     ) -> SourceLocalDrilldownResult:
         """Search only inside named Sources from one existing authorized scope.
 
-        This is an answer-route repair, not a replacement retrieval receipt. The
+        This is an answer-route drilldown, not a replacement retrieval receipt. The
         original broad FTS packet remains immutable; callers must bind any local
         candidates to a subsequent evidence gate before using them in an answer.
         """

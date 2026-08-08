@@ -250,7 +250,7 @@ class AgentResearchFacade:
         evidence_event_id: str,
         gate_spec: EvidenceGateSpec,
     ) -> AgentAnswerPreparation:
-        """Filter, repair and gate one recall turn before answer generation."""
+        """Filter, drill down and gate one recall turn before answer generation."""
 
         if type(gate_spec) is not EvidenceGateSpec:
             raise TypeError("prepare_answer requires an exact EvidenceGateSpec")
@@ -296,28 +296,28 @@ class AgentResearchFacade:
                 strict=True,
             )
         )
-        candidates, assessments = self._quality_admitted_candidates(
+        candidates, assessments = self._quality_eligible_candidates(
             broad_items,
             question=request.question,
         )
         gate_result = EvidenceCoverageGate(gate_spec).evaluate(candidates)
         drilldown_projection: AgentSourceDrilldown | None = None
 
-        if gate_result.decision not in {
-            EvidenceGateDecision.READY,
-            EvidenceGateDecision.GAP_PRESERVED,
+        if gate_result.decision in {
+            EvidenceGateDecision.PARTIAL,
+            EvidenceGateDecision.INSUFFICIENT,
         }:
             source_ids = _first_source_ids(
                 tuple(reference.source_id for _fragment, reference in broad_items),
                 limit=_DRILLDOWN_SOURCE_LIMIT,
             )
-            repair_query = _repair_query(gate_spec, gate_result)
-            if source_ids and repair_query:
+            drilldown_query = _drilldown_query(gate_spec, gate_result)
+            if source_ids and drilldown_query:
                 scope_session = self._scope_session(session_id, request)
                 local = self._recall.source_local_drilldown(
                     request,
                     scope_session,
-                    question=repair_query,
+                    question=drilldown_query,
                     source_ids=source_ids,
                     max_candidates=_DRILLDOWN_CANDIDATE_LIMIT,
                 )
@@ -325,9 +325,9 @@ class AgentResearchFacade:
                     (fragment, self._source_reference_from_text(fragment))
                     for fragment in local.fragments
                 )
-                local_candidates, local_assessments = self._quality_admitted_candidates(
+                local_candidates, local_assessments = self._quality_eligible_candidates(
                     local_items,
-                    question=repair_query,
+                    question=drilldown_query,
                     starting_rank=len(candidates) + 1,
                     excluded_fragment_ids={item.source_fragment_id for item in assessments},
                 )
@@ -339,7 +339,7 @@ class AgentResearchFacade:
                 )
                 gate_result = EvidenceCoverageGate(gate_spec).evaluate(candidates)
                 drilldown_projection = AgentSourceDrilldown.create(
-                    question=repair_query,
+                    question=drilldown_query,
                     source_ids=local.source_ids,
                     retrieval_result_hash=local.result.result_hash,
                     candidate_count=local.result.candidate_count,
@@ -627,7 +627,7 @@ class AgentResearchFacade:
             canonical_uri=source.canonical_uri,
         )
 
-    def _quality_admitted_candidates(
+    def _quality_eligible_candidates(
         self,
         items: tuple[
             tuple[EvidenceFragment | SourceFragmentText, AgentSourceReference],
@@ -714,7 +714,7 @@ def _first_source_ids(values: tuple[str, ...], *, limit: int) -> tuple[str, ...]
     return tuple(selected)
 
 
-def _repair_query(gate_spec: EvidenceGateSpec, gate_result: object) -> str | None:
+def _drilldown_query(gate_spec: EvidenceGateSpec, gate_result: object) -> str | None:
     missing_ids = set(getattr(gate_result, "missing_requirement_ids", ()))
     raw = " ".join(
         anchor

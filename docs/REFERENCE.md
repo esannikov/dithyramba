@@ -1,6 +1,6 @@
 # Dithyramba reference
 
-This reference describes `1.0.0rc1`, the current v1 release candidate. The
+This reference describes `1.0.0rc2`, the current v1 release candidate. The
 command itself is authoritative for exact
 options and defaults:
 
@@ -21,7 +21,7 @@ uv run dithyramba <command> --help
 | Embedding or reranking runtime | not included in v1 |
 | Optional ontology extra | `numpy>=2,<3`; `scikit-learn>=1.8,<2` |
 | Current database schema | one v1 baseline (`0001_v1.sql`) |
-| Package version | `1.0.0rc1` |
+| Package version | `1.0.0rc2` |
 
 ## Command inventory
 
@@ -179,8 +179,15 @@ documented meaning, while transport details may still change before stable
 | `.epub` | book Connector only | spine item and local range |
 | `.fb2` | book Connector only | XML structure and local range |
 
-The book Connector returns Markdown plus a canonical sidecar. It does not
-promote the projection to source evidence by itself.
+The book Connector returns readable Markdown plus a canonical sidecar with
+typed units and exact local ranges. The `books/1.2` profile preserves common
+EPUB and FB2 structural blocks; an unknown text-bearing block is disclosed as
+partial projection coverage instead of being silently omitted. The Connector
+does not promote the projection to source evidence by itself.
+
+This book-projection `partial` means representational loss recorded in the
+Connector receipt. It is separate from the evidence gate's `partial`, which
+means that only some declared evidence roles are covered.
 
 ## Versioned core contracts
 
@@ -340,6 +347,12 @@ parameters, not a public persisted request contract.
 
 The gate is deterministic and provider-free. It does not estimate truth
 probability.
+
+The default `exact_fragment_unicode_v2` profile uses word-bounded matching,
+preserves non-Latin meaning-bearing marks, requires a positive condition, and
+validates caller-supplied lineage consistency. Explicit v1 replays preserve
+their prior behavior. `EvidenceCandidate.source_family` retains its v1 public
+name but carries the canonical `source_family_id`.
 
 ## Retrieval profile
 

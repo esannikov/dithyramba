@@ -148,6 +148,57 @@ def test_epub_reports_partial_when_a_spine_item_has_no_text() -> None:
     assert "Readable" in projection.markdown
 
 
+def test_epub_preserves_structural_text_without_polluting_markdown() -> None:
+    data = _epub(
+        [
+            (
+                "OEBPS/chapter.xhtml",
+                _xhtml(
+                    "<table><tr><td><p>Measured value</p></td></tr></table>"
+                    "<dl><dt><p>Term</p></dt><dd><p>Definition</p></dd></dl>"
+                    "<aside><p>Scholarly note</p></aside>"
+                    "<figure><figcaption><p>Archive caption</p></figcaption></figure>"
+                ),
+            )
+        ]
+    )
+
+    projection = project_book(BookSource("apparatus.epub", BookMediaType.EPUB, data))
+    payload = _payload(projection)
+
+    assert projection.status is BookProjectionStatus.COMPLETE
+    assert payload["warnings"] == []
+    assert [item["kind"] for item in payload["units"]] == [
+        "table",
+        "definition_list",
+        "note",
+        "caption",
+    ]
+    assert all(
+        text in projection.markdown
+        for text in ("Measured value", "Term Definition", "Scholarly note", "Archive caption")
+    )
+    assert "<!-- unit:" not in projection.markdown
+
+
+def test_epub_reports_unknown_dropped_text_as_partial() -> None:
+    data = _epub(
+        [
+            (
+                "OEBPS/chapter.xhtml",
+                _xhtml("<custom>Unclassified text</custom><p>Retained text</p>"),
+            )
+        ]
+    )
+
+    projection = project_book(BookSource("unknown.epub", BookMediaType.EPUB, data))
+
+    assert projection.status is BookProjectionStatus.PARTIAL
+    assert _payload(projection)["warnings"] == ["dropped_block:custom:spine:0"]
+    assert "Unclassified text" not in projection.markdown
+    assert "Retained text" in projection.markdown
+
+
 @pytest.mark.parametrize(
     ("extra", "expected_code"),
     [
@@ -267,6 +318,19 @@ def test_fb2_projection_follows_document_order_and_rejects_dtd() -> None:
     assert _failure_code(BookSource("unsafe.fb2", BookMediaType.FB2, unsafe)) == (
         "unsafe_or_invalid_xml"
     )
+
+
+def test_fb2_table_text_is_preserved_as_a_typed_unit() -> None:
+    fb2 = (
+        b'<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">'
+        b"<body><table><tr><td>Cell value</td></tr></table></body></FictionBook>"
+    )
+
+    projection = project_book(BookSource("table.fb2", BookMediaType.FB2, fb2))
+
+    assert projection.status is BookProjectionStatus.COMPLETE
+    assert "Cell value" in projection.markdown
+    assert _payload(projection)["units"][0]["kind"] == "table"
 
 
 def test_pdf_delegates_to_isolated_parser_and_keeps_page_bbox(

@@ -78,6 +78,16 @@ def test_substantive_prose_with_query_anchors_is_admitted() -> None:
     assert result.reasons == ()
 
 
+def test_diacritic_variant_found_by_fts_is_not_rejected_as_topic_drift() -> None:
+    result = _assessment(
+        "La mise en scène travaille depuis le côté du cadre.",
+        question="Comment le cote du cadre organise-t-il la scène?",
+    )
+
+    assert result.admitted is True
+    assert CandidateNoiseReason.TOPIC_DRIFT not in result.reasons
+
+
 def test_duplicate_noise_reasons_are_rejected() -> None:
     with pytest.raises(ValidationError, match="must be unique"):
         CandidateQualityAssessment(
