@@ -494,11 +494,12 @@ replace Dithyramba's default PDF route.
 
 ## Engineering verification
 
-The current v1 candidate collects 1,927 engineering tests. In its
-canonical local gate:
+The current v1 candidate runs the complete engineering suite. In its canonical
+gate:
 
-- 1,925 passed with two host-dependent skips;
-- branch-aware combined coverage was `95.18%` at a strict `95.00%` gate;
+- all required tests must pass, with any host-dependent skips reported rather
+  than hidden;
+- branch-aware combined coverage must meet the strict `95.00%` threshold;
 - terminology, format, lint, and strict typing passed;
 - the dependency audit found no known vulnerabilities;
 - a separate sdist-to-wheel closure installed non-editably in isolated Python
@@ -512,8 +513,10 @@ canonical local gate:
   document hits, source coordinates, and exact replays.
 
 Format, lint, terminology, strict typing, fixture validation, and the
-release-surface audit are separate gates. These are engineering signals, not
-research-quality metrics.
+release-surface audit are separate gates. Exact test counts and coverage values
+belong to the commit-bound release acceptance record because randomized test
+paths and environment details can change the measured total. These are
+engineering signals, not research-quality metrics.
 
 ## What remains unproven
 

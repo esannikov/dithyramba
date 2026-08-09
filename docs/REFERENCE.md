@@ -1,6 +1,6 @@
 # Dithyramba reference
 
-This reference describes `1.0.0rc2`, the current v1 release candidate. The
+This reference describes `1.0.0rc3`, the current v1 release candidate. The
 command itself is authoritative for exact
 options and defaults:
 
@@ -21,7 +21,16 @@ uv run dithyramba <command> --help
 | Embedding or reranking runtime | not included in v1 |
 | Optional ontology extra | `numpy>=2,<3`; `scikit-learn>=1.8,<2` |
 | Current database schema | one v1 baseline (`0001_v1.sql`) |
-| Package version | `1.0.0rc2` |
+| Package version | `1.0.0rc3` |
+
+## Language scope
+
+Core source preservation and SQLite FTS are Unicode-capable. Release-qualified
+multilingual fixtures and candidate-hygiene rules cover Ukrainian and English;
+other Latin- and Cyrillic-script languages are best-effort until a dated corpus
+evaluation is added. The experimental Candidate Ontology accepts English only.
+Corpora written outside Latin and Cyrillic scripts are outside the current
+product-evaluation scope.
 
 ## Command inventory
 
@@ -213,19 +222,30 @@ The complete public compatibility promise will be frozen at stable `1.0.0`.
 | `ResearchSession` | `dithyramba.research_session/1.0` | immutable Library/snapshot/policy scope |
 | `SessionEvent` | `dithyramba.session_event/1.0` | typed append-only research-journal step |
 
-Interactive transport adds two compact, derived schemas rather than changing
-the durable `EvidencePacket/1.0`:
+Interactive transport adds compact, derived schemas rather than changing the
+durable `EvidencePacket/1.0`:
 
 | View | Schema | Boundary |
 |---|---|---|
 | `AgentSessionContext` | `dithyramba.agent_session_context/1.0` | bounded recent journal state plus explicit omission counts |
 | `AgentEvidencePacket` | `dithyramba.agent_evidence_packet/1.2` | selected exact fragments, readable source references, candidate-only admission state, source-diversity diagnostics, coverage, and IDs/hashes of the full audit receipts |
+| `AgentResearchTurn` | `dithyramba.agent_research_turn/1.2` | one compact evidence packet plus the exact session context that follows it |
+| `AgentSourceDrilldown` | `dithyramba.agent_source_drilldown/1.0` | bounded source-local retrieval query, source IDs, result hash, and selected fragments |
+| `AgentAnswerPreparation` | `dithyramba.agent_answer_preparation/1.1` | exact candidates, hygiene decisions, gate result, optional drilldown, response mode, and preparation profile required before a draft |
 
 `AgentEvidencePacket/1.0` and `/1.1` remain readable for development-session
 replay. Version 1.0 lacks readable source references; version 1.1 has source
 references but predates the explicit `retrieved_candidates` admission state and
 source-diversity diagnostics. The full materialized `ReadReceipt` stays local
 in every version and is reopened only through the strict audit route.
+
+`AgentResearchTurn/1.1` and `AgentAnswerPreparation/1.0` also remain readable.
+Preparation `/1.0` retains the original meaningful-token drilldown behavior;
+`/1.1` declares `candidate_hygiene_v1_literal_drilldown_v2` and therefore keeps
+short explicit anchors such as `AI` and `ШІ`. MCP `tools/list` exposes an
+executable `outputSchema` for every tool. `scripts/contract_receipt.py` records
+those schemas, the CLI command tree, SQLite fingerprint, and checked local
+documentation links against one exact commit.
 
 The v1 baseline includes an internal append-only `CorpusReadSet`: one exact protected
 fragment manifest can be shared by several recall requests over the same
@@ -348,11 +368,13 @@ parameters, not a public persisted request contract.
 The gate is deterministic and provider-free. It does not estimate truth
 probability.
 
-The default `exact_fragment_unicode_v2` profile uses word-bounded matching,
-preserves non-Latin meaning-bearing marks, requires a positive condition, and
-validates caller-supplied lineage consistency. Explicit v1 replays preserve
-their prior behavior. `EvidenceCandidate.source_family` retains its v1 public
-name but carries the canonical `source_family_id`.
+The default `exact_fragment_unicode_v3` profile uses word-bounded matching,
+preserves Latin and Cyrillic letter/diacritic distinctions, treats combining
+marks as word characters, requires a positive condition, and validates
+caller-supplied lineage consistency. Explicit v1 and v2 replays preserve their
+prior behavior; v2 remains Latin-diacritic-insensitive. The supported product
+evaluation scope is Latin and Cyrillic corpora. `EvidenceCandidate.source_family`
+retains its v1 public name but carries the canonical `source_family_id`.
 
 ## Retrieval profile
 

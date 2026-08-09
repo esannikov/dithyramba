@@ -113,7 +113,8 @@ contracts and design decisions inspectable:
 | [Research View](RESEARCH_PROJECTION.md) | How can wider candidate material remain visible without becoming accepted evidence? |
 | [Interactive research memory design](history/INTERACTIVE_RESEARCH_MEMORY_0.2.md) | Historical record: how was continuing agent research separated from evidence and acceptance? |
 | [Interactive-memory implementation history](history/ROADMAP_0.2.md) | Historical record: in what order were sessions, persistence, tools, review, and evaluation built? |
-| [Current v1 release notes](RELEASE_NOTES_1.0.0rc2.md) | What is included in the present package candidate? |
+| [Current v1 release notes](RELEASE_NOTES_1.0.0rc3.md) | What is included in the present package candidate? |
+| [Terminology](TERMINOLOGY.md) | Which names separate retrieval, evidence, drafting, and human review? |
 | [Historical records](history/README.md) | Which documents describe superseded package and architecture milestones? |
 
 ## Maintenance rule

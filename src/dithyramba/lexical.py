@@ -66,8 +66,51 @@ def folded_literal_present_in_folded_text(folded_text: str, literal: str) -> boo
         start = index + 1
 
 
+def normalize_strict_literal_text(value: str) -> str:
+    """Return a case-insensitive projection that preserves letter distinctions.
+
+    The strict evidence route keeps Latin and Cyrillic diacritics and avoids
+    compatibility folding such as German ``ß`` to ``ss``. Soft hyphens remain
+    ignorable layout characters, matching the existing evidence profiles.
+    """
+
+    if type(value) is not str:
+        raise TypeError("literal text must be str")
+    normalized = unicodedata.normalize("NFC", value).lower().replace("\u00ad", "")
+    return _SPACE_PATTERN.sub(" ", normalized).strip()
+
+
+def strict_literal_present_in_normalized_text(normalized_text: str, literal: str) -> bool:
+    """Match one strict literal with Unicode letter/number/mark boundaries."""
+
+    normalized_literal = normalize_strict_literal_text(literal)
+    if not normalized_literal:
+        return False
+    start = 0
+    while True:
+        index = normalized_text.find(normalized_literal, start)
+        if index < 0:
+            return False
+        end = index + len(normalized_literal)
+        before_is_word = index > 0 and _is_strict_word_character(normalized_text[index - 1])
+        after_is_word = end < len(normalized_text) and _is_strict_word_character(
+            normalized_text[end]
+        )
+        literal_starts_word = _is_strict_word_character(normalized_literal[0])
+        literal_ends_word = _is_strict_word_character(normalized_literal[-1])
+        if not (literal_starts_word and before_is_word) and not (
+            literal_ends_word and after_is_word
+        ):
+            return True
+        start = index + 1
+
+
 def _is_word_character(value: str) -> bool:
     return value == "_" or value.isalnum()
+
+
+def _is_strict_word_character(value: str) -> bool:
+    return value == "_" or unicodedata.category(value)[0] in {"L", "M", "N"}
 
 
 def _is_latin_letter(value: str) -> bool:

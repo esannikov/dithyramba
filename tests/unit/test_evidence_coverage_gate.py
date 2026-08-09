@@ -63,8 +63,10 @@ def _spec(
     answerability: EvidenceAnswerability = EvidenceAnswerability.ANSWERABLE,
     min_groups: int = 1,
     matching_profile: Literal[
-        "exact_fragment_unicode_v1", "exact_fragment_unicode_v2"
-    ] = "exact_fragment_unicode_v2",
+        "exact_fragment_unicode_v1",
+        "exact_fragment_unicode_v2",
+        "exact_fragment_unicode_v3",
+    ] = "exact_fragment_unicode_v3",
 ) -> EvidenceGateSpec:
     return EvidenceGateSpec(
         query_key="q_test",
@@ -324,7 +326,7 @@ def test_negative_only_requirement_is_preserved_in_v1_but_rejected_in_v2() -> No
         _spec(requirement)
 
 
-def test_anchor_matching_is_diacritic_insensitive_but_word_bounded() -> None:
+def test_v2_anchor_matching_is_diacritic_insensitive_but_word_bounded() -> None:
     requirement = EvidenceRequirement(
         key="location",
         label="The exact place is present",
@@ -342,10 +344,66 @@ def test_anchor_matching_is_diacritic_insensitive_but_word_bounded() -> None:
         rank=2,
     )
 
-    result = EvidenceCoverageGate(_spec(requirement)).evaluate((substring_only, accented))
+    result = EvidenceCoverageGate(
+        _spec(requirement, matching_profile="exact_fragment_unicode_v2")
+    ).evaluate((substring_only, accented))
 
     assert result.decision is EvidenceGateDecision.READY
     assert result.requirements[0].matched_fragment_ids == ("fragment_accented",)
+
+
+@pytest.mark.parametrize(
+    ("anchor", "different", "exact"),
+    [
+        ("si", "sí", "si"),
+        ("ano", "año", "ano"),
+        ("masse", "Maße", "Masse"),
+        ("Київ", "Киів", "Київ"),
+    ],
+)
+def test_v3_strict_anchor_matching_preserves_letter_and_mark_distinctions(
+    anchor: str,
+    different: str,
+    exact: str,
+) -> None:
+    requirement = EvidenceRequirement(
+        key="strict_literal",
+        label="The strict literal is present",
+        anchor_groups=((anchor,),),
+    )
+    near = _candidate(
+        fragment="fragment_near",
+        source="source_near",
+        text=f"The record says {different}.",
+    )
+    matching = _candidate(
+        fragment="fragment_matching",
+        source="source_matching",
+        text=f"The record says {exact}.",
+        rank=2,
+    )
+
+    result = EvidenceCoverageGate(_spec(requirement)).evaluate((near, matching))
+
+    assert result.decision is EvidenceGateDecision.READY
+    assert result.requirements[0].matched_fragment_ids == ("fragment_matching",)
+
+
+def test_v3_treats_combining_cyrillic_stress_as_part_of_the_word() -> None:
+    requirement = EvidenceRequirement(
+        key="stressed_word",
+        label="The complete stressed word is present",
+        anchor_groups=(("до́",),),
+    )
+    substring = _candidate(
+        fragment="fragment_stressed_substring",
+        source="source_stressed_substring",
+        text="Він повернувся до́ма.",
+    )
+
+    result = EvidenceCoverageGate(_spec(requirement)).evaluate((substring,))
+
+    assert result.decision is EvidenceGateDecision.INSUFFICIENT
 
 
 def test_v1_substring_semantics_are_replayable_while_v2_is_word_bounded() -> None:

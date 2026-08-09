@@ -1,6 +1,6 @@
 # Development
 
-Dithyramba package metadata is `1.0.0rc2`; the package is the v1 release
+Dithyramba package metadata is `1.0.0rc3`; the package is the v1 release
 candidate with one clean SQLite baseline and interactive sessions. This guide
 covers work from a repository checkout; it does not define a public
 compatibility promise.
@@ -52,26 +52,47 @@ a model or service without a measured defect that requires it.
 
 ```bash
 uv run pytest --no-cov \
-  tests/unit/test_fts_pool.py \
+  tests/unit/test_p3_fts.py \
   tests/unit/test_recall_compatibility.py \
-  tests/unit/test_evidence_coverage_gate.py -q
+  tests/unit/test_candidate_quality.py \
+  tests/unit/test_evidence_coverage_gate.py \
+  tests/unit/test_interactive_answer_models.py \
+  tests/integration/test_mcp_stdio.py -q
 uv run ruff format --check \
   src/dithyramba/recall/fts.py \
   src/dithyramba/recall/compatibility.py \
   src/dithyramba/recall/__init__.py \
+  src/dithyramba/recall/quality.py \
+  src/dithyramba/evidence/coverage.py \
+  src/dithyramba/interactive/models.py \
+  src/dithyramba/interactive/service.py \
+  src/dithyramba/mcp_stdio.py \
   tests/unit/test_recall_compatibility.py \
+  tests/unit/test_candidate_quality.py \
   tests/unit/test_evidence_coverage_gate.py
 uv run ruff check \
   src/dithyramba/recall/fts.py \
   src/dithyramba/recall/compatibility.py \
   src/dithyramba/recall/__init__.py \
+  src/dithyramba/recall/quality.py \
+  src/dithyramba/evidence/coverage.py \
+  src/dithyramba/interactive/models.py \
+  src/dithyramba/interactive/service.py \
+  src/dithyramba/mcp_stdio.py \
   tests/unit/test_recall_compatibility.py \
+  tests/unit/test_candidate_quality.py \
   tests/unit/test_evidence_coverage_gate.py
 uv run mypy \
   src/dithyramba/recall/fts.py \
   src/dithyramba/recall/compatibility.py \
   src/dithyramba/recall/__init__.py \
+  src/dithyramba/recall/quality.py \
+  src/dithyramba/evidence/coverage.py \
+  src/dithyramba/interactive/models.py \
+  src/dithyramba/interactive/service.py \
+  src/dithyramba/mcp_stdio.py \
   tests/unit/test_recall_compatibility.py \
+  tests/unit/test_candidate_quality.py \
   tests/unit/test_evidence_coverage_gate.py
 ```
 
@@ -128,8 +149,10 @@ The full gate must run without `--quick` in a clean Linux or macOS checkout:
 ```
 
 Full mode replaces the focused tests with `uv run check` and then verifies both
-built distributions. Record the commit and complete output with any release
-candidate; a successful run on a dirty or different checkout is not equivalent.
+built distributions. It also writes a commit-bound contract receipt under its
+temporary acceptance root. Record the commit and complete output with any
+release candidate; a successful run on a dirty or different checkout is not
+equivalent.
 
 ### Coverage reporting
 
@@ -180,6 +203,7 @@ low-level migration/test/backup seam and must not become a corpus-facing API.
 - `docs/ARCHITECTURE.md`: durable layers and invariants;
 - `docs/HOW_TO_USE.md`: user workflow;
 - `docs/REFERENCE.md`: commands and contracts;
+- `docs/TERMINOLOGY.md`: canonical names across discovery, evidence, drafting, and review;
 - `docs/EXPLANATION.md`: architecture in plain language;
 - `docs/EVIDENCE_COVERAGE_GATE.md`: deterministic evidence sufficiency;
 - `docs/ANSWER_COVERAGE_GATE.md`: answer-facet validation;
@@ -197,7 +221,7 @@ low-level migration/test/backup seam and must not become a corpus-facing API.
 
 ## Release boundary
 
-This repository is the `1.0.0rc2` release candidate. Clean-install acceptance
+This repository is the `1.0.0rc3` release candidate. Clean-install acceptance
 establishes that the checkout, demo, tests, build, wheel, and sdist agree in one
 recorded environment. It does not establish semantic accuracy, source truth,
 human usefulness, production security, or compatibility beyond the declared

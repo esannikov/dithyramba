@@ -5,7 +5,7 @@ type: software
 authors:
   - family-names: Sannikov
     given-names: Eugene
-version: 1.0.0rc2
+version: 1.0.0rc3
 license: Apache-2.0
 repository-code: "https://github.com/esannikov/dithyramba"
 url: "https://github.com/esannikov/dithyramba"

@@ -25,7 +25,12 @@ from dithyramba.ingest import (
     MarkdownSourceAddress,
     PdfSourceAddress,
 )
-from dithyramba.lexical import fold_lexical_text, folded_literal_present_in_folded_text
+from dithyramba.lexical import (
+    fold_lexical_text,
+    folded_literal_present_in_folded_text,
+    normalize_strict_literal_text,
+    strict_literal_present_in_normalized_text,
+)
 
 _KEY_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,127}$")
 _FRAGMENT_ID_PATTERN = re.compile(r"^fragment_[a-z0-9]+(?:_[a-z0-9]+)*$")
@@ -246,9 +251,11 @@ class EvidenceGateSpec(_FrozenContract):
     expected_answerability: EvidenceAnswerability
     requirements: tuple[EvidenceRequirement, ...]
     min_total_independent_groups: int = Field(default=1, ge=1, le=50)
-    matching_profile: Literal["exact_fragment_unicode_v1", "exact_fragment_unicode_v2"] = (
-        "exact_fragment_unicode_v2"
-    )
+    matching_profile: Literal[
+        "exact_fragment_unicode_v1",
+        "exact_fragment_unicode_v2",
+        "exact_fragment_unicode_v3",
+    ] = "exact_fragment_unicode_v3"
 
     @field_validator("query_key")
     @classmethod
@@ -285,7 +292,10 @@ class EvidenceGateSpec(_FrozenContract):
 
     @model_validator(mode="after")
     def _profile_contract(self) -> EvidenceGateSpec:
-        if self.matching_profile == "exact_fragment_unicode_v2":
+        if self.matching_profile in {
+            "exact_fragment_unicode_v2",
+            "exact_fragment_unicode_v3",
+        }:
             negative_only = tuple(
                 requirement.key
                 for requirement in self.requirements
@@ -293,7 +303,7 @@ class EvidenceGateSpec(_FrozenContract):
             )
             if negative_only:
                 raise EvidenceGateContractError(
-                    "exact_fragment_unicode_v2 requires a positive condition in every requirement: "
+                    f"{self.matching_profile} requires a positive condition in every requirement: "
                     + ", ".join(negative_only)
                 )
         return self
@@ -430,7 +440,10 @@ class EvidenceCoverageGate:
         fragment_ids = [candidate.source_fragment_id for candidate in candidates]
         if len(set(fragment_ids)) != len(fragment_ids):
             raise EvidenceGateContractError("candidate fragment IDs must be unique")
-        if self._spec.matching_profile == "exact_fragment_unicode_v2":
+        if self._spec.matching_profile in {
+            "exact_fragment_unicode_v2",
+            "exact_fragment_unicode_v3",
+        }:
             _validate_candidate_lineage(candidates)
         ordered = tuple(
             sorted(
@@ -632,12 +645,16 @@ def _match_text(value: str) -> str:
 def _fold_literal_text(value: str, matching_profile: str) -> str:
     if matching_profile == "exact_fragment_unicode_v1":
         return _match_text(value)
+    if matching_profile == "exact_fragment_unicode_v3":
+        return normalize_strict_literal_text(value)
     return fold_lexical_text(value)
 
 
 def _literal_present(folded_text: str, literal: str, matching_profile: str) -> bool:
     if matching_profile == "exact_fragment_unicode_v1":
         return _match_text(literal) in folded_text
+    if matching_profile == "exact_fragment_unicode_v3":
+        return strict_literal_present_in_normalized_text(folded_text, literal)
     return folded_literal_present_in_folded_text(folded_text, literal)
 
 

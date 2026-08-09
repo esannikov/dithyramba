@@ -15,7 +15,7 @@ from dithyramba.evidence import (
     EvidenceRequirement,
 )
 from dithyramba.interactive import AgentAnswerPreparation, AgentSourceDrilldown
-from dithyramba.interactive.service import _compact_ready_candidates
+from dithyramba.interactive.service import _compact_ready_candidates, _drilldown_query
 from dithyramba.recall import CandidateNoiseReason, CandidateQualityAssessment
 
 HASH_A = "a" * 64
@@ -172,6 +172,49 @@ def test_gap_preparation_has_an_explicit_non_answer_mode() -> None:
     assert preparation.response_mode == "gap"
 
 
+def test_current_drilldown_keeps_short_literal_anchors_and_legacy_replay_does_not() -> None:
+    spec = EvidenceGateSpec(
+        query_key="short_ai_anchor",
+        question="Чи є ШІ та AI?",
+        expected_answerability=EvidenceAnswerability.ANSWERABLE,
+        requirements=(
+            EvidenceRequirement(
+                key="named_terms",
+                label="Both named terms",
+                anchor_groups=(("ШІ",), ("AI",)),
+            ),
+        ),
+    )
+    result = EvidenceCoverageGate(spec).evaluate(())
+
+    current = _drilldown_query(spec, result, preserve_literal_anchors=True)
+    legacy = _drilldown_query(spec, result, preserve_literal_anchors=False)
+
+    assert current is not None
+    assert set(current.split()) == {"ai", "ші"}
+    assert legacy is None
+
+
+def test_answer_preparation_1_0_remains_readable_without_the_new_profile() -> None:
+    current = _ready_preparation()
+    legacy = AgentAnswerPreparation.create(
+        session_id=current.session_id,
+        evidence_event_id=current.evidence_event_id,
+        evidence_packet_id=current.evidence_packet_id,
+        evidence_packet_hash=current.evidence_packet_hash,
+        gate_spec=current.gate_spec,
+        gate_result=current.gate_result,
+        candidates=current.candidates,
+        quality_assessments=current.quality_assessments,
+        drilldown=current.drilldown,
+        schema_id=AgentAnswerPreparation.LEGACY_SCHEMA,
+    )
+    payload = legacy.model_dump(mode="python", exclude_none=True)
+
+    assert "preparation_profile" not in payload
+    assert AgentAnswerPreparation.model_validate(payload) == legacy
+
+
 def test_ready_candidates_are_compacted_to_the_minimal_covering_set() -> None:
     spec = EvidenceGateSpec(
         query_key="compact_ready",
@@ -289,6 +332,7 @@ def test_ready_compaction_keeps_required_independent_sources_and_missing_input()
     ("mutation", "message"),
     [
         ("schema", "schema_id"),
+        ("profile", "preparation_profile"),
         ("duplicate_candidates", "unique fragment IDs"),
         ("duplicate_assessments", "unique fragment IDs"),
         ("assessment_mismatch", "quality-eligible fragments"),
@@ -305,6 +349,8 @@ def test_answer_preparation_rejects_identity_tampering(
     payload: dict[str, Any] = ready.model_dump(mode="python")
     if mutation == "schema":
         payload["schema_id"] = "wrong"
+    elif mutation == "profile":
+        payload["preparation_profile"] = None
     elif mutation == "duplicate_candidates":
         payload["candidates"] = (payload["candidates"][0], payload["candidates"][0])
     elif mutation == "duplicate_assessments":

@@ -32,6 +32,7 @@ from dithyramba.recall import (
     RecallService,
     RetrievalBudget,
     assess_candidate_quality,
+    literal_query_tokens,
     meaningful_query_tokens,
 )
 from dithyramba.sessions import (
@@ -249,11 +250,18 @@ class AgentResearchFacade:
         *,
         evidence_event_id: str,
         gate_spec: EvidenceGateSpec,
+        preparation_schema_id: str | None = None,
     ) -> AgentAnswerPreparation:
         """Filter, drill down and gate one recall turn before answer generation."""
 
         if type(gate_spec) is not EvidenceGateSpec:
             raise TypeError("prepare_answer requires an exact EvidenceGateSpec")
+        selected_preparation_schema = preparation_schema_id or AgentAnswerPreparation.SCHEMA
+        if selected_preparation_schema not in {
+            AgentAnswerPreparation.SCHEMA,
+            AgentAnswerPreparation.LEGACY_SCHEMA,
+        }:
+            raise AgentResearchError("unsupported answer preparation schema")
         session = self._sessions.get_session(session_id)
         evidence_event = next(
             (
@@ -311,7 +319,13 @@ class AgentResearchFacade:
                 tuple(reference.source_id for _fragment, reference in broad_items),
                 limit=_DRILLDOWN_SOURCE_LIMIT,
             )
-            drilldown_query = _drilldown_query(gate_spec, gate_result)
+            drilldown_query = _drilldown_query(
+                gate_spec,
+                gate_result,
+                preserve_literal_anchors=(
+                    selected_preparation_schema == AgentAnswerPreparation.SCHEMA
+                ),
+            )
             if source_ids and drilldown_query:
                 scope_session = self._scope_session(session_id, request)
                 local = self._recall.source_local_drilldown(
@@ -380,6 +394,7 @@ class AgentResearchFacade:
             candidates=candidates,
             quality_assessments=assessments,
             drilldown=drilldown_projection,
+            schema_id=selected_preparation_schema,
         )
 
     def record_draft(
@@ -399,6 +414,7 @@ class AgentResearchFacade:
             session_id,
             evidence_event_id=preparation.evidence_event_id,
             gate_spec=preparation.gate_spec,
+            preparation_schema_id=preparation.schema_id,
         )
         if verified != preparation:
             raise AgentResearchError("answer preparation no longer replays exactly")
@@ -714,7 +730,12 @@ def _first_source_ids(values: tuple[str, ...], *, limit: int) -> tuple[str, ...]
     return tuple(selected)
 
 
-def _drilldown_query(gate_spec: EvidenceGateSpec, gate_result: object) -> str | None:
+def _drilldown_query(
+    gate_spec: EvidenceGateSpec,
+    gate_result: object,
+    *,
+    preserve_literal_anchors: bool,
+) -> str | None:
     missing_ids = set(getattr(gate_result, "missing_requirement_ids", ()))
     raw = " ".join(
         anchor
@@ -723,7 +744,10 @@ def _drilldown_query(gate_spec: EvidenceGateSpec, gate_result: object) -> str | 
         for group in requirement.anchor_groups
         for anchor in group
     )
-    tokens = (*meaningful_query_tokens(raw), *meaningful_query_tokens(gate_spec.question))
+    anchor_tokens = (
+        literal_query_tokens(raw) if preserve_literal_anchors else meaningful_query_tokens(raw)
+    )
+    tokens = (*anchor_tokens, *meaningful_query_tokens(gate_spec.question))
     selected: list[str] = []
     for token in tokens:
         if token not in selected:

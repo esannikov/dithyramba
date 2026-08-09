@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dithyramba"
-version = "1.0.0rc2"
+version = "1.0.0rc3"
 description = "A local, source-grounded interpretive memory engine."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -51,7 +51,7 @@ check = "dithyramba.tooling.checks:main"
 dev = [
   "build>=1.2,<2",
   "hypothesis>=6.125,<7",
-  "httpx>=0.28,<1",
+  "httpx2>=2.10,<3",
   "mypy>=1.14,<2",
   "numpy>=2.0,<3",
   "pip-audit>=2.8,<3",

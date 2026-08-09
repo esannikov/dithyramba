@@ -54,8 +54,9 @@ Quick mode creates an isolated temporary root and then:
 3. builds an sdist, builds the wheel from that sdist, and inspects both;
 4. installs only the wheel into a base-runtime environment;
 5. verifies package origin, SQLite FTS5, migrations, and schema fingerprint;
-6. runs the public demo and the deterministic 1,000-fragment replay;
-7. probes the packaged loopback server.
+6. generates a commit-bound CLI/MCP/schema/documentation contract receipt;
+7. runs the public demo and the deterministic 1,000-fragment replay;
+8. probes the packaged loopback server.
 
 Success ends with:
 
@@ -104,7 +105,7 @@ DITHYRAMBA_KEEP_ACCEPTANCE=1 ./scripts/acceptance.sh --quick 2>&1 \
 Omit `--quick` and use a different log name for the full run. The final output
 prints the retained scratch path. Depending on how far execution reached, it
 contains distribution hashes, migration and health results, demo output,
-server diagnostics, and full-mode PDF and browser logs.
+the contract receipt, server diagnostics, and full-mode PDF and browser logs.
 
 Use the first failing check as the diagnostic boundary. Common failures are an
 unsupported host, incorrect `uv` version, lock drift, a release-audit finding,
