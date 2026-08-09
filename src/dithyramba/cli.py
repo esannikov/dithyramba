@@ -172,10 +172,10 @@ def main(
 
 @app.command()
 def about() -> None:
-    """Describe the current v1 release candidate and its limits."""
+    """Describe the stable v1 release and its limits."""
 
     typer.echo(
-        f"Dithyramba {__version__} is the v1 release candidate with a persisted, "
+        f"Dithyramba {__version__} is the stable v1 release with a persisted, "
         "replayable local FTS evidence route. Engineering acceptance does not establish "
         "research truth or independent human validation; optional synthesis and concept "
         "views remain review-only."

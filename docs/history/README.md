@@ -10,9 +10,11 @@ For current facts, use:
 - [reference](../REFERENCE.md) for commands and contracts;
 - [architecture](../ARCHITECTURE.md) for the current system boundary;
 - [evaluation](../EVALUATION.md) for measured evidence and limitations;
-- [v1 roadmap](../V1_ROADMAP.md) for the remaining stable-release gates;
-- [1.0.0rc3 release notes](../RELEASE_NOTES_1.0.0rc3.md) for the current candidate.
-- [1.0.0rc2 release notes](../RELEASE_NOTES_1.0.0rc2.md) for the previous candidate.
+- [v1 roadmap](../V1_ROADMAP.md) for the stable boundary and post-v1 candidates;
+- [1.0.0 release notes](../RELEASE_NOTES_1.0.0.md) for the current stable release;
+- [1.0.0rc3 release notes](../RELEASE_NOTES_1.0.0rc3.md) for the final candidate;
+- [1.0.0rc2 release notes](../RELEASE_NOTES_1.0.0rc2.md) for the previous candidate;
+- [1.0.0rc1 release notes](../RELEASE_NOTES_1.0.0rc1.md) for the first v1 candidate.
 
 ## Preserved milestones
 

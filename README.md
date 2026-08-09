@@ -16,9 +16,8 @@ on their behalf—who return to the same body of sources over time. It turns a
 local corpus into versioned, addressable evidence packets that can be inspected,
 replayed, challenged, and reused without asking a model to reread everything.
 
-> **Current status:** `1.0.0rc3`, the v1 release candidate. The stable path is a
-> local,
-> replayable source-to-evidence memory with CLI, stdio MCP, and a read-only
+> **Current status:** `1.0.0`, the first stable v1 release. The supported path is
+> a local, replayable source-to-evidence memory with CLI, stdio MCP, and a read-only
 > Lens. Optional synthesis and navigation views remain review-only: they cannot
 > turn generated text into accepted evidence.
 
@@ -267,10 +266,10 @@ responsibility of each directory and package group.
 - [CLI and contract reference](docs/REFERENCE.md)
 - [Evidence coverage explained](docs/EVIDENCE_COVERAGE_GATE.md)
 - [Evidence-grounded reasoning and IdeaTrace](docs/REASONING.md)
-- [1.0.0rc3 release notes](docs/RELEASE_NOTES_1.0.0rc3.md)
+- [1.0.0 release notes](docs/RELEASE_NOTES_1.0.0.md)
 - [Canonical terminology](docs/TERMINOLOGY.md)
 - [Historical design and release records](docs/history/README.md)
-- [Roadmap to stable 1.0.0](docs/V1_ROADMAP.md)
+- [v1 release boundary and post-v1 roadmap](docs/V1_ROADMAP.md)
 - [Development and verification](docs/DEVELOPMENT.md)
 - [Repository and module guide](docs/REPOSITORY_GUIDE.md)
 - [Evaluation evidence and limitations](docs/EVALUATION.md)
@@ -294,7 +293,7 @@ uv run python -m verification.run_public_replay --warmups 1 --measured 2 \
   --output /tmp/dithyramba-public-replay.json
 ```
 
-The current candidate must pass strict typing, terminology checks, the full
+Every release commit must pass strict typing, terminology checks, the full
 test suite, dependency audit, and the `>=95.00%` combined-coverage gate.
 Exact counts and percentages are commit- and environment-bound release
 evidence rather than evergreen documentation.
@@ -314,7 +313,7 @@ wheel builds without making the release tree dirty.
 Passing these checks shows that the implementation behaves as specified by its
 tests. It does not establish historical or scientific truth, nor superiority
 over other research systems. Commit-bound verification results will be recorded
-with each published pre-release after the clean-install run.
+with each published release after the clean-install run.
 
 ## License
 

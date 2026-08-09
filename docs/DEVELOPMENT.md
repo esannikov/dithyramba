@@ -1,7 +1,7 @@
 # Development
 
-Dithyramba package metadata is `1.0.0rc3`; the package is the v1 release
-candidate with one clean SQLite baseline and interactive sessions. This guide
+Dithyramba package metadata is `1.0.0`; the package is the stable v1 release
+with one clean SQLite baseline and interactive sessions. This guide
 covers work from a repository checkout; it does not define a public
 compatibility promise.
 
@@ -221,9 +221,9 @@ low-level migration/test/backup seam and must not become a corpus-facing API.
 
 ## Release boundary
 
-This repository is the `1.0.0rc3` release candidate. Clean-install acceptance
+This repository is the stable `1.0.0` release line. Clean-install acceptance
 establishes that the checkout, demo, tests, build, wheel, and sdist agree in one
 recorded environment. It does not establish semantic accuracy, source truth,
 human usefulness, production security, or compatibility beyond the declared
-v1 release-candidate contracts. Stable `1.0.0` still requires the published
-fresh-install gate recorded in [V1_ROADMAP.md](V1_ROADMAP.md).
+v1 contracts. The release boundary and post-v1 candidates are recorded in
+[V1_ROADMAP.md](V1_ROADMAP.md).
