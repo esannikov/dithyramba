@@ -49,6 +49,7 @@ from .quality import (
     CandidateNoiseReason,
     CandidateQualityAssessment,
     assess_candidate_quality,
+    literal_query_tokens,
     meaningful_query_tokens,
 )
 from .service import (
@@ -126,6 +127,7 @@ __all__ = [
     "assess_candidate_quality",
     "current_fts_runtime_profile",
     "format_fts_score",
+    "literal_query_tokens",
     "meaningful_query_tokens",
     "search_ephemeral_fts",
 ]

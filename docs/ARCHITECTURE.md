@@ -254,8 +254,9 @@ The quality guards remove only explicit bibliography/reference headings,
 index-like layouts, table fragments, and candidates with no meaningful query
 overlap. They do not rewrite the persisted ranking receipt. Source-local drilldown
 reuses the exact session scope and searches only already authorized fragments;
-its result is bound into `AgentAnswerPreparation/1.0` and cannot replace the
-original EvidencePacket.
+its result is bound into `AgentAnswerPreparation/1.1` with an explicit
+preparation profile and cannot replace the original EvidencePacket. Readable
+`/1.0` values retain their original drilldown behavior.
 
 `record_draft` accepts an answer only with an exact preparation. The facade
 repeats filtering, local drilldown, and the Gate immediately before appending the

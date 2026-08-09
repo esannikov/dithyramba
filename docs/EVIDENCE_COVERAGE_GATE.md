@@ -33,14 +33,14 @@ false positives include:
 
 Every anchor group is an OR-list, while all groups in one requirement are
 required. All populated metadata selectors are also required. The default
-`exact_fragment_unicode_v2` profile requires at least one positive selector; a
+`exact_fragment_unicode_v3` profile requires at least one positive selector; a
 forbidden phrase by itself cannot establish evidence. It performs
-case-insensitive, whitespace-collapsed literal matching with word boundaries,
-removes Latin diacritics, and preserves meaning-bearing marks in non-Latin
-scripts. It deliberately does not perform stemming, synonym expansion, or
-semantic inference. Explicit `exact_fragment_unicode_v1` replays retain their
-previous substring and negative-only behavior so historical spec hashes do not
-change meaning.
+case-insensitive, whitespace-collapsed literal matching with Unicode word
+boundaries while preserving Latin and Cyrillic letter and diacritic
+distinctions. Combining marks remain part of a word. It deliberately does not
+perform stemming, synonym expansion, or semantic inference. Explicit
+`exact_fragment_unicode_v1` and `/v2` replays retain their previous behavior;
+v2 remains Latin-diacritic-insensitive and word-bounded.
 
 ## Decisions
 
@@ -94,9 +94,10 @@ source-role metadata, and an independence group. Its retained v1 field
 `source_family` contains the canonical SourceFamily ID, equivalent to
 `source_family_id` elsewhere. Candidate order does not
 change the canonical result; rank remains part of the input. The evaluator
-under the v2 profile rejects internally contradictory lineage declarations: one Source cannot
-change family or independence group inside a candidate set, and one family
-cannot be split across several independence groups.
+under the v2 and v3 profiles rejects internally contradictory lineage
+declarations: one Source cannot change family or independence group inside a
+candidate set, and one family cannot be split across several independence
+groups.
 
 This is a consistency check, not external identity verification. The protected
 interactive route derives Source and SourceFamily lineage from the repository.
@@ -116,7 +117,8 @@ facade and stdio MCP now bind it to the answer route:
    quality-eligible to be offered to the Gate;
 3. the Gate evaluates the exact remaining fragments;
 4. if an answerable question is `partial` or `insufficient` and the missing
-   requirement has literal anchors, a bounded FTS drilldown searches inside at
+   requirement has literal anchors, a bounded FTS drilldown preserves those
+   anchors, including short forms such as `AI` and `ШІ`, and searches inside at
    most three Sources already found by the broad recall; a deliberately
    preserved or newly challenged corpus gap does not trigger this drilldown;
 5. the Gate evaluates the combined exact candidates again;
@@ -127,9 +129,10 @@ facade and stdio MCP now bind it to the answer route:
    `ready`.
 
 The original FTS receipt is never rewritten. The local drilldown is recorded in
-`AgentAnswerPreparation/1.0` with its query, source IDs, result hash, selected
-fragment IDs, and filtered count. The draft event links the original packet and
-the exact matched source fragments.
+`AgentAnswerPreparation/1.1` with its explicit preparation profile, query,
+source IDs, result hash, selected fragment IDs, and filtered count. Readable
+`/1.0` preparations retain their original meaningful-token drilldown behavior.
+The draft event links the original packet and the exact matched source fragments.
 
 The compact answer packet is a projection, not a destructive rewrite. The
 original retrieval packet, local-search receipt, rejected-fragment assessments,

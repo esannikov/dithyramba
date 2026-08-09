@@ -176,6 +176,23 @@ def meaningful_query_tokens(question: str) -> tuple[str, ...]:
     return tuple(tokens)
 
 
+def literal_query_tokens(value: str) -> tuple[str, ...]:
+    """Return every unique token from an explicit caller-owned literal anchor.
+
+    Unlike topic-drift tokens, declared anchors retain short forms such as
+    ``AI`` and ``ШІ``. Retrieval remains bounded by the source-local drilldown.
+    """
+
+    tokens: list[str] = []
+    seen: set[str] = set()
+    for token in _tokens(value):
+        if token in seen:
+            continue
+        seen.add(token)
+        tokens.append(token)
+    return tuple(tokens)
+
+
 def _heading_labels(source_address: dict[str, object]) -> frozenset[str]:
     raw = source_address.get("heading_path")
     if type(raw) is not list or any(type(item) is not str for item in raw):

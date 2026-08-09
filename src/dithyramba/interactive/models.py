@@ -545,9 +545,14 @@ class AgentSourceDrilldown(_InteractiveModel):
 class AgentAnswerPreparation(_InteractiveModel):
     """Gate-bound context that must exist before an answer draft is recorded."""
 
-    SCHEMA: ClassVar[str] = "dithyramba.agent_answer_preparation/1.0"
+    SCHEMA: ClassVar[str] = "dithyramba.agent_answer_preparation/1.1"
+    LEGACY_SCHEMA: ClassVar[str] = "dithyramba.agent_answer_preparation/1.0"
+    PREPARATION_PROFILE: ClassVar[Literal["candidate_hygiene_v1_literal_drilldown_v2"]] = (
+        "candidate_hygiene_v1_literal_drilldown_v2"
+    )
 
     schema_id: str
+    preparation_profile: Literal["candidate_hygiene_v1_literal_drilldown_v2"] | None = None
     preparation_hash: str = Field(pattern=_HASH_PATTERN)
     session_id: str = Field(pattern=_SESSION_ID_PATTERN)
     evidence_event_id: str = Field(pattern=_EVENT_ID_PATTERN)
@@ -562,8 +567,13 @@ class AgentAnswerPreparation(_InteractiveModel):
 
     @model_validator(mode="after")
     def validate_identity(self) -> Self:
-        if self.schema_id != self.SCHEMA:
-            raise ValueError(f"schema_id must be {self.SCHEMA}")
+        if self.schema_id not in {self.SCHEMA, self.LEGACY_SCHEMA}:
+            raise ValueError(f"schema_id must be {self.SCHEMA} or {self.LEGACY_SCHEMA}")
+        if self.schema_id == self.SCHEMA:
+            if self.preparation_profile != self.PREPARATION_PROFILE:
+                raise ValueError(f"preparation_profile must be {self.PREPARATION_PROFILE}")
+        elif self.preparation_profile is not None:
+            raise ValueError("legacy answer preparation cannot declare preparation_profile")
         if len({item.source_fragment_id for item in self.candidates}) != len(self.candidates):
             raise ValueError("answer candidates must have unique fragment IDs")
         assessment_ids = tuple(item.source_fragment_id for item in self.quality_assessments)
@@ -588,7 +598,7 @@ class AgentAnswerPreparation(_InteractiveModel):
         return self
 
     def semantic_payload(self) -> dict[str, object]:
-        return {
+        payload: dict[str, object] = {
             "schema_id": self.schema_id,
             "session_id": self.session_id,
             "evidence_event_id": self.evidence_event_id,
@@ -603,6 +613,9 @@ class AgentAnswerPreparation(_InteractiveModel):
             "drilldown": None if self.drilldown is None else self.drilldown.semantic_payload(),
             "response_mode": self.response_mode,
         }
+        if self.schema_id == self.SCHEMA:
+            payload["preparation_profile"] = self.preparation_profile
+        return payload
 
     @classmethod
     def create(
@@ -617,13 +630,20 @@ class AgentAnswerPreparation(_InteractiveModel):
         candidates: tuple[EvidenceCandidate, ...],
         quality_assessments: tuple[CandidateQualityAssessment, ...],
         drilldown: AgentSourceDrilldown | None,
+        schema_id: str | None = None,
     ) -> AgentAnswerPreparation:
+        selected_schema = schema_id or cls.SCHEMA
+        if selected_schema not in {cls.SCHEMA, cls.LEGACY_SCHEMA}:
+            raise ValueError("unsupported answer preparation schema")
+        preparation_profile: Literal["candidate_hygiene_v1_literal_drilldown_v2"] | None = (
+            cls.PREPARATION_PROFILE if selected_schema == cls.SCHEMA else None
+        )
         response_mode: Literal["answer", "gap", "blocked"] = {
             EvidenceGateDecision.READY: "answer",
             EvidenceGateDecision.GAP_PRESERVED: "gap",
         }.get(gate_result.decision, "blocked")  # type: ignore[assignment]
         semantic: dict[str, object] = {
-            "schema_id": cls.SCHEMA,
+            "schema_id": selected_schema,
             "session_id": session_id,
             "evidence_event_id": evidence_event_id,
             "evidence_packet_id": evidence_packet_id,
@@ -635,8 +655,11 @@ class AgentAnswerPreparation(_InteractiveModel):
             "drilldown": None if drilldown is None else drilldown.semantic_payload(),
             "response_mode": response_mode,
         }
+        if selected_schema == cls.SCHEMA:
+            semantic["preparation_profile"] = preparation_profile
         return cls(
-            schema_id=cls.SCHEMA,
+            schema_id=selected_schema,
+            preparation_profile=preparation_profile,
             preparation_hash=canonical_sha256_hex(semantic),
             session_id=session_id,
             evidence_event_id=evidence_event_id,

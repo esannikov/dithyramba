@@ -16,7 +16,7 @@ on their behalf—who return to the same body of sources over time. It turns a
 local corpus into versioned, addressable evidence packets that can be inspected,
 replayed, challenged, and reused without asking a model to reread everything.
 
-> **Current status:** `1.0.0rc2`, the v1 release candidate. The stable path is a
+> **Current status:** `1.0.0rc3`, the v1 release candidate. The stable path is a
 > local,
 > replayable source-to-evidence memory with CLI, stdio MCP, and a read-only
 > Lens. Optional synthesis and navigation views remain review-only: they cannot
@@ -216,7 +216,7 @@ the system rather than individual projects.
 | Two labeled retrieval suites | exact fragment @10: 58–82%; correct source @10: 87–96% | The right document is often found before the exact passage; passage drill-down remains necessary. |
 | Deterministic replay | 16/16 sampled cold replays and 30/30 fresh-corpus replays | Stored packets and source addresses can be reproduced exactly. |
 | Default model cost | 0 model calls; 0 model tokens | Ingest, FTS recall, gates, packets, and replay are local and deterministic. |
-| Engineering gate | 1,927 collected; 1,925 passed; 2 host-dependent skips; 95.18% combined coverage | The current implementation is broadly exercised; this does not validate research conclusions. |
+| Engineering gate | Full suite plus a strict `>=95.00%` combined-coverage threshold | The current implementation is broadly exercised; exact commit-bound values belong in the release acceptance record and do not validate research conclusions. |
 
 The retrieval ranges combine different frozen internal test sets and are not a
 cross-domain leaderboard; the scale maxima also come from different runs. An
@@ -267,7 +267,8 @@ responsibility of each directory and package group.
 - [CLI and contract reference](docs/REFERENCE.md)
 - [Evidence coverage explained](docs/EVIDENCE_COVERAGE_GATE.md)
 - [Evidence-grounded reasoning and IdeaTrace](docs/REASONING.md)
-- [1.0.0rc2 release notes](docs/RELEASE_NOTES_1.0.0rc2.md)
+- [1.0.0rc3 release notes](docs/RELEASE_NOTES_1.0.0rc3.md)
+- [Canonical terminology](docs/TERMINOLOGY.md)
 - [Historical design and release records](docs/history/README.md)
 - [Roadmap to stable 1.0.0](docs/V1_ROADMAP.md)
 - [Development and verification](docs/DEVELOPMENT.md)
@@ -291,15 +292,24 @@ uv run check
 uv run python -m verification.generate_synthetic_1000 --check
 uv run python -m verification.run_public_replay --warmups 1 --measured 2 \
   --output /tmp/dithyramba-public-replay.json
-uv build
+```
+
+The current candidate must pass strict typing, terminology checks, the full
+test suite, dependency audit, and the `>=95.00%` combined-coverage gate.
+Exact counts and percentages are commit- and environment-bound release
+evidence rather than evergreen documentation.
+
+Run clean-install acceptance from a fresh checkout before building or syncing
+inside that checkout:
+
+```bash
 ./scripts/acceptance.sh --quick
 ```
 
-The current candidate collects 1,927 tests: 1,925 pass and two host-dependent
-checks skip in the canonical local environment. It also passes strict typing,
-terminology checks, and the 95.18% combined-coverage gate. Clean-install
-acceptance verifies the schema, Lens assets, deterministic replay, and both
-source and wheel builds in an isolated environment.
+The acceptance route generates its distributions and state under an isolated
+temporary root. It verifies the schema, executable CLI/MCP contract receipt,
+documentation links, Lens assets, deterministic replay, and both source and
+wheel builds without making the release tree dirty.
 
 Passing these checks shows that the implementation behaves as specified by its
 tests. It does not establish historical or scientific truth, nor superiority

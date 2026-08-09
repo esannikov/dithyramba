@@ -2,7 +2,7 @@
 
 > Historical cleanup record captured before the v1 core reduction. Its branch,
 > file counts, dependency counts, and test totals describe that earlier
-> checkpoint, not the current `1.0.0rc2` package. Use
+> checkpoint, not the current `1.0.0rc3` package. Use
 > [`../REFERENCE.md`](../REFERENCE.md), [`../EVALUATION.md`](../EVALUATION.md),
 > and [`../V1_ROADMAP.md`](../V1_ROADMAP.md) for current facts.
 

@@ -40,7 +40,7 @@ database, API key, or network service.
 | Unchanged repeat ingest | 100% reused in 265-, 400-, and 816-source runs |
 | Deterministic replay | 16/16 sampled and 30/30 fresh-corpus cases |
 | Default model budget | 0 calls; 0 tokens |
-| Engineering gate | 1,927 collected; 1,925 passed; 2 host-dependent skips; 95.18% combined coverage |
+| Engineering gate | Full suite plus strict `>=95.00%` combined coverage; exact values recorded per commit |
 
 These are engineering and retrieval measurements. They do not establish source
 truth, scholarly validity, or the quality of a generated conclusion. Scale

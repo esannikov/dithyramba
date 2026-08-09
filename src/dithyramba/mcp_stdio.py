@@ -17,13 +17,26 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from dithyramba._version import __version__
 from dithyramba.access import QueryExclusions
-from dithyramba.evidence import EvidenceGateSpec
-from dithyramba.interactive import AgentAnswerPreparation, AgentResearchFacade
+from dithyramba.contracts import canonical_sha256_hex
+from dithyramba.evidence import (
+    EvidenceCoverageResult,
+    EvidenceGateSpec,
+    EvidenceRequirement,
+)
+from dithyramba.interactive import (
+    AgentAnswerPreparation,
+    AgentEvidencePacket,
+    AgentResearchFacade,
+    AgentResearchTurn,
+    AgentSessionContext,
+    AgentSourceDrilldown,
+)
 from dithyramba.persistence import LibraryRepository
 from dithyramba.recall import RetrievalBudget
 from dithyramba.sessions import ResearchSessionBrief
 
 MCP_PROTOCOL_VERSION = "2025-11-25"
+MCP_CONTRACT_SCHEMA = "dithyramba.mcp_contract_manifest/1.0"
 _SUPPORTED_PROTOCOL_VERSIONS = frozenset({MCP_PROTOCOL_VERSION, "2025-06-18", "2025-03-26"})
 
 
@@ -76,21 +89,37 @@ class _ToolSpec:
     title: str
     description: str
     input_model: type[_ToolInput]
+    output_model: type[BaseModel]
+    output_schema_ids: tuple[str, ...]
 
     def payload(self) -> dict[str, object]:
-        schema = self.input_model.model_json_schema()
-        schema["additionalProperties"] = False
+        input_schema = self.input_model.model_json_schema()
+        input_schema["additionalProperties"] = False
+        output_schema = self.output_model.model_json_schema()
+        output_schema["additionalProperties"] = False
         return {
             "name": self.name,
             "title": self.title,
             "description": self.description,
-            "inputSchema": schema,
+            "inputSchema": input_schema,
+            "outputSchema": output_schema,
             "annotations": {
                 "readOnlyHint": self.name in {"prepare_answer", "session_context"},
                 "destructiveHint": False,
                 "idempotentHint": self.name in {"prepare_answer", "recall", "session_context"},
                 "openWorldHint": False,
             },
+        }
+
+    def contract_payload(self) -> dict[str, object]:
+        """Return the executable input/output contract used by release receipts."""
+
+        payload = self.payload()
+        return {
+            "name": self.name,
+            "input_schema": payload["inputSchema"],
+            "output_schema": payload["outputSchema"],
+            "output_schema_ids": list(self.output_schema_ids),
         }
 
 
@@ -100,45 +129,84 @@ _TOOLS = (
         "Open research session",
         "Bind one research brief to an exact local snapshot and access scope.",
         _OpenSessionInput,
+        AgentSessionContext,
+        (AgentSessionContext.SCHEMA,),
     ),
     _ToolSpec(
         "recall",
         "Recall exact evidence",
         "Retrieve exact source fragments and return a compact evidence turn.",
         _RecallInput,
+        AgentResearchTurn,
+        (
+            AgentResearchTurn.SCHEMA,
+            AgentResearchTurn.LEGACY_SCHEMA,
+            AgentEvidencePacket.SCHEMA,
+            AgentEvidencePacket.SOURCE_REFERENCE_SCHEMA,
+            AgentEvidencePacket.LEGACY_SCHEMA,
+            AgentSessionContext.SCHEMA,
+        ),
     ),
     _ToolSpec(
         "session_context",
         "Read compact session context",
         "Read the bounded questions, evidence references, drafts and named gaps.",
         _SessionInput,
+        AgentSessionContext,
+        (AgentSessionContext.SCHEMA,),
     ),
     _ToolSpec(
         "prepare_answer",
         "Prepare evidence-backed answer",
         "Filter candidates, drill down inside found works, and run EvidenceCoverageGate.",
         _PrepareAnswerInput,
+        AgentAnswerPreparation,
+        (
+            AgentAnswerPreparation.SCHEMA,
+            AgentAnswerPreparation.LEGACY_SCHEMA,
+            AgentSourceDrilldown.SCHEMA,
+            EvidenceGateSpec.SCHEMA,
+            EvidenceRequirement.SCHEMA,
+            EvidenceCoverageResult.SCHEMA,
+        ),
     ),
     _ToolSpec(
         "record_draft",
         "Record answer draft",
         "Append a model-authored draft only with an exactly replayed ready preparation.",
         _RecordDraftInput,
+        AgentSessionContext,
+        (AgentSessionContext.SCHEMA,),
     ),
     _ToolSpec(
         "record_gap",
         "Record evidence gap",
         "Append a named unresolved gap to guide the next retrieval turn.",
         _JournalInput,
+        AgentSessionContext,
+        (AgentSessionContext.SCHEMA,),
     ),
     _ToolSpec(
         "reject_path",
         "Reject research path",
         "Append a path that should not be repeated in this session.",
         _JournalInput,
+        AgentSessionContext,
+        (AgentSessionContext.SCHEMA,),
     ),
 )
 _TOOL_BY_NAME = {tool.name: tool for tool in _TOOLS}
+
+
+def mcp_contract_manifest() -> dict[str, object]:
+    """Return a deterministic receipt-ready manifest of the public MCP surface."""
+
+    semantic: dict[str, object] = {
+        "schema": MCP_CONTRACT_SCHEMA,
+        "protocol_version": MCP_PROTOCOL_VERSION,
+        "tools": [tool.contract_payload() for tool in _TOOLS],
+    }
+    return {**semantic, "contract_hash": canonical_sha256_hex(semantic)}
 
 
 class McpStdioServer:

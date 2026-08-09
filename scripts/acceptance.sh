@@ -194,6 +194,26 @@ assert payload["schema_version"] == int(os.environ["EXPECTED_SCHEMA"])
 assert payload["schema_fingerprint"] == os.environ["EXPECTED_SCHEMA_FINGERPRINT"]
 PY
 
+env -u PYTHONPATH "$RUNTIME_PYTHON" "$ROOT/scripts/contract_receipt.py" \
+  --source-root "$ROOT" \
+  --commit-sha "$COMMIT_SHA" \
+  --output "$ACCEPT_ROOT/contract-receipt.json"
+env -u PYTHONPATH \
+  EXPECTED_COMMIT="$COMMIT_SHA" \
+  "$RUNTIME_PYTHON" - "$ACCEPT_ROOT/contract-receipt.json" <<'PY'
+import json
+import os
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as stream:
+    payload = json.load(stream)
+assert payload["schema"] == "dithyramba.release_contract_receipt/1.0"
+assert payload["commit_sha"] == os.environ["EXPECTED_COMMIT"]
+assert len(payload["mcp"]["tools"]) == 7
+assert payload["documentation"]["broken_local_links"] == []
+assert len(payload["receipt_hash"]) == 64
+PY
+
 DEMO_DATA="$ACCEPT_ROOT/demo-data"
 env -u PYTHONPATH "$RUNTIME_PYTHON" "$ROOT/scripts/demo.py" --data-home "$DEMO_DATA" \
   | tee "$ACCEPT_ROOT/demo.log"

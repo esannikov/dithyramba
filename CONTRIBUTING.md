@@ -1,6 +1,6 @@
 # Contributing
 
-Dithyramba `1.0.0rc2` is a release candidate. Small, evidence-backed changes are
+Dithyramba `1.0.0rc3` is a release candidate. Small, evidence-backed changes are
 easier to review than broad framework additions.
 
 ## Before changing code
@@ -26,7 +26,6 @@ uv run ruff format --check .
 uv run ruff check .
 uv run mypy --strict src tests verification
 uv run pytest
-python scripts/release_audit.py
 ```
 
 The canonical aggregate is:
@@ -34,6 +33,18 @@ The canonical aggregate is:
 ```bash
 uv run check
 ```
+
+These development commands intentionally create `.venv`, cache, coverage, and
+artifact state. The release audit rejects that state by design. Run the release
+gate from a fresh checkout or detached worktree before any local sync or build:
+
+```bash
+./scripts/acceptance.sh --quick
+```
+
+The acceptance script runs `release_audit.py` first, then creates all package,
+runtime, browser, coverage, and contract-receipt artifacts under an isolated
+temporary root.
 
 Tests must use synthetic or clearly licensed fixtures. Do not commit personal
 corpora, source excerpts without redistribution rights, absolute user paths,

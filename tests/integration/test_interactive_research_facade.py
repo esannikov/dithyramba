@@ -28,6 +28,7 @@ from dithyramba.evidence import (
 )
 from dithyramba.ingest.service import IngestService
 from dithyramba.interactive import (
+    AgentAnswerPreparation,
     AgentEvidencePacket,
     AgentResearchError,
     AgentResearchFacade,
@@ -501,6 +502,24 @@ The decisive tactic is triangulated eyeline control.
                 "Preparation from another session.",
                 preparation=ready,
             )
+        legacy_ready = AgentAnswerPreparation.create(
+            session_id=ready.session_id,
+            evidence_event_id=ready.evidence_event_id,
+            evidence_packet_id=ready.evidence_packet_id,
+            evidence_packet_hash=ready.evidence_packet_hash,
+            gate_spec=ready.gate_spec,
+            gate_result=ready.gate_result,
+            candidates=ready.candidates,
+            quality_assessments=ready.quality_assessments,
+            drilldown=ready.drilldown,
+            schema_id=AgentAnswerPreparation.LEGACY_SCHEMA,
+        )
+        legacy_context = facade.record_draft(
+            opened.session_id,
+            "Legacy preparation replay remains source-bound.",
+            preparation=legacy_ready,
+        )
+        assert legacy_context.drafts[-1].text.startswith("Legacy preparation")
         context = facade.record_draft(
             opened.session_id,
             "The work names triangulated eyeline control as the decisive tactic.",

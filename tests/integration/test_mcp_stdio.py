@@ -29,6 +29,7 @@ from dithyramba.mcp_stdio import (
     _require_model,
     _rpc_error,
     _SessionInput,
+    mcp_contract_manifest,
     run_stdio_mcp,
 )
 from dithyramba.persistence import LibraryRepository, initialize_library
@@ -151,6 +152,7 @@ def test_mcp_protocol_lifecycle_and_errors(tmp_path: Path) -> None:
             "reject_path",
         ]
         assert all(item["inputSchema"]["additionalProperties"] is False for item in listed)
+        assert all(item["outputSchema"]["additionalProperties"] is False for item in listed)
         unsupported = _rpc(server, "tools/call", {"name": "absent", "arguments": {}})
         assert unsupported is not None and unsupported["result"]["isError"] is True
         bad_tool_input = _rpc(
@@ -179,6 +181,27 @@ def test_mcp_protocol_lifecycle_and_errors(tmp_path: Path) -> None:
             "message": "bad",
             "data": {"field": "value"},
         }
+
+
+def test_mcp_contract_manifest_is_deterministic_and_covers_public_outputs() -> None:
+    first = mcp_contract_manifest()
+    second = mcp_contract_manifest()
+
+    assert first == second
+    assert len(str(first["contract_hash"])) == 64
+    tools = {item["name"]: item for item in cast(list[dict[str, Any]], first["tools"])}
+    assert set(tools) == {
+        "open_session",
+        "recall",
+        "session_context",
+        "prepare_answer",
+        "record_draft",
+        "record_gap",
+        "reject_path",
+    }
+    assert "dithyramba.agent_answer_preparation/1.1" in tools["prepare_answer"]["output_schema_ids"]
+    assert "dithyramba.agent_source_drilldown/1.0" in tools["prepare_answer"]["output_schema_ids"]
+    assert "dithyramba.agent_research_turn/1.2" in tools["recall"]["output_schema_ids"]
 
 
 def test_mcp_protocol_boundary_suppresses_notification_errors(

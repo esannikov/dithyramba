@@ -7,6 +7,8 @@ from dithyramba.recall import (
     CandidateNoiseReason,
     CandidateQualityAssessment,
     assess_candidate_quality,
+    literal_query_tokens,
+    meaningful_query_tokens,
 )
 
 
@@ -86,6 +88,11 @@ def test_diacritic_variant_found_by_fts_is_not_rejected_as_topic_drift() -> None
 
     assert result.admitted is True
     assert CandidateNoiseReason.TOPIC_DRIFT not in result.reasons
+
+
+def test_literal_query_tokens_keep_short_declared_anchors_out_of_drift_policy() -> None:
+    assert meaningful_query_tokens("Чи є ШІ та AI?") == ()
+    assert literal_query_tokens("ШІ AI ШІ") == ("ші", "ai")
 
 
 def test_duplicate_noise_reasons_are_rejected() -> None:

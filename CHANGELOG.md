@@ -7,6 +7,35 @@ history belong in dated evaluation reports, not in the product changelog.
 
 No unreleased changes are recorded yet.
 
+## 1.0.0rc3 — 2026-08-09
+
+### Changed
+
+- Source-local drilldown now preserves explicit short literal anchors such as
+  `AI` and `ШІ`; topic-drift filtering keeps its conservative three-character
+  rule as a separate policy.
+- `exact_fragment_unicode_v3` is the default evidence profile. It preserves
+  Latin and Cyrillic letter/diacritic distinctions and treats combining marks
+  as word characters. Explicit v1 and v2 specs retain their previous replay
+  meaning.
+- `AgentAnswerPreparation/1.1` declares its preparation profile. Readable
+  `/1.0` preparations replay through their original short-token behavior.
+- MCP tool declarations now include executable output schemas. A deterministic
+  commit-bound receipt records the CLI command tree, MCP input/output schemas,
+  SQLite fingerprint, and local documentation-link check.
+- Development and release instructions now keep ordinary generated state out
+  of the clean-checkout acceptance route; release metrics use the enforced
+  threshold instead of a drifting exact percentage.
+- API tests use Starlette's supported `httpx2` test client dependency, removing
+  the upstream compatibility warning without changing the runtime API.
+
+### Compatibility
+
+- No database migration is required. Existing Libraries and versioned v1/v2
+  evidence specs remain readable.
+- The strict v3 evidence profile applies to newly created specs by default.
+  Callers replaying a prior spec continue to use its explicit matching profile.
+
 ## 1.0.0rc2 — 2026-08-08
 
 ### Changed

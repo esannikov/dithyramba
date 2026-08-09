@@ -45,16 +45,17 @@ them the primary label shown to a researcher.
 explicit structural requirements supplied to it. It does not prove that a
 source is true, independent, complete, unbiased, or accepted by a human.
 
-The default `exact_fragment_unicode_v2` profile requires each requirement to
+The default `exact_fragment_unicode_v3` profile requires each requirement to
 have at least one positive selector. Forbidden text alone is not evidence.
-Literal anchors are case-insensitive, remove Latin diacritics, preserve
-meaning-bearing marks in non-Latin scripts, and remain word-bounded: the gate
+Literal anchors are case-insensitive, preserve Latin and Cyrillic letter and
+diacritic distinctions, and treat combining marks as word characters: the gate
 does not silently add synonyms or semantic equivalence. Explicit
-`exact_fragment_unicode_v1` replays retain the previous substring and
-negative-only semantics for historical compatibility.
+`exact_fragment_unicode_v1` and `/v2` replays retain their previous semantics;
+v2 remains Latin-diacritic-insensitive and word-bounded.
 
-The v2 gate also rejects contradictory Source/SourceFamily/independence mappings
-inside one candidate set. This prevents accidental double-counting, but it does
+The v2 and v3 gates also reject contradictory
+Source/SourceFamily/independence mappings inside one candidate set. This
+prevents accidental double-counting, but it does
 not authenticate labels invented by an external caller. The normal
 `prepare_answer` route derives lineage from the verified Library repository;
 direct users of the pure evaluator must establish equivalent trust themselves.

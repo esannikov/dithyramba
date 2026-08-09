@@ -1,6 +1,6 @@
 # Security policy
 
-Dithyramba `1.0.0rc2` is a local release candidate. Please do not use it as the
+Dithyramba `1.0.0rc3` is a local release candidate. Please do not use it as the
 sole control for classified, regulated, clinical, legal, or otherwise high-risk
 material.
 
