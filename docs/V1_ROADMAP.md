@@ -47,16 +47,23 @@ truth, scholarly validity, or the quality of a generated conclusion. Scale
 maxima may come from different runs. Detailed
 protocols and limitations are kept in [EVALUATION.md](EVALUATION.md).
 
-## Remaining before stable 1.0.0
+## Stable 1.0.0 boundary
 
-1. Keep Linux, macOS, browser, dependency, and distribution CI green on the
-   release commit.
-2. Repeat the published install and demo on a machine that has no project-local
-   state.
-3. Freeze the public CLI, MCP tool list, packet contracts, schema fingerprint,
-   and documentation links.
-4. Record commit-bound acceptance results, tag the release, and publish release
-   notes.
+Stable v1 is defined by four release conditions:
+
+1. Linux, macOS, browser, dependency, distribution, and combined-coverage gates
+   are green on the release change.
+2. The published candidate installs and runs on a separate M1 host without
+   project-local state; its active Libraries pass read-only `describe` and
+   `doctor` checks without database mutation.
+3. The public CLI, seven-tool MCP surface, packet contracts, SQLite fingerprint,
+   and documentation links are frozen in one commit-bound receipt.
+4. The stable commit passes ten independent Latin/Cyrillic simulation scenarios
+   and full clean-install acceptance before the public tag and release are
+   created.
+
+The `1.0.0` release changes package status and release-facing text relative to
+`1.0.0rc3`; it adds no migration, retrieval subsystem, model, or service.
 
 ## Post-v1 candidates
 

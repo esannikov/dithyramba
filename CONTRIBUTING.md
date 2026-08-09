@@ -1,6 +1,6 @@
 # Contributing
 
-Dithyramba `1.0.0rc3` is a release candidate. Small, evidence-backed changes are
+Dithyramba `1.0.0` is the stable v1 line. Small, evidence-backed changes are
 easier to review than broad framework additions.
 
 ## Before changing code

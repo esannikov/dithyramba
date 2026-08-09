@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Dithyramba 1.0 is in release-candidate testing. Do not paste private corpus text, filesystem paths,
+        Dithyramba 1.0 is a local-first stable release. Do not paste private corpus text, filesystem paths,
         credentials, policy details, or runtime databases. Report suspected security
         vulnerabilities through the private route described in SECURITY.md.
   - type: input

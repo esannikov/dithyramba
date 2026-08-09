@@ -1,7 +1,7 @@
 # Evaluation evidence and limits
 
 This page records what Dithyramba has actually been exercised on for the
-historical package candidates and the current v1 candidate. It separates
+historical package candidates and the current stable v1 release. It separates
 three different claims:
 
 1. **Public reproducibility:** checks anyone can run from this repository.
@@ -494,7 +494,7 @@ replace Dithyramba's default PDF route.
 
 ## Engineering verification
 
-The current v1 candidate runs the complete engineering suite. In its canonical
+The current stable v1 release runs the complete engineering suite. In its canonical
 gate:
 
 - all required tests must pass, with any host-dependent skips reported rather

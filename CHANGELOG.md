@@ -7,6 +7,27 @@ history belong in dated evaluation reports, not in the product changelog.
 
 No unreleased changes are recorded yet.
 
+## 1.0.0 — 2026-08-10
+
+### Changed
+
+- Promoted the audited local source-to-evidence route to the first stable v1
+  release: immutable source identity, default-deny scope, SQLite FTS5 recall,
+  exact evidence packets, stdio MCP, read-only Lens, and append-only review.
+- Froze the documented v1 CLI, seven-tool MCP surface, packet contracts, SQLite
+  fingerprint, and local documentation links behind the commit-bound release
+  receipt.
+- Defined the release-evaluation language scope as Latin- and Cyrillic-script
+  corpora. Other scripts remain outside the current product-evaluation claim.
+
+### Compatibility
+
+- No retrieval, storage, database-schema, or corpus behavior differs from
+  `1.0.0rc3`. Existing v1 Libraries and explicit v1/v2/v3 evidence profiles
+  remain readable and replayable; the `about` command now reports stable status.
+- Engineering acceptance and retrieval evidence do not establish source truth,
+  scholarly validity, or human acceptance.
+
 ## 1.0.0rc3 — 2026-08-09
 
 ### Changed

@@ -1,4 +1,4 @@
-"""Deterministic pre-release audit for metadata, secrets, and local state."""
+"""Deterministic release audit for metadata, secrets, and local state."""
 
 from __future__ import annotations
 

@@ -1,8 +1,8 @@
 # How to use Dithyramba
 
 This guide builds one local, replayable evidence memory from source files with
-the persisted FTS-only CLI route. Package metadata is `1.0.0rc3`; the
-current v1 release candidate also adds durable research sessions, local stdio
+the persisted FTS-only CLI route. Package metadata is `1.0.0`; the stable v1
+release also includes durable research sessions, local stdio
 MCP, and Lens. Replace the example identifiers with the values
 printed by each command.
 

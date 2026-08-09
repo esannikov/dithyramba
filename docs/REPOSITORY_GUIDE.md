@@ -28,11 +28,11 @@ rebuild, and verify the same wheel from source.
 |---|---|---:|
 | `src/dithyramba/` | Runtime library, CLI, local HTTP service, and packaged SQL/templates | yes |
 | `tests/` | Causal unit, integration, API, browser, smoke, and acceptance tests | no |
-| `fixtures/` | Small repository-authored CC0 inputs with frozen invariants | no |
-| `verification/` | Deterministic 1,000-fragment public replay of the evidence path | no |
-| `examples/` | Three CC0 notes used by the five-minute demo | no |
-| `migrations/` | Human policy and pointer to the packaged v1 SQL baseline | no |
-| `schemas/` | Policy for versioned schemas and a pointer to executable contracts | no |
+| [`fixtures/`](../fixtures/README.md) | Small repository-authored CC0 inputs with frozen invariants | no |
+| [`verification/`](../verification/README.md) | Deterministic 1,000-fragment public replay of the evidence path | no |
+| [`examples/`](../examples/README.md) | Three CC0 notes used by the five-minute demo | no |
+| [`migrations/`](../migrations/README.md) | Human policy and pointer to the packaged v1 SQL baseline | no |
+| [`schemas/`](../schemas/README.md) | Policy for versioned schemas and a pointer to executable contracts | no |
 | `scripts/` | Demo, release audit, distribution inspection, and clean-install gate | no |
 | `skills/dithyramba/` | Optional thin Codex orchestration skill plus focused lifecycle, MCP, and evidence references | no |
 | `docs/` | User workflow, product/design rationale, contracts, architecture, evaluation, and development | no |
@@ -113,7 +113,7 @@ contracts and design decisions inspectable:
 | [Research View](RESEARCH_PROJECTION.md) | How can wider candidate material remain visible without becoming accepted evidence? |
 | [Interactive research memory design](history/INTERACTIVE_RESEARCH_MEMORY_0.2.md) | Historical record: how was continuing agent research separated from evidence and acceptance? |
 | [Interactive-memory implementation history](history/ROADMAP_0.2.md) | Historical record: in what order were sessions, persistence, tools, review, and evaluation built? |
-| [Current v1 release notes](RELEASE_NOTES_1.0.0rc3.md) | What is included in the present package candidate? |
+| [Current v1 release notes](RELEASE_NOTES_1.0.0.md) | What is included in the stable package? |
 | [Terminology](TERMINOLOGY.md) | Which names separate retrieval, evidence, drafting, and human review? |
 | [Historical records](history/README.md) | Which documents describe superseded package and architecture milestones? |
 

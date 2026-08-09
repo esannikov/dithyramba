@@ -39,7 +39,7 @@
   <rect x="34" y="30" width="1732" height="1260" rx="6" fill="#fffefd" stroke="#c9c9c3" stroke-width="1.5"/>
 
   <g class="ui">
-    <text x="72" y="72" class="figure">FIG. 1 · SYSTEM ARCHITECTURE · V1 RELEASE CANDIDATE</text>
+    <text x="72" y="72" class="figure">FIG. 1 · SYSTEM ARCHITECTURE · V1 STABLE RELEASE</text>
     <text x="72" y="122" class="title serif">Dithyramba research memory</text>
     <text x="72" y="154" class="subtitle">Durable evidence below every answer; compact session continuity around the same source-bound core.</text>
     <line x1="72" y1="178" x2="1728" y2="178" class="guide"/>

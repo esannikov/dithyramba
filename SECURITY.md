@@ -1,6 +1,6 @@
 # Security policy
 
-Dithyramba `1.0.0rc3` is a local release candidate. Please do not use it as the
+Dithyramba `1.0.0` is a local-first stable release. Please do not use it as the
 sole control for classified, regulated, clinical, legal, or otherwise high-risk
 material.
 
@@ -18,13 +18,14 @@ and include:
 - whether source text, local paths, authorization state, or network exposure is
   involved.
 
-No response-time SLA is promised during the release-candidate period. Confirmed issues that cross a
+No response-time SLA is promised. Confirmed issues that cross a
 Library boundary, bypass policy compilation, expose a non-loopback service, or
 leak protected source content receive highest priority.
 
 ## Supported versions
 
-Only the newest tagged pre-release is considered for security fixes. Older
+The newest stable v1 release is considered for security fixes. A newer
+pre-release is covered only when its release notes explicitly say so. Older
 commits and untagged development snapshots are unsupported.
 
 ## Deployment boundary

@@ -4,7 +4,7 @@ Dithyramba's versioned contracts are defined by the canonical typed models under
 `src/dithyramba/`. Their validated payloads, canonical bytes, schema identifiers,
 and content hashes are authoritative.
 
-The `1.0.0rc3` release candidate does not ship a second set of hand-maintained JSON
+Stable `1.0.0` does not ship a second set of hand-maintained JSON
 Schema files. That would let documentation drift away from executable validation.
 The current contract inventory and schema identifiers are listed in
 [`docs/REFERENCE.md`](../docs/REFERENCE.md).

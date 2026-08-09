@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dithyramba"
-version = "1.0.0rc3"
+version = "1.0.0"
 description = "A local, source-grounded interpretive memory engine."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -13,7 +13,7 @@ license-files = ["LICENSE"]
 authors = [{ name = "Eugene Sannikov" }]
 keywords = ["memory", "provenance", "research", "retrieval", "sqlite"]
 classifiers = [
-  "Development Status :: 4 - Beta",
+  "Development Status :: 5 - Production/Stable",
   "Environment :: Console",
   "Operating System :: MacOS",
   "Operating System :: POSIX :: Linux",

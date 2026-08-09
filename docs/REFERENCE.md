@@ -1,6 +1,6 @@
 # Dithyramba reference
 
-This reference describes `1.0.0rc3`, the current v1 release candidate. The
+This reference describes stable `1.0.0`. The
 command itself is authoritative for exact
 options and defaults:
 
@@ -21,7 +21,7 @@ uv run dithyramba <command> --help
 | Embedding or reranking runtime | not included in v1 |
 | Optional ontology extra | `numpy>=2,<3`; `scikit-learn>=1.8,<2` |
 | Current database schema | one v1 baseline (`0001_v1.sql`) |
-| Package version | `1.0.0rc3` |
+| Package version | `1.0.0` |
 
 ## Language scope
 
@@ -174,9 +174,9 @@ checks.
 | `GET`/`POST` | `/v1/review-decisions...` | inspect or append scoped review decisions |
 
 Library creation and migration remain CLI-only. The HTTP models are executable
-v1 release-candidate contracts. Their declared schema identifiers keep their
-documented meaning, while transport details may still change before stable
-`1.0.0`.
+v1 contracts. Their declared schema identifiers keep their documented meaning;
+transport changes require an explicit compatible release or a new versioned
+surface.
 
 ## Core input formats
 
@@ -200,9 +200,8 @@ means that only some declared evidence roles are covered.
 
 ## Versioned core contracts
 
-These schemas are versioned within the v1 release candidate. A schema identifier
-keeps its documented byte meaning; a meaning change requires a new identifier.
-The complete public compatibility promise will be frozen at stable `1.0.0`.
+These schemas are versioned within stable v1. A schema identifier keeps its
+documented byte meaning; a meaning change requires a new identifier.
 
 | Contract | Schema | Purpose |
 |---|---|---|
@@ -280,8 +279,9 @@ new version. Applied migrations remain immutable.
 | `CompactMemoryPacket` | `dithyramba.compact_memory_packet/1.1` | library artifact |
 | `CompactConnectorPacket` | `dithyramba.compact_connector_packet/1.0` | library artifact |
 
-These contracts are executable and tested. Library-only call shapes may still
-change before stable `1.0.0`; persisted schema meaning may not.
+These contracts are executable and tested. Compatibility is governed by their
+declared schema identifiers and release notes; persisted schema meaning may not
+change in place.
 
 `AnswerProjection` never changes `ResearchAnswer/1.0`. It binds exact character
 spans of the displayed answer to accepted claims and labels them as fact,
@@ -323,7 +323,7 @@ GET-only and does not promote candidates or mutate a Library.
 | `ExternalReferenceMap` | `dithyramba.external_reference_map/1.0` | tested library artifact; not run-bound |
 | `ProofMetadataManifest` | `dithyramba.proof_metadata_manifest/1.0` | tested library artifact; not persisted |
 
-These contracts are present and tested in the v1 release candidate. They fail closed
+These contracts are present and tested in stable v1. They fail closed
 when an external fragment projection no longer matches Dithyramba's exact
 source identity or proof metadata.
 

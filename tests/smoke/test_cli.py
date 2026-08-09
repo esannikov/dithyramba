@@ -27,5 +27,5 @@ def test_about_is_calibrated() -> None:
 
     assert result.exit_code == 0
     assert f"Dithyramba {__version__}" in result.stdout
-    assert "v1 release candidate" in result.stdout
+    assert "stable v1 release" in result.stdout
     assert "does not establish research truth" in result.stdout
